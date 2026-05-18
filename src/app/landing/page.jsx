@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
+import Navbar from "@/components/Navbar";
 
 function Logo({ size = "md" }) {
   const s = size === "sm" ? 28 : 36;
@@ -31,64 +32,6 @@ function Logo({ size = "md" }) {
   );
 }
 
-function Navbar() {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const navLinks = [
-    { label: "Beranda", href: "#beranda" },
-    { label: "Fitur", href: "#fitur" },
-    { label: "Cara kerja", href: "#cara-kerja" },
-    { label: "Doctor", href: "#doctor" },
-    { label: "About", href: "#about" },
-  ];
-  return (
-    <nav className="sticky top-0 z-50 bg-white border-b border-gray-100 shadow-sm">
-      <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
-        <Logo />
-        <div className="hidden md:flex items-center gap-6">
-          {navLinks.map((l) => (
-            <a key={l.label} href={l.href}
-              className={`text-sm font-medium transition-colors whitespace-nowrap ${
-                l.label === "Beranda"
-                  ? "text-indigo-600 border-b-2 border-indigo-600 pb-0.5"
-                  : "text-gray-600 hover:text-indigo-600"
-              }`}
-            >{l.label}</a>
-          ))}
-        </div>
-        <div className="hidden md:flex items-center gap-3 shrink-0">
-          <Link href="/login"
-            className="px-5 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:border-indigo-400 hover:text-indigo-600 transition-colors whitespace-nowrap"
-          >Sign In</Link>
-          <Link href="/register"
-            className="px-5 py-2 text-sm font-medium text-white rounded-lg whitespace-nowrap hover:opacity-90 transition-opacity"
-            style={{ background: "linear-gradient(135deg,#6366F1,#3B82F6)" }}
-          >Sign Up</Link>
-        </div>
-        <button className="md:hidden p-1" onClick={() => setMenuOpen(!menuOpen)}>
-          <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2">
-            {menuOpen
-              ? <path d="M6 6l12 12M6 18L18 6" strokeLinecap="round" />
-              : <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" />}
-          </svg>
-        </button>
-      </div>
-      {menuOpen && (
-        <div className="md:hidden px-6 pb-4 flex flex-col gap-3 bg-white border-t border-gray-100">
-          {navLinks.map((l) => (
-            <a key={l.label} href={l.href} onClick={() => setMenuOpen(false)}
-              className="text-sm text-gray-700 hover:text-indigo-600">{l.label}</a>
-          ))}
-          <Link href="/login" className="text-sm text-indigo-600 font-medium">Sign In</Link>
-          <Link href="/register"
-            className="text-sm text-white font-medium px-4 py-2 rounded-lg text-center"
-            style={{ background: "linear-gradient(135deg,#6366F1,#3B82F6)" }}
-          >Sign Up</Link>
-        </div>
-      )}
-    </nav>
-  );
-}
-
 function DashboardMockup() {
   return (
     <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden w-full max-w-lg">
@@ -112,9 +55,8 @@ function DashboardMockup() {
             { icon: "📋", label: "History" },
           ].map((item) => (
             <div key={item.label}
-              className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg ${
-                item.active ? "bg-indigo-50 text-indigo-600" : "text-gray-500"
-              }`}
+              className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg ${item.active ? "bg-indigo-50 text-indigo-600" : "text-gray-500"
+                }`}
             >
               <span className="text-xs">{item.icon}</span>
               <span className="text-xs font-medium">{item.label}</span>
@@ -193,22 +135,22 @@ function Hero() {
 
 const fiturList = [
   {
-    icon: <svg width="28" height="28" fill="none" stroke="#6366F1" strokeWidth="1.8"><rect x="3" y="4" width="22" height="20" rx="3"/><path d="M3 10h22M9 2v4M19 2v4" strokeLinecap="round"/><path d="M8 16h4M8 20h8" strokeLinecap="round"/></svg>,
+    icon: <svg width="28" height="28" fill="none" stroke="#6366F1" strokeWidth="1.8"><rect x="3" y="4" width="22" height="20" rx="3" /><path d="M3 10h22M9 2v4M19 2v4" strokeLinecap="round" /><path d="M8 16h4M8 20h8" strokeLinecap="round" /></svg>,
     title: "Jadwal Dokter Real-Time",
     desc: "Lihat Jadwal dokter yang tersedia secara langsung dan akurat.",
   },
   {
-    icon: <svg width="28" height="28" fill="none" stroke="#6366F1" strokeWidth="1.8"><rect x="3" y="4" width="22" height="20" rx="3"/><path d="M9 14l3 3 7-7" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+    icon: <svg width="28" height="28" fill="none" stroke="#6366F1" strokeWidth="1.8"><rect x="3" y="4" width="22" height="20" rx="3" /><path d="M9 14l3 3 7-7" strokeLinecap="round" strokeLinejoin="round" /></svg>,
     title: "Booking Online",
     desc: "Lakukan reservasi konsultasi tanpa harus datang ke klinik.",
   },
   {
-    icon: <svg width="28" height="28" fill="none" stroke="#6366F1" strokeWidth="1.8"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9" strokeLinecap="round"/><path d="M13.73 21a2 2 0 01-3.46 0" strokeLinecap="round"/></svg>,
+    icon: <svg width="28" height="28" fill="none" stroke="#6366F1" strokeWidth="1.8"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9" strokeLinecap="round" /><path d="M13.73 21a2 2 0 01-3.46 0" strokeLinecap="round" /></svg>,
     title: "Reminder Otomatis",
     desc: "Dapatkan pengingat jadwal konsultasi agar tidak terlewat.",
   },
   {
-    icon: <svg width="28" height="28" fill="none" stroke="#6366F1" strokeWidth="1.8"><rect x="3" y="3" width="22" height="22" rx="3"/><path d="M8 17V13M12 17V9M16 17v-4M20 17v-7" strokeLinecap="round"/></svg>,
+    icon: <svg width="28" height="28" fill="none" stroke="#6366F1" strokeWidth="1.8"><rect x="3" y="3" width="22" height="22" rx="3" /><path d="M8 17V13M12 17V9M16 17v-4M20 17v-7" strokeLinecap="round" /></svg>,
     title: "Dashboard Klinik",
     desc: "Pantau data reservasi, jadwal dan aktivitas klinik secara mudah.",
   },
