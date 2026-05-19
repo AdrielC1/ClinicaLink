@@ -139,63 +139,51 @@ export default function AdminDoctorsPage() {
                 ))}
             </div>
 
-            {/* Action Bar: Search + Filter + Tambah */}
-            <div className="flex flex-wrap gap-3 items-center mb-6 justify-between">
-                <div className="flex gap-3 items-center flex-wrap">
-                    {/* Search */}
-                    <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
-                        </div>
-                        <input
-                            type="text"
-                            placeholder="Cari dokter..."
-                            value={searchTerm}
-                            onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-                            className="pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm w-56 focus:outline-none focus:ring-2 focus:ring-[#5E81CC] focus:border-transparent transition-all shadow-sm"
-                        />
-                    </div>
-
-                    {/* Filter Dropdown */}
-                    <div className="relative">
-                        <button
-                            onClick={() => setFilterOpen(!filterOpen)}
-                            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-[#5E81CC] font-semibold rounded-lg text-sm shadow-sm hover:bg-gray-50 transition-colors"
-                        >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                            </svg>
-                            Filter {filterStatus !== "all" && <span className="w-2 h-2 bg-[#5E81CC] rounded-full ml-1"></span>}
-                        </button>
-                        {filterOpen && (
-                            <div className="absolute top-12 left-0 bg-white border border-gray-100 rounded-xl shadow-lg z-10 w-40 p-1">
-                                {[{ val: "all", label: "Semua" }, { val: "active", label: "Aktif" }, { val: "inactive", label: "Non aktif" }].map(opt => (
-                                    <button
-                                        key={opt.val}
-                                        onClick={() => { setFilterStatus(opt.val); setFilterOpen(false); setCurrentPage(1); }}
-                                        className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors ${filterStatus === opt.val ? "bg-[#E6EDFF] text-[#5E81CC]" : "text-gray-700 hover:bg-gray-50"}`}
-                                    >
-                                        {opt.label}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Lihat Terhapus Toggle */}
-                    <button
-                        onClick={() => setShowDeleted(!showDeleted)}
-                        className={`flex items-center gap-2 px-4 py-2.5 border rounded-lg text-sm font-semibold transition-colors shadow-sm ${showDeleted ? "bg-orange-50 border-orange-200 text-orange-600" : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"}`}
-                    >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            {/* Action Bar: Search + Filter + Tambah + Terhapus */}
+            <div className="flex flex-wrap gap-3 items-center mb-6">
+                {/* Search */}
+                <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
-                        Daftar Terhapus {deletedDoctors.length > 0 && <span className="bg-orange-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">{deletedDoctors.length}</span>}
-                    </button>
+                    </div>
+                    <input
+                        type="text"
+                        placeholder="Cari dokter..."
+                        value={searchTerm}
+                        onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                        className="pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm w-56 focus:outline-none focus:ring-2 focus:ring-[#5E81CC] focus:border-transparent transition-all shadow-sm"
+                    />
                 </div>
 
+                {/* Filter Dropdown */}
+                <div className="relative">
+                    <button
+                        onClick={() => setFilterOpen(!filterOpen)}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-[#5E81CC] font-semibold rounded-lg text-sm shadow-sm hover:bg-gray-50 transition-colors"
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                        </svg>
+                        Filter {filterStatus !== "all" && <span className="w-2 h-2 bg-[#5E81CC] rounded-full ml-1"></span>}
+                    </button>
+                    {filterOpen && (
+                        <div className="absolute top-12 left-0 bg-white border border-gray-100 rounded-xl shadow-lg z-10 w-40 p-1">
+                            {[{ val: "all", label: "Semua" }, { val: "active", label: "Aktif" }, { val: "inactive", label: "Non aktif" }].map(opt => (
+                                <button
+                                    key={opt.val}
+                                    onClick={() => { setFilterStatus(opt.val); setFilterOpen(false); setCurrentPage(1); }}
+                                    className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors ${filterStatus === opt.val ? "bg-[#E6EDFF] text-[#5E81CC]" : "text-gray-700 hover:bg-gray-50"}`}
+                                >
+                                    {opt.label}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                {/* Tambah Dokter Button */}
                 <button
                     onClick={openAdd}
                     className="flex items-center gap-2 px-5 py-2.5 bg-[#5E81CC] text-white font-semibold rounded-lg text-sm shadow-md hover:bg-[#4A6BB0] transition-colors"
@@ -204,6 +192,17 @@ export default function AdminDoctorsPage() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
                     </svg>
                     Tambah Dokter
+                </button>
+
+                {/* Lihat Terhapus Toggle */}
+                <button
+                    onClick={() => setShowDeleted(!showDeleted)}
+                    className={`flex items-center gap-2 px-4 py-2.5 border rounded-lg text-sm font-semibold transition-colors shadow-sm ${showDeleted ? "bg-orange-50 border-orange-200 text-orange-600" : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"}`}
+                >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    Daftar Terhapus {deletedDoctors.length > 0 && <span className="bg-orange-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">{deletedDoctors.length}</span>}
                 </button>
             </div>
 
