@@ -1,15 +1,15 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
-
 export async function POST(request) {
     try {
-        // 1. Ambil data dari body request frontend
+        // 1. Ambil data dari body request frontend / Postman
         const { email, password, full_name, phone_number, role } = await request.json();
         const cleanEmail = String(email || "").trim().toLowerCase();
+        const cleanRole = String(role || "").trim().toLowerCase();
 
         // 2. Validasi Input Dasar
-        if (!cleanEmail || !password || !full_name || !role) {
+        if (!cleanEmail || !password || !full_name || !cleanRole) {
             return NextResponse.json(
                 { message: "Semua kolom utama wajib diisi!" },
                 { status: 400 }
@@ -25,17 +25,7 @@ export async function POST(request) {
             );
         }
 
-        // 4. Validasi Kriteria Password
-        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
-
-        if (!passwordRegex.test(password)) {
-            return NextResponse.json(
-                { message: "Password ditolak! Harus minimal 8 karakter dan mengandung kombinasi huruf besar, kecil, angka, dan karakter unik." },
-                { status: 400 }
-            );
-        }
-
-        // 5. Cek Apakah Email Sudah Terdaftar di tabel USERS
+        // 4. Cek Apakah Email Sudah Terdaftar di tabel USERS
         const { data: existingUser, error: checkError } = await supabase
             .from('users')
             .select('email')
@@ -56,25 +46,24 @@ export async function POST(request) {
             );
         }
 
-        // 6. Mapping Role
+        // 5. Mapping Role (Mendukung pasien, dokter, dan admin untuk akselerasi MVP)
         const roleMapping = {
-            "pasien": "patient", // Jaga-jaga jika dikirim lowercase
+            "pasien": "patient",
             "dokter": "doctor",
             "admin": "admin"
         };
 
-        const cleanRole = role ? role.toLowerCase() : "";
         const dbRole = roleMapping[cleanRole];
 
         if (!dbRole) {
             return NextResponse.json(
-                { message: "Role tidak valid! Data yang diterima: " + role },
+                { message: "Role tidak valid! Gunakan 'pasien', 'dokter', atau 'admin'." },
                 { status: 400 }
             );
         }
 
-        // 7. Simpan Data Baru ke Supabase Auth
-        // Trigger otomatis akan menyalin ke tabel public.users
+        // 6. Simpan Data Baru ke Supabase Auth
+        // Trigger database Anda otomatis akan menyalin data profile dasar ke tabel public.users
         const { data: authData, error: authError } = await supabase.auth.signUp({
             email: cleanEmail,
             password: password,
@@ -100,34 +89,47 @@ export async function POST(request) {
             );
         }
 
-        const newUserId = authData.user.id; // Ambil UUID dari user yang baru dibuat
+        const newUserId = authData.user.id; // UUID dari auth.users
 
-        // 8. Logika khusus untuk role "pasien"
-        if (role.toLowerCase() === 'pasien') {
+        // 7. Logika Kondisional Pengisian Tabel Relasional Spesifik berdasarkan Role
+        if (cleanRole === 'pasien') {
             const { error: insertPatientError } = await supabase
                 .from('patients')
-                .insert([
-                    {
-                        id: newUserId, // Gunakan 'id' sesuai relasi PK/FK di gambarmu
-                        phone_number: phone_number
-                    }
-                ]);
+                .insert([{ id: newUserId, phone_number: phone_number }]);
 
             if (insertPatientError) {
-                // Opsional: Rollback (hapus user) jika gagal masuk tabel patients
-                await supabase.from('users').delete().eq('id', newUserId);
-
+                await supabase.from('users').delete().eq('id', newUserId); // Rollback
                 return NextResponse.json(
-                    { message: "Gagal menyimpan data nomor telepon pasien: " + insertPatientError.message },
+                    { message: "Gagal menyimpan data ke tabel patients: " + insertPatientError.message },
                     { status: 500 }
                 );
             }
         }
+        else if (cleanRole === 'dokter') {
+            // Mempermudah penambahan data dokter ke tabel 'doctors' saat MVP jika diperlukan
+            const { error: insertDoctorError } = await supabase
+                .from('doctors')
+                .insert([{
+                    id: newUserId,
+                    // Anda bisa menambahkan field default spesifik dokter di sini jika kolomnya NOT NULL di DB, 
+                    // contoh: specialization: "Umum"
+                }]);
 
-        // 9. Respon Berhasil
+            if (insertDoctorError) {
+                await supabase.from('users').delete().eq('id', newUserId); // Rollback
+                return NextResponse.json(
+                    { message: "Gagal menyimpan data ke tabel doctors: " + insertDoctorError.message },
+                    { status: 500 }
+                );
+            }
+        }
+        // Catatan: Jika role 'admin' tidak membutuhkan tabel relasional tambahan selain public.users, 
+        // blok kondisionalnya bisa dilewati saja.
+
+        // 8. Respon Berhasil
         return NextResponse.json(
             {
-                message: "Registrasi akun berhasil!",
+                message: `Registrasi akun dengan role ${cleanRole} berhasil!`,
                 user: {
                     id: newUserId,
                     email: cleanEmail,
