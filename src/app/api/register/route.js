@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase';
 export async function POST(request) {
     try {
         // 1. Ambil data dari body request frontend / Postman
-        const { email, password, full_name, phone_number, role } = await request.json();
+        const { email, password, full_name, phone_number, role, specialization_id } = await request.json();
         const cleanEmail = String(email || "").trim().toLowerCase();
         const cleanRole = String(role || "").trim().toLowerCase();
 
@@ -46,10 +46,10 @@ export async function POST(request) {
             );
         }
 
-        // 5. Mapping Role (Mendukung pasien, dokter, dan admin untuk akselerasi MVP)
+        // 5. Mapping Role (Menggunakan standar bahasa Inggris sesuai kesepakatan desain)
         const roleMapping = {
-            "pasien": "patient",
-            "dokter": "doctor",
+            "patient": "patient",
+            "doctor": "doctor",
             "admin": "admin"
         };
 
@@ -57,13 +57,20 @@ export async function POST(request) {
 
         if (!dbRole) {
             return NextResponse.json(
-                { message: "Role tidak valid! Gunakan 'pasien', 'dokter', atau 'admin'." },
+                { message: "Role tidak valid! Gunakan 'patient', 'doctor', atau 'admin'." },
+                { status: 400 }
+            );
+        }
+
+        // Validasi awal khusus untuk doctor
+        if (cleanRole === 'doctor' && !specialization_id) {
+            return NextResponse.json(
+                { message: "Kolom 'specialization_id' wajib diisi untuk role doctor!" },
                 { status: 400 }
             );
         }
 
         // 6. Simpan Data Baru ke Supabase Auth
-        // Trigger database Anda otomatis akan menyalin data profile dasar ke tabel public.users
         const { data: authData, error: authError } = await supabase.auth.signUp({
             email: cleanEmail,
             password: password,
@@ -77,7 +84,7 @@ export async function POST(request) {
 
         if (authError) {
             return NextResponse.json(
-                { message: "Gagal menyimpan akun: " + authError.message },
+                { message: "Gagal menyimpan akun auth: " + authError.message },
                 { status: 500 }
             );
         }
@@ -91,8 +98,11 @@ export async function POST(request) {
 
         const newUserId = authData.user.id; // UUID dari auth.users
 
+        // Jeda singkat (100ms) menjamin trigger sinkronisasi profil publik selesai terlebih dahulu
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
         // 7. Logika Kondisional Pengisian Tabel Relasional Spesifik berdasarkan Role
-        if (cleanRole === 'pasien') {
+        if (cleanRole === 'patient') { // <--- Ubah dari 'pasien' ke 'patient'
             const { error: insertPatientError } = await supabase
                 .from('patients')
                 .insert([{ id: newUserId, phone_number: phone_number }]);
@@ -105,14 +115,12 @@ export async function POST(request) {
                 );
             }
         }
-        else if (cleanRole === 'dokter') {
-            // Mempermudah penambahan data dokter ke tabel 'doctors' saat MVP jika diperlukan
+        else if (cleanRole === 'doctor') { // <--- Ubah dari 'dokter' ke 'doctor'
             const { error: insertDoctorError } = await supabase
                 .from('doctors')
                 .insert([{
                     id: newUserId,
-                    // Anda bisa menambahkan field default spesifik dokter di sini jika kolomnya NOT NULL di DB, 
-                    // contoh: specialization: "Umum"
+                    specialization_id: Number(specialization_id)
                 }]);
 
             if (insertDoctorError) {
@@ -123,8 +131,6 @@ export async function POST(request) {
                 );
             }
         }
-        // Catatan: Jika role 'admin' tidak membutuhkan tabel relasional tambahan selain public.users, 
-        // blok kondisionalnya bisa dilewati saja.
 
         // 8. Respon Berhasil
         return NextResponse.json(
@@ -141,8 +147,9 @@ export async function POST(request) {
         );
 
     } catch (error) {
+        console.error("Error internal registrasi:", error);
         return NextResponse.json(
-            { message: "Terjadi kesalahan internal server." },
+            { message: "Terjadi kesalahan internal server: " + error.message },
             { status: 500 }
         );
     }
