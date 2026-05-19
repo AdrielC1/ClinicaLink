@@ -3,8 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import Link from "next/link";
-import logoSvg from "../icons/ClinicaLink.svg";
+import logoSvg from "../icons/ClinicaLink.svg"; // Pastikan path icon ini benar di folder Anda
 
 function CrossOrnament({ className, color = "#8AAAE5" }) {
     return (
@@ -87,7 +86,7 @@ export default function RegisterPage() {
                     password: formData.password,
                     full_name: formData.namaLengkap,
                     phone_number: formData.noTelepon,
-                    role: "pasien" // Otomatis dikunci ke role pasien
+                    role: "patient" // ✅ SUDAH DIPERBAIKI: Menggunakan "patient" agar cocok dengan API
                 })
             });
 
@@ -117,6 +116,7 @@ export default function RegisterPage() {
             <CrossOrnament className="top-1/2 left-10 opacity-40" color="#5E81CC" />
             <CrossOrnament className="top-1/3 right-10 opacity-40" color="#718096" />
             <CrossOrnament className="bottom-10 right-1/3 opacity-50" color="#5E81CC" />
+
             {/* Logo — fixed di tengah atas, tidak terpengaruh ukuran card */}
             <div className="fixed top-8 left-0 right-0 z-30 flex items-center justify-center gap-3 pointer-events-none">
                 <Image src={logoSvg} alt="ClinicaLink Logo" width={44} height={44} priority />
@@ -217,8 +217,6 @@ export default function RegisterPage() {
                             </div>
                         </div>
 
-                        {/* Pilihan Role Dihapus dari UI agar form bersih */}
-
                         {/* Password */}
                         <div>
                             <label className="block text-sm font-semibold text-gray-900 mb-2">Password</label>
@@ -255,7 +253,6 @@ export default function RegisterPage() {
                                     </svg>
                                 </button>
                             </div>
-
                         </div>
 
                         {/* Konfirmasi Password */}
