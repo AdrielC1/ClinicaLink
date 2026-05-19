@@ -1,7 +1,16 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import appointmentIcon from "@/app/icons/Appointment.svg";
+import brandIcon from "@/app/icons/ClinicaLink.svg";
+import dashboardIcon from "@/app/icons/Dashboard.svg";
+import doctorIcon from "@/app/icons/Doctor.svg";
+import historyIcon from "@/app/icons/Notif.svg";
+import notificationIcon from "@/app/icons/Notification.svg";
+import profileIcon from "@/app/icons/Profile.svg";
 
 const roleConfig = {
   patient: {
@@ -38,6 +47,39 @@ const roleConfig = {
   },
 };
 
+const patientLinks = [
+  { href: "/patient/dashboard", label: "Dashboard", icon: dashboardIcon },
+  { href: "/patient/doctors", label: "Doctor", icon: doctorIcon },
+  { href: "/patient/appointments", label: "Appointment", icon: appointmentIcon },
+  { href: "/patient/history", label: "History", icon: notificationIcon },
+  { href: "/patient/notifications", label: "Notification", icon: historyIcon },
+  { href: "/patient/profile", label: "Profile", icon: profileIcon },
+];
+
+function readStoredUser() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const rawUser =
+    localStorage.getItem("clinicalink:user") ?? sessionStorage.getItem("clinicalink:user");
+
+  if (!rawUser) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(rawUser);
+  } catch {
+    return null;
+  }
+}
+
+function getPatientName(user) {
+  const name = user?.full_name || user?.fullName || user?.name || "Kimmy";
+  return String(name).trim() || "Kimmy";
+}
+
 function Brand() {
   return (
     <Link href="/landing" className="flex items-center gap-3">
@@ -52,6 +94,157 @@ function Brand() {
   );
 }
 
+function PatientBrand() {
+  return (
+    <Link href="/landing" className="flex items-center gap-2">
+      <Image src={brandIcon} alt="ClinicaLink" width={35} height={35} priority />
+      <span className="text-2xl font-extrabold tracking-tight">
+        <span className="text-[#1d2939]">Clinica</span>
+        <span className="text-[#5e81cc]">Link</span>
+      </span>
+    </Link>
+  );
+}
+
+function PatientLayout({ children, pathname, onSignOut }) {
+  const [currentUser, setCurrentUser] = useState(null);
+  const patientName = getPatientName(currentUser);
+  const initial = patientName.charAt(0).toUpperCase();
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setCurrentUser(readStoredUser()));
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-[#f3f6fb] px-4 py-10 text-[#0b0b0f]">
+      <div className="mx-auto w-full max-w-[1190px]">
+        <header className="flex min-h-[66px] flex-wrap items-center justify-between gap-4 bg-white px-6 py-3 shadow-sm">
+          <PatientBrand />
+
+          <div className="flex flex-1 items-center justify-end gap-5 lg:gap-9">
+            <label className="relative hidden lg:block">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#9aa1ad]">
+                <svg
+                  aria-hidden="true"
+                  className="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="m21 21-4.3-4.3m1.3-5.2a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z"
+                  />
+                </svg>
+              </span>
+              <input
+                type="search"
+                placeholder="Search..."
+                className="h-11 w-[350px] max-w-[35vw] rounded-[8px] border-0 bg-[#f4f4f4] pl-12 pr-4 text-[13px] font-medium outline-none placeholder:text-[#8d8d8d]"
+              />
+            </label>
+
+            <button
+              type="button"
+              aria-label="Notifikasi"
+              className="flex h-10 w-10 items-center justify-center text-black"
+            >
+              <svg
+                aria-hidden="true"
+                className="h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth="2.4"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5m6 0a3 3 0 0 1-6 0"
+                />
+              </svg>
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 overflow-hidden rounded-full bg-[linear-gradient(135deg,#315c35,#e4b64f_48%,#f0dcc2)] p-0.5">
+                <div className="flex h-full w-full items-center justify-center rounded-full bg-[#d8c4ad] text-sm font-black text-[#2d3c2d]">
+                  {initial}
+                </div>
+              </div>
+              <span className="max-w-[160px] truncate text-base font-extrabold">{patientName}</span>
+            </div>
+          </div>
+        </header>
+
+        <div className="grid grid-cols-1 gap-7 pt-7 lg:grid-cols-[186px_minmax(0,1fr)]">
+          <aside className="hidden min-h-[730px] flex-col bg-transparent lg:flex">
+            <nav className="space-y-[9px]">
+              {patientLinks.map((link) => {
+                const active = pathname === link.href;
+
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className={`flex h-[41px] items-center gap-4 rounded-[7px] px-3 text-[18px] font-extrabold transition ${
+                      active ? "bg-[#e4ebff] text-[#5e81cc]" : "text-black hover:bg-white"
+                    }`}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="h-[22px] w-[22px] bg-current"
+                      style={{
+                        WebkitMaskImage: `url(${link.icon.src})`,
+                        maskImage: `url(${link.icon.src})`,
+                        WebkitMaskPosition: "center",
+                        maskPosition: "center",
+                        WebkitMaskRepeat: "no-repeat",
+                        maskRepeat: "no-repeat",
+                        WebkitMaskSize: "contain",
+                        maskSize: "contain",
+                      }}
+                    />
+                    <span>{link.label}</span>
+                  </Link>
+                );
+              })}
+            </nav>
+
+            <div className="mt-auto border-t border-[#a7abb3] pt-7">
+              <button
+                type="button"
+                onClick={onSignOut}
+                className="flex items-center gap-5 px-3 text-[18px] font-extrabold text-black"
+              >
+                <svg
+                  aria-hidden="true"
+                  className="h-6 w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth="2.3"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M15.5 8.5V6a2 2 0 0 0-2-2h-7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2v-2.5M10 12h9m0 0-3-3m3 3-3 3"
+                  />
+                </svg>
+                <span>Log out</span>
+              </button>
+            </div>
+          </aside>
+
+          <div className="min-w-0">{children}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AppSidebarLayout({ children, role }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -62,6 +255,14 @@ export default function AppSidebarLayout({ children, role }) {
     sessionStorage.removeItem("clinicalink:user");
     router.push("/login");
   };
+
+  if (role === "patient") {
+    return (
+      <PatientLayout pathname={pathname} onSignOut={handleSignOut}>
+        {children}
+      </PatientLayout>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">

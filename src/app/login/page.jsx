@@ -14,6 +14,25 @@ function CrossOrnament({ className, color = "#8AAAE5" }) {
     );
 }
 
+async function parseApiResponse(response) {
+    const text = await response.text();
+
+    try {
+        return text ? JSON.parse(text) : {};
+    } catch {
+        throw new Error("Server mengirim respons HTML, bukan JSON.");
+    }
+}
+
+function findLocalPatientAccount(email, password) {
+    const normalizedEmail = String(email || "").trim().toLowerCase();
+    const savedUsers = JSON.parse(localStorage.getItem("clinicalink:registeredUsers") || "[]");
+
+    return savedUsers.find(
+        (user) => user.email === normalizedEmail && user.password === password && user.role === "patient"
+    );
+}
+
 export default function LoginPage() {
     const router = useRouter();
     const [email, setEmail] = useState("");
@@ -26,7 +45,8 @@ export default function LoginPage() {
     const [isClosing, setIsClosing] = useState(false);
 
     useEffect(() => {
-        setMounted(true);
+        const frame = requestAnimationFrame(() => setMounted(true));
+        return () => cancelAnimationFrame(frame);
     }, []);
 
     const handleNavigate = (path) => {
@@ -42,12 +62,34 @@ export default function LoginPage() {
         setError("");
 
         try {
+            const localAccount = findLocalPatientAccount(email, password);
+
+            if (localAccount) {
+                const userPayload = JSON.stringify({
+                    id: localAccount.id,
+                    email: localAccount.email,
+                    full_name: localAccount.full_name,
+                    role: "patient",
+                });
+
+                if (remember) {
+                    localStorage.setItem("clinicalink:user", userPayload);
+                    sessionStorage.removeItem("clinicalink:user");
+                } else {
+                    sessionStorage.setItem("clinicalink:user", userPayload);
+                    localStorage.removeItem("clinicalink:user");
+                }
+
+                handleNavigate("/patient/dashboard");
+                return;
+            }
+
             const response = await fetch("/api/login", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email, password }),
             });
-            const data = await response.json();
+            const data = await parseApiResponse(response);
 
             if (!response.ok) {
                 setError(data.message || "Login gagal. Periksa email dan password Anda.");
