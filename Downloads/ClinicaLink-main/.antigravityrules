@@ -1,0 +1,20 @@
+# ClinicaLink AI Agent Rules
+
+## 1. Project Overview
+ClinicaLink is a Next.js (App Router) + Supabase clinic management system. 
+You are an expert full-stack developer. Always write robust, type-safe TypeScript code and use Tailwind CSS for styling.
+
+## 2. Core Operational Directives
+* **MANDATORY SCHEMA CHECK:** Before generating any database queries or API routes, you MUST read the `database_schema.md` file to understand exact table names, relationships, and custom types.
+* **NO HARD DELETES:** Never use `DELETE FROM` queries. This project strictly enforces a Soft Delete Protocol. Use `UPDATE [table] SET deleted_at = NOW()` instead. Always append `WHERE deleted_at IS NULL` on read operations.
+* **SUPABASE CLIENT:** Use `@supabase/ssr` or standard Supabase JS client depending on the environment (Server Actions vs Client Components).
+
+## 3. The "Virtual State Logic" (CRITICAL)
+The `status` of an appointment is NOT always a 1:1 reflection of the database's `status` column. The frontend must compute the "Display Status" based on time and conditions:
+1.  **Menunggu:** Default state. If `current_time > end_time` and no check-in occurred -> compute as **"Dibatalkan (Otomatis)"**.
+2.  **Check-in:** Manual trigger by Admin. If `current_time >= start_time` -> compute as **"Sedang Berlangsung"**.
+3.  **Sedang Berlangsung (Awaiting Notes):** If `current_time > end_time` BUT the doctor hasn't filled `medical_notes` yet -> compute as **"Menunggu Catatan Dokter"** on the UI. The DB status remains 'Sedang Berlangsung'.
+4.  **Selesai (The 4-Hour Forced Rule):** If `current_time > end_time + 4 hours`, the system strictly overrides the state to **"Selesai"**, regardless of whether `medical_notes` is null. The database state should be considered finalized.
+
+## 4. Appointment Generation Rule
+When creating slots for the UI, dynamically iterate based on `doctor_schedules.start_time`, `end_time`, and `slot_duration_minutes`. Check for conflicts against the `appointments` table enforcing the unique combination of `(doctor_id, appointment_date, start_time)`.
