@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import AppSidebarLayout from "@/components/AppSidebarLayout";
 import {
   Calendar as CalendarIcon,
   Clock,
@@ -87,7 +86,7 @@ export default function PatientAppointmentsPage() {
 
   const handleRescheduleSubmit = async () => {
     if (!newDate) return alert("Pilih tanggal baru terlebih dahulu.");
-    setIsProcessing(true);
+    isProcessing(true);
 
     try {
       const res = await fetch(`/api/appointments?id=${selectedAppt.id}`, {
@@ -119,16 +118,14 @@ export default function PatientAppointmentsPage() {
 
   if (loading) {
     return (
-      <AppSidebarLayout role="patient">
-        <div className="flex min-h-[60vh] items-center justify-center">
-          <p className="text-slate-400 font-medium animate-pulse">Memuat Jadwal Konsultasi...</p>
-        </div>
-      </AppSidebarLayout>
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <p className="text-slate-400 font-medium animate-pulse">Memuat Jadwal Konsultasi...</p>
+      </div>
     );
   }
 
   return (
-    <AppSidebarLayout role="patient">
+    <>
       {/* Grid Utama: Membagi 12 kolom untuk mencegah elemen terpotong */}
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-12 items-start w-full">
 
@@ -353,7 +350,7 @@ export default function PatientAppointmentsPage() {
           </div>
         </ModalWrapper>
       )}
-    </AppSidebarLayout>
+    </>
   );
 }
 
