@@ -1,36 +1,63 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+## ClinicaLink
 
-## Getting Started
+ClinicaLink adalah sistem manajemen janji temu klinik berbasis web yang dirancang untuk membantu proses reservasi konsultasi dokter secara lebih efisien, terorganisir, dan real-time. Sistem ini menghubungkan pasien, dokter, dan admin dalam satu platform terintegrasi untuk mempermudah pengelolaan jadwal dan appointment klinik.
 
-First, run the development server:
+## Fitur Utama
+## 1. Pasien
+1. Registrasi dan login akun
+2. Melihat jadwal dokter secara real-time
+3. Booking appointment dokter
+4. Reschedule dan pembatalan appointment
+5. Melihat riwayat konsultasi
+6. Menerima notifikasi appointment
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## 2. Dokter
+1. Melihat jadwal konsultasi harian
+2. Mengakses daftar pasien
+3. Mengelola status konsultasi pasien
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 3. Admin
+1. CRUD data dokter
+2. CRUD data pasien
+3. Kelola appointment
+4. Kelola jadwal praktik
+5. Laporan dan statistik klinik
+   
+## 4. Teknologi yang Digunakan
+1. Next.js 14
+2. React
+3. Tailwind CSS
+4. Supabase
+5. PostgreSQL
+6. Git & GitHub
+7. Vercel
+   
+## Arsitektur Sistem
+ClinicaLink menggunakan arsitektur berbasis web dengan pendekatan client-server yang terdiri dari:
+1. Presentation Layer (Frontend)
+2. Application Layer (Backend/API)
+3. Data Layer (Database PostgreSQL)
+4. User Roles
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+## Sistem memiliki 3 aktor utama:
+1. Pasien
+2. Dokter
+3. Admin Klinik
+   
+## Tujuan Sistem
+ClinicaLink dikembangkan untuk:
+1. Mengurangi antrean manual di klinik
+2. Mencegah double-booking jadwal
+3. Mempermudah pengelolaan appointment
+4. Memberikan informasi jadwal dokter secara real-time
+5. Meningkatkan efisiensi pelayanan klinik
+   
+## Prototype & UI
+Prototype ClinicaLink dirancang menggunakan pendekatan modern healthcare dashboard dengan tampilan responsif dan user-friendly untuk pasien, dokter, dan admin.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Tim Pengembang
+1. Aisyah Apriliani Putri
+2. Christofer Widya
+3. Cornelius Fransinatra Wijaya
+4. Muhammad Zero One Tauhida
+5. Yunita Dwi Ardilasari
