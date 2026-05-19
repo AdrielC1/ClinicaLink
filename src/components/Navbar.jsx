@@ -2,6 +2,14 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 
+const navLinks = [
+  { label: "Beranda", href: "#beranda" },
+  { label: "Fitur", href: "#fitur" },
+  { label: "Cara kerja", href: "#cara-kerja" },
+  { label: "Doctor", href: "#doctor" },
+  { label: "About", href: "#about" },
+];
+
 function Logo({ size = "md" }) {
   const s = size === "sm" ? 28 : 36;
   const id = size === "sm" ? "hg-sm" : "hg-md";
@@ -34,14 +42,6 @@ function Logo({ size = "md" }) {
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState("Beranda");
-
-  const navLinks = [
-    { label: "Beranda", href: "#beranda" },
-    { label: "Fitur", href: "#fitur" },
-    { label: "Cara kerja", href: "#cara-kerja" },
-    { label: "Doctor", href: "#doctor" },
-    { label: "About", href: "#about" },
-  ];
 
   useEffect(() => {
     const handleScroll = () => {
