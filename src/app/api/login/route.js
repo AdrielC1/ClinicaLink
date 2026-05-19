@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
 import { supabase } from "@/lib/supabase";
 
 const roleRoutes = {
@@ -28,31 +27,28 @@ export async function POST(request) {
       );
     }
 
-    const { data: user, error } = await supabase
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      email: cleanEmail,
+      password: password,
+    });
+
+    if (authError) {
+      return NextResponse.json(
+        { message: "Email atau password salah." },
+        { status: 401 }
+      );
+    }
+
+    const { data: user, error: userError } = await supabase
       .from("users")
-      .select("id,email,password_hash,full_name,role")
-      .eq("email", cleanEmail)
+      .select("id,email,full_name,role")
+      .eq("id", authData.user.id)
       .maybeSingle();
 
-    if (error) {
+    if (userError || !user) {
       return NextResponse.json(
-        { message: "Gagal memeriksa akun. Silakan coba lagi." },
+        { message: "Gagal mengambil data profil pengguna." },
         { status: 500 }
-      );
-    }
-
-    if (!user?.password_hash) {
-      return NextResponse.json(
-        { message: "Email atau password salah." },
-        { status: 401 }
-      );
-    }
-
-    const passwordMatches = await bcrypt.compare(password, user.password_hash);
-    if (!passwordMatches) {
-      return NextResponse.json(
-        { message: "Email atau password salah." },
-        { status: 401 }
       );
     }
 

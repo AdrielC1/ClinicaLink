@@ -1,63 +1,33 @@
-## ClinicaLink
+# 🏥 ClinicaLink
 
-ClinicaLink adalah sistem manajemen janji temu klinik berbasis web yang dirancang untuk membantu proses reservasi konsultasi dokter secara lebih efisien, terorganisir, dan real-time. Sistem ini menghubungkan pasien, dokter, dan admin dalam satu platform terintegrasi untuk mempermudah pengelolaan jadwal dan appointment klinik.
+ClinicaLink adalah sistem manajemen janji temu klinik berbasis web yang dirancang untuk mendigitalkan proses pendaftaran pasien. Sistem ini meminimalisasi penumpukan pasien di ruang tunggu dan secara mutlak mencegah bentrok jadwal dokter (*double-booking*) melalui arsitektur penjadwalan cerdas berbasis *Time-Slot*.
 
-## Fitur Utama
-## 1. Pasien
-1. Registrasi dan login akun
-2. Melihat jadwal dokter secara real-time
-3. Booking appointment dokter
-4. Reschedule dan pembatalan appointment
-5. Melihat riwayat konsultasi
-6. Menerima notifikasi appointment
+## 🚀 Fitur Utama
 
-## 2. Dokter
-1. Melihat jadwal konsultasi harian
-2. Mengakses daftar pasien
-3. Mengelola status konsultasi pasien
+Sistem ini melayani 3 aktor utama dengan fungsionalitas yang terisolasi berdasarkan peran (Role-Based Access Control):
 
-## 3. Admin
-1. CRUD data dokter
-2. CRUD data pasien
-3. Kelola appointment
-4. Kelola jadwal praktik
-5. Laporan dan statistik klinik
-   
-## 4. Teknologi yang Digunakan
-1. Next.js 14
-2. React
-3. Tailwind CSS
-4. Supabase
-5. PostgreSQL
-6. Git & GitHub
-7. Vercel
-   
-## Arsitektur Sistem
-ClinicaLink menggunakan arsitektur berbasis web dengan pendekatan client-server yang terdiri dari:
-1. Presentation Layer (Frontend)
-2. Application Layer (Backend/API)
-3. Data Layer (Database PostgreSQL)
-4. User Roles
+* **👨‍⚕️ Pasien:** Reservasi mandiri secara *real-time*, memantau jadwal aktif, membatalkan (*reschedule*), dan meninjau riwayat medis.
+* **🩺 Dokter:** Memantau daftar pasien harian, melakukan sesi konsultasi, dan memberikan catatan medis (*medical notes*).
+* **⚙️ Admin:** Mengelola *master data* (Dokter, Jadwal, Pasien), menyetujui proses *Check-in* fisik pasien, serta memantau statistik klinik.
 
-## Sistem memiliki 3 aktor utama:
-1. Pasien
-2. Dokter
-3. Admin Klinik
-   
-## Tujuan Sistem
-ClinicaLink dikembangkan untuk:
-1. Mengurangi antrean manual di klinik
-2. Mencegah double-booking jadwal
-3. Mempermudah pengelolaan appointment
-4. Memberikan informasi jadwal dokter secara real-time
-5. Meningkatkan efisiensi pelayanan klinik
-   
-## Prototype & UI
-Prototype ClinicaLink dirancang menggunakan pendekatan modern healthcare dashboard dengan tampilan responsif dan user-friendly untuk pasien, dokter, dan admin.
+## 🧠 Smart Virtual State Logic
+Aplikasi ini tidak bergantung murni pada intervensi manual. Status pasien dihitung secara cerdas berbasis waktu:
+* **Auto-Start:** Status otomatis menjadi "Sedang Berlangsung" ketika waktu saat ini memasuki jam pendaftaran dan admin telah melakukan "Check-in".
+* **Menunggu Catatan Dokter:** Jika sesi telah melewati waktu selesai (`end_time`) namun dokter belum menginput catatan medis, sistem akan mengingatkan dokter di *dashboard*.
+* **Selesai Paksa (4-Hour Rule):** Untuk menjaga integritas operasional, jika telah melewati 4 jam dari waktu selesai dan dokter tidak merespons, sistem akan secara otomatis memotong status menjadi "Selesai".
 
-## Tim Pengembang
-1. Aisyah Apriliani Putri
-2. Christofer Widya
-3. Cornelius Fransinatra Wijaya
-4. Muhammad Zero One Tauhida
-5. Yunita Dwi Ardilasari
+## 🛠️ Tech Stack
+* **Frontend:** Next.js 14 (App Router), React, Tailwind CSS
+* **Backend & API:** Next.js Server Actions
+* **Database & Auth:** Supabase (PostgreSQL)
+* **Deployment:** Vercel
+
+## 👥 Tim Pengembang (Kelompok 1)
+- Aisyah Apriliani Putri
+- Adriel Christofer Widya
+- Cornelius Fransinatra Wijaya
+- Muhammad Zero One Tauhida
+- Yunita Dwi Ardilasari
+
+---
+*Proyek ini dikembangkan sebagai pemenuhan tugas Rekayasa Perangkat Lunak (Deliverable D3/D4) di Universitas Diponegoro.*

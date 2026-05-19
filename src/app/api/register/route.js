@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
-import bcrypt from 'bcryptjs';
+
 
 export async function POST(request) {
     try {
@@ -56,9 +56,7 @@ export async function POST(request) {
             );
         }
 
-        // 6. Proses Hashing Password
-        const saltRounds = 10;
-        const hashedPassword = await bcrypt.hash(password, saltRounds);
+        // 6. Mapping Role
         const roleMapping = {
             "pasien": "patient", // Jaga-jaga jika dikirim lowercase
             "dokter": "doctor",
@@ -75,27 +73,34 @@ export async function POST(request) {
             );
         }
 
-        // 7. Simpan Data Baru ke tabel USERS
-        const { data: newUser, error: insertUserError } = await supabase
-            .from('users')
-            .insert([
-                {
-                    email: cleanEmail,
-                    password_hash: hashedPassword,
+        // 7. Simpan Data Baru ke Supabase Auth
+        // Trigger otomatis akan menyalin ke tabel public.users
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+            email: cleanEmail,
+            password: password,
+            options: {
+                data: {
                     full_name: full_name,
                     role: dbRole
                 }
-            ])
-            .select();
+            }
+        });
 
-        if (insertUserError) {
+        if (authError) {
             return NextResponse.json(
-                { message: "Gagal menyimpan akun: " + insertUserError.message },
+                { message: "Gagal menyimpan akun: " + authError.message },
                 { status: 500 }
             );
         }
 
-        const newUserId = newUser[0].id; // Ambil UUID dari user yang baru dibuat
+        if (!authData.user) {
+            return NextResponse.json(
+                { message: "Registrasi berhasil, tetapi menunggu verifikasi email." },
+                { status: 201 }
+            );
+        }
+
+        const newUserId = authData.user.id; // Ambil UUID dari user yang baru dibuat
 
         // 8. Logika khusus untuk role "pasien"
         if (role.toLowerCase() === 'pasien') {
@@ -125,9 +130,9 @@ export async function POST(request) {
                 message: "Registrasi akun berhasil!",
                 user: {
                     id: newUserId,
-                    email: newUser[0].email,
-                    full_name: newUser[0].full_name,
-                    role: newUser[0].role
+                    email: cleanEmail,
+                    full_name: full_name,
+                    role: dbRole
                 }
             },
             { status: 201 }
