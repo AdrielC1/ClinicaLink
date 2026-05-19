@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -30,6 +30,19 @@ export default function RegisterPage() {
 
     const [loading, setLoading] = useState(false);
     const [errorMsg, setErrorMsg] = useState("");
+    const [mounted, setMounted] = useState(false);
+    const [isClosing, setIsClosing] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    const handleNavigate = (path) => {
+        setIsClosing(true);
+        setTimeout(() => {
+            router.push(path);
+        }, 150);
+    };
 
     // Real-time email validation
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
@@ -84,8 +97,8 @@ export default function RegisterPage() {
                 throw new Error(data.message || "Gagal melakukan registrasi");
             }
 
-            // Sukses, redirect ke login
-            router.push("/login");
+            // Sukses, redirect ke login dengan animasi
+            handleNavigate("/login");
         } catch (err) {
             setErrorMsg(err.message || "Terjadi kesalahan jaringan.");
         } finally {
@@ -104,18 +117,29 @@ export default function RegisterPage() {
             <CrossOrnament className="top-1/2 left-10 opacity-40" color="#5E81CC" />
             <CrossOrnament className="top-1/3 right-10 opacity-40" color="#718096" />
             <CrossOrnament className="bottom-10 right-1/3 opacity-50" color="#5E81CC" />
-
-            {/* Logo */}
-            <div className="z-10 flex items-center justify-center gap-3 mb-8">
-                <Image src={logoSvg} alt="ClinicaLink Logo" width={48} height={48} priority />
-                <h1 className="text-3xl font-bold">
+            {/* Logo — fixed di tengah atas, tidak terpengaruh ukuran card */}
+            <div className="fixed top-8 left-0 right-0 z-30 flex items-center justify-center gap-3 pointer-events-none">
+                <Image src={logoSvg} alt="ClinicaLink Logo" width={44} height={44} priority />
+                <span className="text-3xl font-bold">
                     <span style={{ color: "rgba(45, 55, 72, 0.5)" }}>Clinica</span>
                     <span style={{ color: "rgba(94, 129, 201, 0.5)" }}>Link</span>
-                </h1>
+                </span>
             </div>
 
             {/* Form Card */}
-            <div className="z-10 bg-white rounded-2xl shadow-xl w-full max-w-2xl p-8 mx-4">
+            <div className={`relative z-10 bg-white rounded-2xl shadow-xl w-full max-w-2xl p-8 mx-4 transition-all duration-200 ease-out ${mounted && !isClosing ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
+                {/* Tombol Silang / Close */}
+                <button
+                    onClick={() => handleNavigate("/landing")}
+                    className="absolute top-4 right-4 z-50 p-1.5 rounded-full bg-gray-50 hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
+                    aria-label="Tutup"
+                >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+
                 <div className="mb-8">
                     <h2 className="text-2xl font-bold text-gray-900 mb-2">Buat Akun Baru</h2>
                     <p className="text-sm text-gray-500">Daftar untuk mulai menggunakan layanan Pasien ClinicaLink</p>
@@ -231,6 +255,7 @@ export default function RegisterPage() {
                                     </svg>
                                 </button>
                             </div>
+
                         </div>
 
                         {/* Konfirmasi Password */}
@@ -296,10 +321,10 @@ export default function RegisterPage() {
                                 color: "#FFFFFF"
                             }}
                         >
-                            {loading ? "Memproses..." : "Sign Up"}
+                            {loading ? "Memproses..." : "Daftar"}
                         </button>
                         <p className="mt-6 text-sm text-gray-900 font-medium">
-                            Sudah punya akun? <Link href="/login" style={{ color: "#5E81CC" }} className="hover:underline">Sign In</Link>
+                            Sudah punya akun? <button type="button" onClick={() => handleNavigate("/login")} style={{ color: "#5E81CC" }} className="hover:underline font-semibold">Masuk di sini</button>
                         </p>
                     </div>
                 </form>
