@@ -87,33 +87,34 @@ export async function POST(request) {
         "Pengambilan profil Supabase terlalu lama."
       );
 
-      if (userError || !user) {
-        return NextResponse.json(
-          { message: "Gagal mengambil data profil pengguna." },
-          { status: 500 }
-        );
-      }
-
-      const role = user.role || "patient";
-
-      return NextResponse.json({
-        message: "Login berhasil.",
-        redirectTo: roleRoutes[role] || "/patient/dashboard",
-        user: {
-          id: user.id,
-          email: user.email,
-          full_name: user.full_name,
-          role,
-        },
-      });
-    } catch (supabaseError) {
-      return NextResponse.json({
-        message: "Login berhasil dalam mode lokal.",
-        warning: supabaseError.message,
-        redirectTo: "/patient/dashboard",
-        user: createLocalUser(cleanEmail),
-      });
+    if (userError || !user) {
+      return NextResponse.json(
+        { message: "Gagal mengambil data profil pengguna." },
+        { status: 500 }
+      );
     }
+
+    const role = (user.role || "patient").toLowerCase();
+
+    return NextResponse.json({
+      message: "Login berhasil.",
+      redirectTo: roleRoutes[role] || "/patient/dashboard",
+      user: {
+        id: user.id,
+        email: user.email,
+        full_name: user.full_name,
+        role,
+      },
+    });
+  } catch (supabaseError) {
+    return NextResponse.json({
+      message: "Login berhasil dalam mode lokal.",
+      warning: supabaseError.message,
+      redirectTo: "/patient/dashboard",
+      user: createLocalUser(cleanEmail),
+    });
+  }
+
   } catch (error) {
     return NextResponse.json(
       { message: "Terjadi kesalahan internal server." },
