@@ -15,6 +15,35 @@ function CrossOrnament({ className, color = "#8AAAE5" }) {
     );
 }
 
+async function parseApiResponse(response) {
+    const text = await response.text();
+
+    try {
+        return text ? JSON.parse(text) : {};
+    } catch {
+        throw new Error("Server mengirim respons HTML, bukan JSON. Coba refresh dan submit ulang.");
+    }
+}
+
+function saveLocalPatientAccount({ user, password, phone_number }) {
+    const savedUsers = JSON.parse(localStorage.getItem("clinicalink:registeredUsers") || "[]");
+    const normalizedEmail = String(user.email || "").trim().toLowerCase();
+    const nextUser = {
+        id: user.id,
+        email: normalizedEmail,
+        password,
+        full_name: user.full_name,
+        phone_number,
+        role: "patient",
+    };
+    const filteredUsers = savedUsers.filter((item) => item.email !== normalizedEmail);
+
+    localStorage.setItem(
+        "clinicalink:registeredUsers",
+        JSON.stringify([...filteredUsers, nextUser])
+    );
+}
+
 export default function RegisterPage() {
     const router = useRouter();
     const [formData, setFormData] = useState({
@@ -34,7 +63,8 @@ export default function RegisterPage() {
     const [isClosing, setIsClosing] = useState(false);
 
     useEffect(() => {
-        setMounted(true);
+        const frame = requestAnimationFrame(() => setMounted(true));
+        return () => cancelAnimationFrame(frame);
     }, []);
 
     const handleNavigate = (path) => {
@@ -87,18 +117,31 @@ export default function RegisterPage() {
                     password: formData.password,
                     full_name: formData.namaLengkap,
                     phone_number: formData.noTelepon,
-                    role: "pasien" // Otomatis dikunci ke role pasien
+                    role: "patient" // Otomatis dikunci ke role pasien
                 })
             });
 
-            const data = await res.json();
+            const data = await parseApiResponse(res);
 
             if (!res.ok) {
                 throw new Error(data.message || "Gagal melakukan registrasi");
             }
 
-            // Sukses, redirect ke login dengan animasi
-            handleNavigate("/login");
+            const user = data.user ?? {
+                    email: formData.email,
+                    full_name: formData.namaLengkap,
+                    role: "patient",
+                };
+            saveLocalPatientAccount({
+                user,
+                password: formData.password,
+                phone_number: formData.noTelepon,
+            });
+            localStorage.setItem("clinicalink:user", JSON.stringify(user));
+            sessionStorage.removeItem("clinicalink:user");
+
+            // Sukses, role pasien langsung diarahkan ke dashboard pasien
+            handleNavigate("/patient/dashboard");
         } catch (err) {
             setErrorMsg(err.message || "Terjadi kesalahan jaringan.");
         } finally {
