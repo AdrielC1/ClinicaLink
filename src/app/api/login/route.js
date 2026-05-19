@@ -52,7 +52,7 @@ export async function POST(request) {
       );
     }
 
-    const role = user.role || "patient";
+    const role = (user.role || "patient").toLowerCase();
 
     return NextResponse.json({
       message: "Login berhasil.",
