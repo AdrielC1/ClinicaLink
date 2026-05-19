@@ -21,16 +21,12 @@ export default function RegisterPage() {
         namaLengkap: "",
         email: "",
         noTelepon: "",
-        role: "",
         password: "",
         konfirmasiPassword: ""
     });
 
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
-    const [roleOpen, setRoleOpen] = useState(false);
-    const roles = ["Pasien", "Dokter", "Admin"];
 
     const [loading, setLoading] = useState(false);
     const [errorMsg, setErrorMsg] = useState("");
@@ -40,38 +36,24 @@ export default function RegisterPage() {
     const isEmailValid = emailRegex.test(formData.email);
     const showEmailWarning = formData.email !== "" && !isEmailValid;
 
-    // Real-time password validation criteria
-    const pwdChecks = {
-        length: formData.password.length >= 8,
-        uppercase: /[A-Z]/.test(formData.password),
-        lowercase: /[a-z]/.test(formData.password),
-        number: /[0-9]/.test(formData.password),
-        special: /[^A-Za-z0-9]/.test(formData.password),
-    };
-
-    const isPasswordValid = Object.values(pwdChecks).every(Boolean);
+    // Sederhanakan Validasi Password: Hanya cek apakah sudah diisi
+    const isPasswordValid = formData.password.trim() !== "";
 
     // Real-time confirm password validation
     const isConfirmMatch = formData.password === formData.konfirmasiPassword;
     const showConfirmWarning = formData.konfirmasiPassword !== "" && !isConfirmMatch;
 
-    // Form validity check
+    // Form validity check (Role dihapus dari pengecekan karena otomatis pasien)
     const isFormValid =
         formData.namaLengkap.trim() !== "" &&
         formData.email.trim() !== "" &&
         isEmailValid &&
-        formData.role !== "" &&
         isPasswordValid &&
         isConfirmMatch;
 
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
-    };
-
-    const handleRoleSelect = (role) => {
-        setFormData(prev => ({ ...prev, role }));
-        setRoleOpen(false);
     };
 
     const handleSubmit = async (e) => {
@@ -92,7 +74,7 @@ export default function RegisterPage() {
                     password: formData.password,
                     full_name: formData.namaLengkap,
                     phone_number: formData.noTelepon,
-                    role: formData.role.toLowerCase()
+                    role: "pasien" // Otomatis dikunci ke role pasien
                 })
             });
 
@@ -136,7 +118,7 @@ export default function RegisterPage() {
             <div className="z-10 bg-white rounded-2xl shadow-xl w-full max-w-2xl p-8 mx-4">
                 <div className="mb-8">
                     <h2 className="text-2xl font-bold text-gray-900 mb-2">Buat Akun Baru</h2>
-                    <p className="text-sm text-gray-500">Daftar untuk mulai menggunakan layanan ClinicaLink</p>
+                    <p className="text-sm text-gray-500">Daftar untuk mulai menggunakan layanan Pasien ClinicaLink</p>
                 </div>
 
                 <form onSubmit={handleSubmit}>
@@ -211,45 +193,7 @@ export default function RegisterPage() {
                             </div>
                         </div>
 
-                        {/* Pilih Role (Custom Dropdown) */}
-                        <div>
-                            <label className="block text-sm font-semibold text-gray-900 mb-2">Pilih Role</label>
-                            <div className="relative">
-                                <div
-                                    className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg cursor-pointer flex justify-between items-center focus:ring-2 focus:ring-blue-400 text-sm"
-                                    onClick={() => setRoleOpen(!roleOpen)}
-                                >
-                                    <span className={formData.role ? "text-gray-900" : "text-gray-400"}>
-                                        {formData.role || "Pilih peran anda"}
-                                    </span>
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#A0AEC0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform ${roleOpen ? 'rotate-180' : ''}`}>
-                                        <polyline points="6 9 12 15 18 9" />
-                                    </svg>
-                                </div>
-
-                                {roleOpen && (
-                                    <div className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
-                                        {roles.map((role) => (
-                                            <div
-                                                key={role}
-                                                className="px-4 py-2.5 text-sm text-gray-700 cursor-pointer transition-colors hover:bg-blue-50"
-                                                onMouseEnter={(e) => {
-                                                    e.currentTarget.style.backgroundColor = '#F3F6FB';
-                                                    e.currentTarget.style.color = '#5E81CC';
-                                                }}
-                                                onMouseLeave={(e) => {
-                                                    e.currentTarget.style.backgroundColor = 'transparent';
-                                                    e.currentTarget.style.color = '#374151';
-                                                }}
-                                                onClick={() => handleRoleSelect(role)}
-                                            >
-                                                {role}
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
+                        {/* Pilihan Role Dihapus dari UI agar form bersih */}
 
                         {/* Password */}
                         <div>
@@ -268,8 +212,7 @@ export default function RegisterPage() {
                                     value={formData.password}
                                     onChange={handleChange}
                                     required
-                                    className={`w-full pl-10 pr-10 py-2.5 bg-white border ${formData.password !== "" && !isPasswordValid ? "border-amber-500 focus:ring-amber-400" : "border-gray-300 focus:ring-blue-400"
-                                        } text-gray-900 rounded-lg focus:ring-2 focus:border-transparent outline-none transition-all placeholder-gray-400 text-sm`}
+                                    className="w-full pl-10 pr-10 py-2.5 bg-white border border-gray-300 focus:ring-blue-400 text-gray-900 rounded-lg focus:ring-2 focus:border-transparent outline-none transition-all placeholder-gray-400 text-sm"
                                 />
                                 <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 pr-3 flex items-center">
                                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#A0AEC0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="hover:stroke-gray-600 transition-colors">
@@ -287,28 +230,6 @@ export default function RegisterPage() {
                                         )}
                                     </svg>
                                 </button>
-                            </div>
-
-                            {/* Password Guidelines / Realtime Checklist */}
-                            <div className="mt-3 bg-gray-50 border border-gray-100 rounded-lg p-3">
-                                <p className="text-[11px] font-bold text-gray-600 mb-1.5 uppercase tracking-wider">Rekomendasi Keamanan Password:</p>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-1 text-xs">
-                                    <div className={`flex items-center gap-1.5 ${pwdChecks.length ? 'text-green-600 font-medium' : 'text-gray-400'}`}>
-                                        <span className="text-[10px]">{pwdChecks.length ? '●' : '○'}</span> Minimal 8 karakter
-                                    </div>
-                                    <div className={`flex items-center gap-1.5 ${pwdChecks.uppercase ? 'text-green-600 font-medium' : 'text-gray-400'}`}>
-                                        <span className="text-[10px]">{pwdChecks.uppercase ? '●' : '○'}</span> Huruf besar (A-Z)
-                                    </div>
-                                    <div className={`flex items-center gap-1.5 ${pwdChecks.lowercase ? 'text-green-600 font-medium' : 'text-gray-400'}`}>
-                                        <span className="text-[10px]">{pwdChecks.lowercase ? '●' : '○'}</span> Huruf kecil (a-z)
-                                    </div>
-                                    <div className={`flex items-center gap-1.5 ${pwdChecks.number ? 'text-green-600 font-medium' : 'text-gray-400'}`}>
-                                        <span className="text-[10px]">{pwdChecks.number ? '●' : '○'}</span> Angka (0-9)
-                                    </div>
-                                    <div className={`flex items-center gap-1.5 ${pwdChecks.special ? 'text-green-600 font-medium' : 'text-gray-400'}`}>
-                                        <span className="text-[10px]">{pwdChecks.special ? '●' : '○'}</span> Karakter spesial (e.g. @,#,$,!)
-                                    </div>
-                                </div>
                             </div>
                         </div>
 
