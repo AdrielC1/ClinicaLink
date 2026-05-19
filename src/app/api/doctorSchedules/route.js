@@ -94,35 +94,51 @@ export async function GET(request) {
 }
 
 // ===================================================================
-// 2. POST: Tambah Jadwal Praktik Baru untuk Dokter
+// 2. POST: Tambah Jadwal Praktik Baru (Mendukung Single & Bulk Insert)
 // ===================================================================
 export async function POST(request) {
     try {
-        const { doctor_id, day_of_week, start_time, end_time, slot_duration_minutes, room_number } = await request.json();
+        const body = await request.json();
 
-        // Validasi kolom mandatory MVP
-        if (!doctor_id || !day_of_week || !start_time || !end_time || !slot_duration_minutes) {
-            return NextResponse.json({ message: "Kolom dokter_id, hari, jam mulai, jam selesai, dan durasi slot wajib diisi!" }, { status: 400 });
+        // Memastikan payload diubah menjadi array jika yang masuk berupa single object
+        const isBulk = Array.isArray(body);
+        const schedulesArray = isBulk ? body : [body];
+
+        // Validasi awal untuk setiap data di dalam array
+        for (const schedule of schedulesArray) {
+            const { doctor_id, day_of_week, start_time, end_time, slot_duration_minutes } = schedule;
+            if (!doctor_id || !day_of_week || !start_time || !end_time || !slot_duration_minutes) {
+                return NextResponse.json(
+                    { message: "Ada data yang tidak lengkap! Kolom doctor_id, day_of_week, start_time, end_time, dan slot_duration_minutes wajib diisi." },
+                    { status: 400 }
+                );
+            }
         }
 
+        // Siapkan data untuk dikirim ke Supabase
+        const dataToInsert = schedulesArray.map(item => ({
+            doctor_id: item.doctor_id,
+            day_of_week: Number(item.day_of_week),
+            start_time: item.start_time,
+            end_time: item.end_time,
+            slot_duration_minutes: Number(item.slot_duration_minutes),
+            room_number: item.room_number || null
+        }));
+
+        // Lakukan insert bulk ke Supabase
         const { data, error } = await supabase
             .from('doctor_schedules')
-            .insert([
-                {
-                    doctor_id,
-                    day_of_week: Number(day_of_week),
-                    start_time,
-                    end_time,
-                    slot_duration_minutes: Number(slot_duration_minutes),
-                    room_number: room_number || null
-                }
-            ])
-            .select()
-            .single();
+            .insert(dataToInsert)
+            .select();
 
-        if (error) return NextResponse.json({ message: "Gagal menyimpan jadwal: " + error.message }, { status: 500 });
+        if (error) {
+            return NextResponse.json({ message: "Gagal menyimpan jadwal bulk: " + error.message }, { status: 500 });
+        }
 
-        return NextResponse.json({ message: "Jadwal praktik dokter berhasil ditambahkan!", data }, { status: 201 });
+        return NextResponse.json({
+            message: `${data.length} jadwal praktik dokter berhasil ditambahkan!`,
+            data
+        }, { status: 201 });
 
     } catch (error) {
         return NextResponse.json({ message: "Internal server error: " + error.message }, { status: 500 });
