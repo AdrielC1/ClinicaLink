@@ -1,204 +1,216 @@
 "use client";
-import { useState } from "react";
-import Link from "next/link";
+
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
+import logoSvg from "../icons/ClinicaLink.svg";
 
-function Logo() {
-  return (
-    <div className="flex items-center gap-2 justify-center mb-6">
-      <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
-        <path
-          d="M18 31C18 31 5 23 5 13a9 9 0 0118 0 9 9 0 0118 0c0 10-13 18-13 18z"
-          fill="url(#hg-login)"
-        />
-        <path
-          d="M9 18h4l3-5 4 10 3-7 2 4h4"
-          stroke="white"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          fill="none"
-        />
-        <defs>
-          <linearGradient id="hg-login" x1="5" y1="4" x2="31" y2="31" gradientUnits="userSpaceOnUse">
-            <stop stopColor="#6366F1" />
-            <stop offset="1" stopColor="#3B82F6" />
-          </linearGradient>
-        </defs>
-      </svg>
-      <span className="text-2xl font-bold">
-        <span className="text-gray-800">Clinica</span>
-        <span className="text-indigo-600">Link</span>
-      </span>
-    </div>
-  );
-}
-
-// Decorative plus sign
-function Plus({ className = "" }) {
-  return (
-    <span
-      className={`absolute select-none font-light leading-none ${className}`}
-      style={{ fontSize: 28 }}
-    >
-      +
-    </span>
-  );
+function CrossOrnament({ className, color = "#8AAAE5" }) {
+    return (
+        <svg width="32" height="32" viewBox="0 0 32 32" fill="none" className={`absolute ${className}`} xmlns="http://www.w3.org/2000/svg">
+            <rect x="14" y="0" width="4" height="32" rx="2" fill={color} />
+            <rect x="0" y="14" width="32" height="4" rx="2" fill={color} />
+        </svg>
+    );
 }
 
 export default function LoginPage() {
-  const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [remember, setRemember] = useState(true);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+    const router = useRouter();
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
+    const [remember, setRemember] = useState(true);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
+    const [mounted, setMounted] = useState(false);
+    const [isClosing, setIsClosing] = useState(false);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
-    try {
-      const response = await fetch("/api/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await response.json();
+    const handleNavigate = (path) => {
+        setIsClosing(true);
+        setTimeout(() => {
+            router.push(path);
+        }, 150);
+    };
 
-      if (!response.ok) {
-        setError(data.message || "Login gagal. Periksa email dan password Anda.");
-        return;
-      }
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setError("");
 
-      const userPayload = JSON.stringify(data.user);
-      if (remember) {
-        localStorage.setItem("clinicalink:user", userPayload);
-        sessionStorage.removeItem("clinicalink:user");
-      } else {
-        sessionStorage.setItem("clinicalink:user", userPayload);
-        localStorage.removeItem("clinicalink:user");
-      }
+        try {
+            const response = await fetch("/api/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email, password }),
+            });
+            const data = await response.json();
 
-      router.push(data.redirectTo);
-    } catch (err) {
-      setError("Tidak bisa menghubungi server login. Silakan coba lagi.");
-    } finally {
-      setLoading(false);
-    }
-  };
+            if (!response.ok) {
+                setError(data.message || "Login gagal. Periksa email dan password Anda.");
+                return;
+            }
 
-  return (
-    <div
-      className="min-h-screen flex items-center justify-center relative overflow-hidden"
-      style={{ background: "linear-gradient(135deg, #F0F4FF 0%, #E8EEFF 50%, #EEF6FF 100%)" }}
-    >
-      {/* Decorative plus signs */}
-      <Plus className="top-10 left-1/3 text-gray-400 opacity-50" />
-      <Plus className="top-24 right-16 text-indigo-300 opacity-60" />
-      <Plus className="top-1/2 left-8 text-indigo-300 opacity-50" />
-      <Plus className="bottom-28 left-1/4 text-gray-400 opacity-40" />
-      <Plus className="bottom-16 left-1/2 text-gray-400 opacity-40" />
-      <Plus className="bottom-10 right-1/3 text-indigo-300 opacity-50" />
-      <Plus className="top-1/3 right-8 text-indigo-200 opacity-60" style={{ fontSize: 22 }} />
-      <Plus className="bottom-1/3 right-24 text-gray-300 opacity-60" />
+            const userPayload = JSON.stringify(data.user);
+            if (remember) {
+                localStorage.setItem("clinicalink:user", userPayload);
+                sessionStorage.removeItem("clinicalink:user");
+            } else {
+                sessionStorage.setItem("clinicalink:user", userPayload);
+                localStorage.removeItem("clinicalink:user");
+            }
 
-      {/* "Sign in" top-left label */}
-      <p className="absolute top-5 left-5 text-sm text-gray-400">Sign in</p>
+            handleNavigate(data.redirectTo);
+        } catch (err) {
+            setError("Tidak bisa menghubungi server login. Silakan coba lagi.");
+        } finally {
+            setLoading(false);
+        }
+    };
 
-      {/* Card */}
-      <div className="relative z-10 w-full max-w-sm mx-4">
-        <div className="bg-white rounded-2xl shadow-lg px-8 py-10">
-          <Logo />
-
-          <h1 className="text-2xl font-bold text-gray-800 mb-1">Masuk ke Akun Anda</h1>
-          <p className="text-sm text-gray-500 mb-7">
-            Silahkan masuk untuk melanjutkan ke ClinicaLink
-          </p>
-
-          {error && (
-            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-              {error}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            {/* Email */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-              <div className="flex items-center border border-gray-200 rounded-lg px-3 py-2.5 gap-2 focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-50 transition-all">
-                <svg width="18" height="18" fill="none" stroke="#9CA3AF" strokeWidth="1.8">
-                  <path d="M2 4h16v12H2z" rx="2" strokeLinecap="round" />
-                  <path d="M2 4l9 7 9-7" strokeLinecap="round" />
-                </svg>
-                <input
-                  type="email"
-                  placeholder="Masukkan email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="flex-1 text-sm outline-none bg-transparent text-gray-700 placeholder-gray-400"
-                  required
-                />
-              </div>
+    return (
+        <div className="min-h-screen relative flex items-center justify-center overflow-hidden" style={{ backgroundColor: "#F3F6FB" }}>
+            
+            {/* Background Ornaments */}
+            <CrossOrnament className="top-10 left-32 opacity-60" color="#718096" />
+            <CrossOrnament className="top-24 right-40 opacity-50" color="#5E81CC" />
+            <CrossOrnament className="bottom-20 left-40 opacity-70" color="#718096" />
+            <CrossOrnament className="bottom-40 right-32 opacity-60" color="#5E81CC" />
+            <CrossOrnament className="top-1/2 left-10 opacity-40" color="#5E81CC" />
+            <CrossOrnament className="top-1/3 right-10 opacity-40" color="#718096" />
+            <CrossOrnament className="bottom-10 right-1/3 opacity-50" color="#5E81CC" />
+            {/* Logo — fixed di tengah atas, tidak terpengaruh ukuran card */}
+            <div className="fixed top-8 left-0 right-0 z-30 flex items-center justify-center gap-3 pointer-events-none">
+                <Image src={logoSvg} alt="ClinicaLink Logo" width={44} height={44} priority />
+                <span className="text-3xl font-bold">
+                    <span style={{ color: "rgba(45, 55, 72, 0.5)" }}>Clinica</span>
+                    <span style={{ color: "rgba(94, 129, 201, 0.5)" }}>Link</span>
+                </span>
             </div>
 
-            {/* Password */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-              <div className="flex items-center border border-gray-200 rounded-lg px-3 py-2.5 gap-2 focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-50 transition-all">
-                <svg width="18" height="18" fill="none" stroke="#9CA3AF" strokeWidth="1.8">
-                  <rect x="3" y="8" width="14" height="10" rx="2" />
-                  <path d="M7 8V6a4 4 0 018 0v2" strokeLinecap="round" />
-                </svg>
-                <input
-                  type="password"
-                  placeholder="Masukkan password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="flex-1 text-sm outline-none bg-transparent text-gray-700 placeholder-gray-400"
-                  required
-                />
-              </div>
+            {/* Form Card — selalu di tengah layar, animasi hanya card */}
+            <div className={`relative z-10 bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-8 transition-all duration-200 ease-out ${mounted && !isClosing ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
+
+                {/* Tombol Silang */}
+                <button
+                    onClick={() => handleNavigate("/landing")}
+                    className="absolute top-4 right-4 p-1.5 rounded-full bg-gray-50 hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
+                    aria-label="Tutup"
+                >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+
+                <div className="mb-8">
+                    <h2 className="text-2xl font-bold text-gray-900 mb-2">Masuk ke Akun Anda</h2>
+                    <p className="text-sm text-gray-500">Silahkan masuk untuk melanjutkan ke ClinicaLink</p>
+                </div>
+
+                {error && (
+                    <div className="mb-4 p-3 bg-red-50 border border-red-100 rounded-lg text-sm text-red-600 font-medium">
+                        {error}
+                    </div>
+                )}
+
+                <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+                    {/* Email */}
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-900 mb-2">Email</label>
+                        <div className="relative">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#A0AEC0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                                    <polyline points="22,6 12,13 2,6" />
+                                </svg>
+                            </div>
+                            <input
+                                type="email"
+                                placeholder="Masukkan email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                required
+                                className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-300 text-gray-900 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-transparent outline-none transition-all placeholder-gray-400 text-sm"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Password */}
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-900 mb-2">Password</label>
+                        <div className="relative">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#A0AEC0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                                    <path d="M7 11V7a5 5 0 0110 0v4" />
+                                </svg>
+                            </div>
+                            <input
+                                type={showPassword ? "text" : "password"}
+                                placeholder="Masukkan password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                required
+                                className="w-full pl-10 pr-10 py-2.5 bg-white border border-gray-300 text-gray-900 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-transparent outline-none transition-all placeholder-gray-400 text-sm"
+                            />
+                            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#A0AEC0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="hover:stroke-gray-600 transition-colors">
+                                    {showPassword ? (
+                                        <>
+                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                            <circle cx="12" cy="12" r="3" />
+                                            <line x1="1" y1="1" x2="23" y2="23" />
+                                        </>
+                                    ) : (
+                                        <>
+                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                            <circle cx="12" cy="12" r="3" />
+                                        </>
+                                    )}
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Remember & Forgot */}
+                    <div className="flex items-center justify-between -mt-2">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={remember}
+                                onChange={(e) => setRemember(e.target.checked)}
+                                className="w-4 h-4 rounded accent-blue-500"
+                            />
+                            <span className="text-sm text-gray-600">Ingat saya</span>
+                        </label>
+                        <a href="#" className="text-sm hover:underline" style={{ color: "#5E81CC" }}>
+                            Lupa password?
+                        </a>
+                    </div>
+
+                    {/* Submit */}
+                    <div className="flex flex-col items-center w-full">
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className={`w-full py-3 rounded-lg font-semibold transition-all shadow-md ${!loading ? "hover:opacity-90 active:scale-[0.98] cursor-pointer" : "opacity-50 cursor-not-allowed"}`}
+                            style={{ backgroundColor: "#5E81CC", color: "#FFFFFF" }}
+                        >
+                            {loading ? "Memproses..." : "Masuk"}
+                        </button>
+                        <p className="mt-6 text-sm text-gray-900 font-medium">
+                            Belum punya akun?{" "}
+                            <button type="button" onClick={() => handleNavigate("/register")} style={{ color: "#5E81CC" }} className="hover:underline font-semibold">
+                                Daftar di sini
+                            </button>
+                        </p>
+                    </div>
+                </form>
             </div>
-
-            {/* Remember & Forgot */}
-            <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={remember}
-                  onChange={(e) => setRemember(e.target.checked)}
-                  className="w-4 h-4 rounded accent-indigo-600"
-                />
-                <span className="text-sm text-gray-600">Ingat saya</span>
-              </label>
-              <a href="#" className="text-sm text-indigo-600 hover:underline">
-                Lupa password?
-              </a>
-            </div>
-
-            {/* Submit */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3 rounded-xl text-white font-semibold text-sm mt-1 hover:opacity-90 transition-opacity disabled:opacity-70"
-              style={{ background: "linear-gradient(135deg, #6366F1, #3B82F6)" }}
-            >
-              {loading ? "Memproses..." : "Sign In"}
-            </button>
-          </form>
-
-          <p className="text-sm text-center text-gray-600 mt-5">
-            Belum punya akun?{" "}
-            <Link href="/register" className="text-indigo-600 font-medium hover:underline">
-              Sign Up
-            </Link>
-          </p>
         </div>
-      </div>
-    </div>
-  );
+    );
 }
