@@ -111,7 +111,7 @@ export default function AppSidebarLayout({ children, role }) {
       <div className="flex flex-col lg:flex-row gap-8 flex-1">
         
         {/* Transparent Left Sidebar */}
-        <aside className="w-full lg:w-64 shrink-0 flex flex-col justify-between">
+        <aside className="w-full lg:w-64 shrink-0 flex flex-col justify-between bg-white/60 backdrop-blur-sm border border-gray-100 shadow-sm rounded-2xl p-4">
           <nav className="space-y-1.5 flex-1">
             {links.map((link) => {
               const active = pathname === link.href;
@@ -119,9 +119,9 @@ export default function AppSidebarLayout({ children, role }) {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`flex items-center gap-4 px-5 py-3.5 rounded-xl text-[15px] font-bold transition-all duration-200 ${
+                  className={`flex items-center gap-4 px-4 py-3 rounded-xl text-[15px] font-bold transition-all duration-200 ${
                     active
-                      ? "bg-[#E6EDFF] text-[#5E81CC]"
+                      ? "bg-[#E6EDFF] text-[#5E81CC] shadow-sm"
                       : "text-gray-700 hover:bg-white hover:shadow-sm"
                   }`}
                 >

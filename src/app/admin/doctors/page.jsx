@@ -35,7 +35,7 @@ export default function AdminDoctorsPage() {
     const inactiveCount = doctors.length - activeCount;
 
     return (
-        <div className="min-h-screen bg-[#F8FAFC] p-8 font-sans text-slate-800">
+        <div className="font-sans text-slate-800">
             {/* Header Section */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
                 <div>
