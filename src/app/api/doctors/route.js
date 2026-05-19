@@ -16,6 +16,7 @@ export async function GET(request) {
             .from('doctors')
             .select(`
                 id,
+                is_active,
                 user:users (
                     full_name,
                     email
@@ -43,7 +44,8 @@ export async function GET(request) {
                 full_name: data.user?.full_name || "No Name",
                 email: data.user?.email || "",
                 specialization_id: data.specialization?.id || null,
-                specialization_name: data.specialization?.name || "Belum ada spesialisasi"
+                specialization_name: data.specialization?.name || "Belum ada spesialisasi",
+                is_active: data.is_active
             };
 
             return NextResponse.json({ message: "Berhasil mengambil data dokter.", data: formattedDoctor }, { status: 200 });
@@ -62,7 +64,8 @@ export async function GET(request) {
             full_name: doc.user?.full_name || "No Name",
             email: doc.user?.email || "",
             specialization_id: doc.specialization?.id || null,
-            specialization_name: doc.specialization?.name || "Belum ada spesialisasi"
+            specialization_name: doc.specialization?.name || "Belum ada spesialisasi",
+            is_active: doc.is_active
         }));
 
         return NextResponse.json({
