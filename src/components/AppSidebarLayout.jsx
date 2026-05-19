@@ -41,12 +41,12 @@ const roleConfig = {
 function Brand() {
   return (
     <Link href="/landing" className="flex items-center gap-3">
-      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-lg font-bold text-white">
+      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#5E81CC] text-lg font-bold text-white shadow-sm">
         CL
       </span>
-      <span className="text-xl font-bold">
-        <span className="text-slate-900">Clinica</span>
-        <span className="text-indigo-600">Link</span>
+      <span className="text-xl font-bold tracking-tight">
+        <span className="text-[#2D3748]">Clinica</span>
+        <span className="text-[#5E81CC]">Link</span>
       </span>
     </Link>
   );
@@ -64,8 +64,8 @@ export default function AppSidebarLayout({ children, role }) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
-      <aside className="fixed inset-y-0 left-0 hidden w-72 flex-col border-r border-slate-200 bg-white px-5 py-6 lg:flex">
+    <div className="min-h-screen bg-[#F8FAFC] text-[#2D3748] font-sans">
+      <aside className="fixed inset-y-0 left-0 hidden w-72 flex-col border-r border-gray-200 bg-white px-6 py-8 lg:flex shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
         <Brand />
         <div className="mt-8">
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
@@ -81,10 +81,10 @@ export default function AppSidebarLayout({ children, role }) {
               <Link
                 key={link.href}
                 href={link.href}
-                className={`flex rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                className={`flex rounded-xl px-4 py-3 text-sm font-semibold transition-all duration-200 ${
                   active
-                    ? "bg-indigo-50 text-indigo-700"
-                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                    ? "bg-[#F3F6FB] text-[#5E81CC]"
+                    : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
                 }`}
               >
                 {link.label}
@@ -96,7 +96,7 @@ export default function AppSidebarLayout({ children, role }) {
           <button
             type="button"
             onClick={handleSignOut}
-            className="flex w-full items-center justify-center rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50"
+            className="flex w-full items-center justify-center rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-bold text-red-600 transition-colors hover:bg-red-100 hover:border-red-200"
           >
             Sign Out
           </button>
@@ -110,7 +110,7 @@ export default function AppSidebarLayout({ children, role }) {
             <button
               type="button"
               onClick={handleSignOut}
-              className="shrink-0 rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50"
+              className="shrink-0 rounded-lg bg-red-50 px-4 py-2 text-sm font-bold text-red-600 transition-colors hover:bg-red-100"
             >
               Sign Out
             </button>
@@ -123,10 +123,10 @@ export default function AppSidebarLayout({ children, role }) {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`shrink-0 rounded-lg px-3 py-2 text-sm font-medium ${
+                  className={`shrink-0 rounded-full px-4 py-2 text-sm font-bold transition-all ${
                     active
-                      ? "bg-indigo-50 text-indigo-700"
-                      : "bg-slate-100 text-slate-600"
+                      ? "bg-[#5E81CC] text-white shadow-md shadow-blue-500/20"
+                      : "bg-white border border-gray-200 text-gray-500 hover:bg-gray-50"
                   }`}
                 >
                   {link.label}
@@ -136,7 +136,7 @@ export default function AppSidebarLayout({ children, role }) {
           </nav>
         </header>
 
-        <main className="mx-auto min-h-screen w-full max-w-6xl px-5 py-8 lg:px-8">
+        <main className="mx-auto min-h-screen w-full max-w-7xl">
           {children}
         </main>
       </div>

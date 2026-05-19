@@ -1,6 +1,6 @@
 export default function RolePage({ title, description, stats = [], actions = [] }) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-8">
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <p className="text-sm font-medium text-indigo-600">ClinicaLink</p>
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">{title}</h1>
