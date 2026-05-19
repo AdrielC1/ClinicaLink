@@ -6,9 +6,10 @@ export async function POST(request) {
     try {
         // 1. Ambil data dari body request frontend
         const { email, password, full_name, phone_number, role } = await request.json();
+        const cleanEmail = String(email || "").trim().toLowerCase();
 
         // 2. Validasi Input Dasar
-        if (!email || !password || !full_name || !role) {
+        if (!cleanEmail || !password || !full_name || !role) {
             return NextResponse.json(
                 { message: "Semua kolom utama wajib diisi!" },
                 { status: 400 }
@@ -17,7 +18,7 @@ export async function POST(request) {
 
         // 3. Validasi Format Email
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) {
+        if (!emailRegex.test(cleanEmail)) {
             return NextResponse.json(
                 { message: "Format email tidak valid!" },
                 { status: 400 }
@@ -38,8 +39,15 @@ export async function POST(request) {
         const { data: existingUser, error: checkError } = await supabase
             .from('users')
             .select('email')
-            .eq('email', email)
-            .single();
+            .eq('email', cleanEmail)
+            .maybeSingle();
+
+        if (checkError) {
+            return NextResponse.json(
+                { message: "Gagal memeriksa email: " + checkError.message },
+                { status: 500 }
+            );
+        }
 
         if (existingUser) {
             return NextResponse.json(
@@ -52,11 +60,8 @@ export async function POST(request) {
         const saltRounds = 10;
         const hashedPassword = await bcrypt.hash(password, saltRounds);
         const roleMapping = {
-            "pasien": "patient",
             "pasien": "patient", // Jaga-jaga jika dikirim lowercase
             "dokter": "doctor",
-            "dokter": "doctor",
-            "admin": "admin",
             "admin": "admin"
         };
 
@@ -75,7 +80,7 @@ export async function POST(request) {
             .from('users')
             .insert([
                 {
-                    email: email.toLowerCase(),
+                    email: cleanEmail,
                     password_hash: hashedPassword,
                     full_name: full_name,
                     role: dbRole

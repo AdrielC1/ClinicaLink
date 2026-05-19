@@ -52,15 +52,43 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    // TODO: ganti dengan logic auth kita nnti
-    setTimeout(() => {
+    setError("");
+
+    try {
+      const response = await fetch("/api/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.message || "Login gagal. Periksa email dan password Anda.");
+        return;
+      }
+
+      const userPayload = JSON.stringify(data.user);
+      if (remember) {
+        localStorage.setItem("clinicalink:user", userPayload);
+        sessionStorage.removeItem("clinicalink:user");
+      } else {
+        sessionStorage.setItem("clinicalink:user", userPayload);
+        localStorage.removeItem("clinicalink:user");
+      }
+
+      router.push(data.redirectTo);
+    } catch (err) {
+      setError("Tidak bisa menghubungi server login. Silakan coba lagi.");
+    } finally {
       setLoading(false);
-      router.push("/patient/dashboard");
-    }, 1200);
+    }
   };
 
   return (
@@ -90,6 +118,12 @@ export default function LoginPage() {
           <p className="text-sm text-gray-500 mb-7">
             Silahkan masuk untuk melanjutkan ke ClinicaLink
           </p>
+
+          {error && (
+            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+              {error}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             {/* Email */}
