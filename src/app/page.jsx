@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import brandIcon from "@/app/icons/ClinicaLink.svg";
 
 export default function SplashScreen() {
   const router = useRouter();
@@ -79,7 +80,7 @@ export default function SplashScreen() {
       <div className="flex flex-col items-center gap-6 z-10">
         {/* Logo */}
         <div className="flex items-center gap-4 animate-pulse-slow">
-          <Image src="/icons/ClinicaLink.svg" alt="ClinicaLink" width={48} height={48} priority />
+          <Image src={brandIcon} alt="ClinicaLink" width={48} height={48} priority />
 
           {/* Brand name */}
           <div>
