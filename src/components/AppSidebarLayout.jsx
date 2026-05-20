@@ -75,9 +75,9 @@ function readStoredUser() {
   }
 }
 
-function getPatientName(user) {
-  const name = user?.full_name || user?.fullName || user?.name || "Kimmy";
-  return String(name).trim() || "Kimmy";
+function getUserName(user) {
+  const name = user?.user_metadata?.full_name || user?.full_name || user?.name || "User";
+  return String(name).trim() || "User";
 }
 
 function Brand() {
@@ -125,7 +125,7 @@ function PatientLayout({ children, pathname, onSignOut }) {
     return () => window.removeEventListener("storage", loadUser);
   }, []);
 
-  const patientName = getPatientName(currentUser);
+  const patientName = getUserName(currentUser);
   const initial = patientName.charAt(0).toUpperCase();
 
   return (
@@ -220,6 +220,24 @@ export default function AppSidebarLayout({ children, role }) {
   const pathname = usePathname();
   const router = useRouter();
   const config = roleConfig[role] ?? roleConfig.patient;
+  const [currentUser, setCurrentUser] = useState(null);
+
+  useEffect(() => {
+    const loadUser = () => {
+      const user = readStoredUser();
+      if (user) {
+        setCurrentUser(user);
+      }
+    };
+
+    loadUser();
+
+    window.addEventListener("storage", loadUser);
+    return () => window.removeEventListener("storage", loadUser);
+  }, []);
+
+  const userName = getUserName(currentUser);
+  const initial = userName.charAt(0).toUpperCase();
 
   const handleSignOut = () => {
     localStorage.removeItem("clinicalink:user");
@@ -264,6 +282,15 @@ export default function AppSidebarLayout({ children, role }) {
           })}
         </nav>
         <div className="mt-auto border-t border-slate-200 pt-5">
+          <div className="mb-4 flex items-center gap-3 px-2">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-700">
+              {initial}
+            </div>
+            <div className="flex flex-col overflow-hidden">
+              <span className="truncate text-sm font-bold text-slate-900">{userName}</span>
+              <span className="text-xs capitalize text-slate-500">{role}</span>
+            </div>
+          </div>
           <button
             type="button"
             onClick={handleSignOut}
@@ -278,13 +305,16 @@ export default function AppSidebarLayout({ children, role }) {
         <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 px-5 py-4 backdrop-blur lg:hidden">
           <div className="flex items-center justify-between gap-4">
             <Brand />
-            <button
-              type="button"
-              onClick={handleSignOut}
-              className="shrink-0 rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50"
-            >
-              Sign Out
-            </button>
+            <div className="flex items-center gap-3">
+              <span className="hidden text-sm font-bold text-slate-900 sm:block">{userName}</span>
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="shrink-0 rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50"
+              >
+                Sign Out
+              </button>
+            </div>
           </div>
           <nav className="mt-4 flex gap-2 overflow-x-auto pb-1">
             {config.links.map((link) => {
