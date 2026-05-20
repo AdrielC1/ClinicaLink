@@ -15,6 +15,25 @@ function CrossOrnament({ className, color = "#8AAAE5" }) {
     );
 }
 
+async function parseApiResponse(response) {
+    const text = await response.text();
+
+    try {
+        return text ? JSON.parse(text) : {};
+    } catch {
+        throw new Error("Server mengirim respons HTML, bukan JSON.");
+    }
+}
+
+function findLocalPatientAccount(email, password) {
+    const normalizedEmail = String(email || "").trim().toLowerCase();
+    const savedUsers = JSON.parse(localStorage.getItem("clinicalink:registeredUsers") || "[]");
+
+    return savedUsers.find(
+        (user) => user.email === normalizedEmail && user.password === password && user.role === "patient"
+    );
+}
+
 export default function LoginPage() {
     const router = useRouter();
     const [email, setEmail] = useState("");
@@ -27,7 +46,8 @@ export default function LoginPage() {
     const [isClosing, setIsClosing] = useState(false);
 
     useEffect(() => {
-        setMounted(true);
+        const frame = requestAnimationFrame(() => setMounted(true));
+        return () => cancelAnimationFrame(frame);
     }, []);
 
     const handleNavigate = (path) => {
