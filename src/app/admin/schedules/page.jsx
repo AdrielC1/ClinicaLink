@@ -91,7 +91,7 @@ export default function AdminSchedulesPage() {
                     const sched = doctorSchedules.find(s => s.day_of_week === day);
                     const body = { ...formData, day_of_week: day, id: sched.id };
                     promises.push(
-                        fetch(url, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(async r => {
+                        fetch(`${url}?id=${sched.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(async r => {
                             const resData = await r.json();
                             if (!r.ok) throw new Error(`${DAYS_OF_WEEK[day]}: ${resData.message}`);
                             return resData;

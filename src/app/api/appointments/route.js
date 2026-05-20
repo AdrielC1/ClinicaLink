@@ -10,6 +10,7 @@ export async function GET(request) {
         const id = searchParams.get('id');
         const patientId = searchParams.get('patient_id');
         const scheduleId = searchParams.get('schedule_id');
+        const doctorId = searchParams.get('doctor_id');
         const status = searchParams.get('status'); // Filter opsional: 'scheduled', 'completed', 'cancelled'
 
         // Base Query: Mengambil data janji temu beserta relasi mendalam ke profil Pasien dan Dokter
@@ -25,6 +26,7 @@ export async function GET(request) {
                     user:users ( full_name, email )
                 ),
                 schedule_id,
+                doctor_id,
                 schedule:doctor_schedules (
                     day_of_week,
                     start_time,
@@ -47,6 +49,10 @@ export async function GET(request) {
         // Filter C: Berdasarkan ID Jadwal Dokter (Untuk Dashboard Dokter melihat antrian)
         else if (scheduleId) {
             query = query.eq('schedule_id', scheduleId).order('appointment_date', { ascending: true });
+        }
+        // Filter D: Berdasarkan ID Dokter (Untuk cek ketersediaan jadwal)
+        else if (doctorId) {
+            query = query.eq('doctor_id', doctorId).order('appointment_date', { ascending: false });
         }
         // Filter Default: Semua (Untuk Admin)
         else {
@@ -91,7 +97,7 @@ export async function GET(request) {
 // ===================================================================
 export async function POST(request) {
     try {
-        const { patient_id, schedule_id, appointment_date, notes } = await request.json();
+        const { patient_id, schedule_id, appointment_date, notes, start_time, end_time } = await request.json();
 
         // 1. Validasi kolom wajib dari request JSON
         if (!patient_id || !schedule_id || !appointment_date) {
@@ -115,10 +121,10 @@ export async function POST(request) {
             );
         }
 
-        // Ekstrak data otomatis dari jadwal dokter
+        // Ekstrak data otomatis dari jadwal dokter (bisa di-override dari frontend untuk slot 30 menit)
         const autoDoctorId = scheduleData.doctor_id;
-        const autoStartTime = scheduleData.start_time;
-        const autoEndTime = scheduleData.end_time;
+        const autoStartTime = start_time || scheduleData.start_time;
+        const autoEndTime = end_time || scheduleData.end_time;
 
         // 3. Lakukan insert ke tabel appointments dengan parameter lengkap sesuai not-null constraint database
         const { data, error } = await supabase
@@ -128,8 +134,8 @@ export async function POST(request) {
                 doctor_id: autoDoctorId,         // ⬅️ Otomatis
                 schedule_id: Number(schedule_id),
                 appointment_date,
-                start_time: autoStartTime,       // ⬅️ Otomatis dari jadwal dokter
-                end_time: autoEndTime,           // ⬅️ Otomatis dari jadwal dokter
+                start_time: autoStartTime,       // ⬅️ Otomatis atau dari slot frontend
+                end_time: autoEndTime,           // ⬅️ Otomatis atau dari slot frontend
                 status: 'Menunggu',
                 medical_notes: notes || null
             }])
