@@ -84,7 +84,9 @@ export async function GET(request) {
             room_number: item.schedule?.room_number || "-",
             start_time: item.start_time,
             end_time: item.end_time,
-            schedule_time: item.start_time ? `${item.start_time} - ${item.end_time}` : `${item.schedule?.start_time} - ${item.schedule?.end_time}`
+            schedule_time: item.start_time 
+                ? `${item.start_time.substring(0, 5)} - ${item.end_time?.substring(0, 5) || ""}` 
+                : `${item.schedule?.start_time?.substring(0, 5) || ""} - ${item.schedule?.end_time?.substring(0, 5) || ""}`
         });
 
         const formattedData = Array.isArray(data) ? data.map(formatData) : formatData(data);

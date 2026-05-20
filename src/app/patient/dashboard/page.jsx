@@ -78,20 +78,20 @@ export default function PatientDashboardPage() {
   // ================= DATA FETCHING =================
   const fetchDashboardData = async (userId) => {
     try {
-      const apptRes = await fetch(`/api/appointments?patient_id=${userId}`);
+      const apptRes = await fetch(`/api/appointments?patient_id=${userId}`, { cache: 'no-store' });
       if (apptRes.ok) {
         const apptData = await apptRes.json();
         setAppointments(Array.isArray(apptData.data) ? apptData.data : (apptData.data ? [apptData.data] : []));
       }
 
-      const docRes = await fetch("/api/doctors");
+      const docRes = await fetch("/api/doctors", { cache: 'no-store' });
       if (docRes.ok) {
         const docData = await docRes.json();
         const docsArray = Array.isArray(docData.data) ? docData.data : [];
         setDoctors(docsArray.filter(doc => doc.is_active !== false));
       }
 
-      const schedRes = await fetch("/api/doctorSchedules");
+      const schedRes = await fetch("/api/doctorSchedules", { cache: 'no-store' });
       if (schedRes.ok) {
         const schedData = await schedRes.json();
         setDoctorSchedules(Array.isArray(schedData.data) ? schedData.data : []);
@@ -136,10 +136,11 @@ export default function PatientDashboardPage() {
     setBookingStep(1);
 
     try {
-      const res = await fetch(`/api/appointments?doctor_id=${doc.id}`);
+      const res = await fetch(`/api/appointments?doctor_id=${doc.id}`, { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
-        setDoctorAppointments(Array.isArray(data.data) ? data.data : (data.data ? [data.data] : []));
+        const appts = Array.isArray(data.data) ? data.data : (data.data ? [data.data] : []);
+        setDoctorAppointments(appts);
       }
     } catch (e) {
       console.error(e);
@@ -399,7 +400,9 @@ export default function PatientDashboardPage() {
                   <h4 className="mb-3 text-sm font-bold text-slate-900">Waktu Tersedia</h4>
                   <div className="grid grid-cols-2 gap-3">
                     {(() => {
-                      const selectedDayOfWeek = new Date(selectedDate).getDay();
+                      // Gunakan UTC agar tidak terjadi shift tanggal akibat timezone
+                      const [syear, smonth, sday] = selectedDate.split('-').map(Number);
+                      const selectedDayOfWeek = new Date(Date.UTC(syear, smonth - 1, sday)).getUTCDay();
                       const schedulesForToday = doctorSchedules.filter(
                         s => s.doctor_id === selectedDoctor.id && s.day_of_week === selectedDayOfWeek
                       );
@@ -412,10 +415,12 @@ export default function PatientDashboardPage() {
                             <div key={sched.id} className="col-span-2 grid grid-cols-2 gap-3">
                               {slots.map(slot => {
                                 const isBooked = doctorAppointments.some(
-                                  a => a.appointment_date === selectedDate && 
-                                       a.schedule_id === sched.id && 
-                                       a.start_time === slot.start_time &&
-                                       !['Dibatalkan', 'Selesai', 'Cancelled', 'Completed'].includes(a.status)
+                                  a => {
+                                    const dateMatch = a.appointment_date?.split('T')[0] === selectedDate?.split('T')[0];
+                                    const timeMatch = a.start_time?.substring(0, 5) === slot.start_time.substring(0, 5);
+                                    const statusMatch = !['Dibatalkan', 'Selesai', 'Cancelled', 'Completed'].includes(a.status);
+                                    return dateMatch && timeMatch && statusMatch;
+                                  }
                                 );
                                 
                                 return (
