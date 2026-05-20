@@ -204,9 +204,8 @@ function PatientLayout({ children, pathname, onSignOut }) {
                   <Link
                     key={link.href}
                     href={link.href}
-                    className={`flex h-[41px] items-center gap-4 rounded-[7px] px-3 text-[18px] font-extrabold transition ${
-                      active ? "bg-[#e4ebff] text-[#5e81cc]" : "text-black hover:bg-white"
-                    }`}
+                    className={`flex h-[41px] items-center gap-4 rounded-[7px] px-3 text-[18px] font-extrabold transition ${active ? "bg-[#e4ebff] text-[#5e81cc]" : "text-black hover:bg-white"
+                      }`}
                   >
                     <span
                       aria-hidden="true"
@@ -284,19 +283,14 @@ export default function AppSidebarLayout({ children, role }) {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-[#2D3748] font-sans p-6 md:p-10 flex flex-col w-full">
-      
+
       {/* Top Navbar */}
       <header className="w-full bg-white rounded-2xl shadow-sm px-6 md:px-8 py-4 flex items-center justify-between mb-8 z-20 relative">
-        
+
         {/* Left: Logo */}
-        <Link href="/landing" className="flex items-center gap-3 hover:opacity-90 transition-opacity">
-          {/* Heart Pulse Icon */}
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl text-[#5E81CC]">
-            <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35zm-2.8-11.85l-1.7 1.7L6 9.7l2.5-2.5 3.5 3.5 2.5-2.5 2.5 2.5-1.5 1.5-3.5-3.5-2.8 2.8z"/>
-            </svg>
-          </div>
-          <span className="text-2xl font-bold tracking-tight">
+        <Link href="/landing" className="flex items-center gap-2 hover:opacity-90 transition-opacity">
+          <Image src={brandIcon} alt="ClinicaLink" width={35} height={35} priority />
+          <span className="text-2xl font-extrabold tracking-tight">
             <span className="text-[#2D3748]">Clinica</span>
             <span className="text-[#5E81CC]">Link</span>
           </span>
@@ -314,7 +308,7 @@ export default function AppSidebarLayout({ children, role }) {
             </svg>
             <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
           </button>
-          
+
           <div className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity">
             <img src="https://ui-avatars.com/api/?name=Admin&background=5E81CC&color=fff&rounded=true" alt="Admin Profile" className="w-10 h-10 rounded-full border border-gray-100" />
             <span className="font-bold text-[#2D3748] hidden sm:block">Admin</span>
@@ -324,7 +318,7 @@ export default function AppSidebarLayout({ children, role }) {
 
       {/* Main Layout Area */}
       <div className="flex flex-col lg:flex-row gap-8 flex-1">
-        
+
         {/* Transparent Left Sidebar */}
         <aside className="w-full lg:w-64 shrink-0 flex flex-col justify-between bg-white/60 backdrop-blur-sm border border-gray-100 shadow-sm rounded-2xl p-4">
           <nav className="space-y-1.5 flex-1">
@@ -334,11 +328,10 @@ export default function AppSidebarLayout({ children, role }) {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`flex items-center gap-4 px-4 py-3 rounded-xl text-[15px] font-bold transition-all duration-200 ${
-                    active
-                      ? "bg-[#E6EDFF] text-[#5E81CC] shadow-sm"
-                      : "text-gray-700 hover:bg-white hover:shadow-sm"
-                  }`}
+                  className={`flex items-center gap-4 px-4 py-3 rounded-xl text-[15px] font-bold transition-all duration-200 ${active
+                    ? "bg-[#E6EDFF] text-[#5E81CC] shadow-sm"
+                    : "text-gray-700 hover:bg-white hover:shadow-sm"
+                    }`}
                 >
                   <span className={`${active ? "text-[#5E81CC]" : "text-gray-600"}`}>
                     {icons[link.label] || icons["Dashboard"]}
