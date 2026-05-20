@@ -111,7 +111,14 @@ export default function PatientDashboardPage() {
       }
 
       const { data: userData } = await supabase.from("users").select("full_name").eq("id", user.id).single();
-      const fullName = userData?.full_name || user.user_metadata?.full_name || "Pasien";
+      
+      const rawUser = localStorage.getItem("clinicalink:user") ?? sessionStorage.getItem("clinicalink:user");
+      let storedName = null;
+      if (rawUser) {
+        try { storedName = JSON.parse(rawUser)?.full_name || JSON.parse(rawUser)?.name; } catch (e) {}
+      }
+
+      const fullName = storedName || userData?.full_name || user.user_metadata?.full_name || "Pasien";
       setCurrentUser({ id: user.id, name: fullName });
 
       await fetchDashboardData(user.id);
@@ -416,16 +423,20 @@ export default function PatientDashboardPage() {
                                     key={slot.start_time}
                                     onClick={() => !isBooked && setSelectedSchedule({ ...sched, start_time: slot.start_time, end_time: slot.end_time })}
                                     disabled={isBooked}
-                                    className={`rounded-xl border py-3 text-sm font-bold transition-all ${
+                                    className={`flex flex-col items-center justify-center rounded-xl border py-2 text-sm font-bold transition-all ${
                                       isBooked 
-                                        ? "bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed opacity-60"
-                                        : selectedSchedule?.start_time === slot.start_time && selectedSchedule?.schedule_id === sched.id
-                                          ? "bg-indigo-50 border-indigo-600 text-indigo-700 shadow-sm"
+                                        ? "bg-amber-50 border-amber-300 text-amber-700 cursor-not-allowed"
+                                        : selectedSchedule?.start_time === slot.start_time && selectedSchedule?.id === sched.id
+                                          ? "bg-indigo-600 border-indigo-600 text-white shadow-md"
                                           : "bg-white border-slate-200 text-slate-700 hover:border-indigo-300 hover:bg-indigo-50"
                                     }`}
                                   >
-                                    {slot.label}
-                                    {isBooked && <span className="block text-[10px] text-red-500 mt-1 font-semibold">Telah Dipesan</span>}
+                                    <span>{slot.label}</span>
+                                    {isBooked ? (
+                                      <span className="block text-[10px] text-amber-600 mt-0.5 font-semibold">Sudah ada janji</span>
+                                    ) : (
+                                      <span className="block text-[10px] text-transparent mt-0.5 font-semibold select-none">Tersedia</span>
+                                    )}
                                   </button>
                                 );
                               })}

@@ -19,6 +19,8 @@ export async function GET(request) {
             .select(`
                 id,
                 appointment_date,
+                start_time,
+                end_time,
                 status,
                 medical_notes,
                 patient_id,
@@ -80,7 +82,9 @@ export async function GET(request) {
             schedule_id: item.schedule_id,
             doctor_name: item.schedule?.doctor?.user?.full_name || "Unknown Doctor",
             room_number: item.schedule?.room_number || "-",
-            schedule_time: `${item.schedule?.start_time} - ${item.schedule?.end_time}`
+            start_time: item.start_time,
+            end_time: item.end_time,
+            schedule_time: item.start_time ? `${item.start_time} - ${item.end_time}` : `${item.schedule?.start_time} - ${item.schedule?.end_time}`
         });
 
         const formattedData = Array.isArray(data) ? data.map(formatData) : formatData(data);
