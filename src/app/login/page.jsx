@@ -1,4 +1,5 @@
 "use client";
+import { supabase } from "@/lib/supabase";
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -62,60 +63,57 @@ export default function LoginPage() {
         setError("");
 
         try {
-            const localAccount = findLocalPatientAccount(email, password);
-
-            if (localAccount) {
-                const userPayload = JSON.stringify({
-                    id: localAccount.id,
-                    email: localAccount.email,
-                    full_name: localAccount.full_name,
-                    role: "patient",
-                });
-
-                if (remember) {
-                    localStorage.setItem("clinicalink:user", userPayload);
-                    sessionStorage.removeItem("clinicalink:user");
-                } else {
-                    sessionStorage.setItem("clinicalink:user", userPayload);
-                    localStorage.removeItem("clinicalink:user");
-                }
-
-                handleNavigate("/patient/dashboard");
-                return;
-            }
-
-            const response = await fetch("/api/login", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, password }),
+            // 1. Tembak Autentikasi Langsung ke Supabase (Otomatis menyimpan sesi di browser)
+            const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+                email,
+                password,
             });
-            const data = await parseApiResponse(response);
 
-            if (!response.ok) {
-                setError(data.message || "Login gagal. Periksa email dan password Anda.");
+            if (authError) {
+                setError("Login gagal. Periksa email dan password Anda.");
+                setLoading(false);
                 return;
             }
 
-            const userPayload = JSON.stringify(data.user);
-            if (remember) {
-                localStorage.setItem("clinicalink:user", userPayload);
-                sessionStorage.removeItem("clinicalink:user");
-            } else {
-                sessionStorage.setItem("clinicalink:user", userPayload);
-                localStorage.removeItem("clinicalink:user");
+            // 2. Ambil Role User dari tabel public.users untuk menentukan rute dashboard
+            const { data: userData, error: userError } = await supabase
+                .from("users")
+                .select("role")
+                .eq("id", authData.user.id)
+                .single();
+
+            if (userError || !userData) {
+                setError("Gagal membaca otoritas akun Anda. Silakan hubungi admin.");
+                setLoading(false);
+                return;
             }
 
-            handleNavigate(data.redirectTo);
+            // 3. Routing Pintar Berdasarkan Role
+            let targetRoute = "/";
+            if (userData.role === "patient") {
+                targetRoute = "/patient/dashboard";
+            } else if (userData.role === "doctor") {
+                targetRoute = "/doctor/dashboard";
+            } else if (userData.role === "admin") {
+                targetRoute = "/admin/dashboard";
+            }
+
+            // 4. Arahkan ke rute yang benar dengan efek animasi yang sudah Anda buat
+            handleNavigate(targetRoute);
+
+            // Catatan: setLoading(false) sengaja dilewati di blok sukses ini 
+            // agar tombol tetap berstatus "Memproses..." selama animasi pindah halaman.
+
         } catch (err) {
-            setError("Tidak bisa menghubungi server login. Silakan coba lagi.");
-        } finally {
+            console.error("Error catch login:", err);
+            setError("Tidak bisa menghubungi server autentikasi. Silakan coba lagi.");
             setLoading(false);
         }
     };
 
     return (
         <div className="min-h-screen relative flex items-center justify-center overflow-hidden" style={{ backgroundColor: "#F3F6FB" }}>
-            
+
             {/* Background Ornaments */}
             <CrossOrnament className="top-10 left-32 opacity-60" color="#718096" />
             <CrossOrnament className="top-24 right-40 opacity-50" color="#5E81CC" />

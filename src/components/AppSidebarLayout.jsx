@@ -72,41 +72,15 @@ const patientLinks = [
 ];
 
 function readStoredUser() {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  const rawUser =
-    localStorage.getItem("clinicalink:user") ?? sessionStorage.getItem("clinicalink:user");
-
-  if (!rawUser) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(rawUser);
-  } catch {
-    return null;
-  }
+  if (typeof window === "undefined") return null;
+  const rawUser = localStorage.getItem("clinicalink:user") ?? sessionStorage.getItem("clinicalink:user");
+  if (!rawUser) return null;
+  try { return JSON.parse(rawUser); } catch { return null; }
 }
 
 function getPatientName(user) {
-  const name = user?.full_name || user?.fullName || user?.name || "Kimmy";
-  return String(name).trim() || "Kimmy";
-}
-
-function Brand() {
-  return (
-    <Link href="/landing" className="flex items-center gap-3">
-      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-lg font-bold text-white">
-        CL
-      </span>
-      <span className="text-xl font-bold">
-        <span className="text-slate-900">Clinica</span>
-        <span className="text-indigo-600">Link</span>
-      </span>
-    </Link>
-  );
+  const name = user?.full_name || user?.fullName || user?.name || "Pasien";
+  return String(name).trim() || "Pasien";
 }
 
 function PatientBrand() {
@@ -123,63 +97,39 @@ function PatientBrand() {
 
 function PatientLayout({ children, pathname, onSignOut }) {
   const [currentUser, setCurrentUser] = useState(null);
-  const patientName = getPatientName(currentUser);
-  const initial = patientName.charAt(0).toUpperCase();
 
   useEffect(() => {
-    const frame = requestAnimationFrame(() => setCurrentUser(readStoredUser()));
-    return () => cancelAnimationFrame(frame);
+    const loadUser = () => {
+      const user = readStoredUser();
+      if (user) setCurrentUser(user);
+    };
+    loadUser();
+    window.addEventListener("storage", loadUser);
+    return () => window.removeEventListener("storage", loadUser);
   }, []);
+
+  const patientName = getPatientName(currentUser);
+  const initial = patientName.charAt(0).toUpperCase();
 
   return (
     <div className="min-h-screen bg-[#f3f6fb] px-4 py-10 text-[#0b0b0f]">
       <div className="mx-auto w-full max-w-[1190px]">
-        <header className="flex min-h-[66px] flex-wrap items-center justify-between gap-4 bg-white px-6 py-3 shadow-sm">
+        <header className="flex min-h-[66px] flex-wrap items-center justify-between gap-4 bg-white px-6 py-3 shadow-sm rounded-2xl">
           <PatientBrand />
 
           <div className="flex flex-1 items-center justify-end gap-5 lg:gap-9">
             <label className="relative hidden lg:block">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#9aa1ad]">
-                <svg
-                  aria-hidden="true"
-                  className="h-5 w-5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="m21 21-4.3-4.3m1.3-5.2a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z"
-                  />
+                <svg aria-hidden="true" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.3-4.3m1.3-5.2a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z" />
                 </svg>
               </span>
-              <input
-                type="search"
-                placeholder="Search..."
-                className="h-11 w-[350px] max-w-[35vw] rounded-[8px] border-0 bg-[#f4f4f4] pl-12 pr-4 text-[13px] font-medium outline-none placeholder:text-[#8d8d8d]"
-              />
+              <input type="search" placeholder="Search..." className="h-11 w-[350px] max-w-[35vw] rounded-[8px] border-0 bg-[#f4f4f4] pl-12 pr-4 text-[13px] font-medium outline-none placeholder:text-[#8d8d8d]" />
             </label>
 
-            <button
-              type="button"
-              aria-label="Notifikasi"
-              className="flex h-10 w-10 items-center justify-center text-black"
-            >
-              <svg
-                aria-hidden="true"
-                className="h-6 w-6"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth="2.4"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5m6 0a3 3 0 0 1-6 0"
-                />
+            <button type="button" aria-label="Notifikasi" className="flex h-10 w-10 items-center justify-center text-black">
+              <svg aria-hidden="true" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.4">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5m6 0a3 3 0 0 1-6 0" />
               </svg>
             </button>
 
@@ -189,7 +139,9 @@ function PatientLayout({ children, pathname, onSignOut }) {
                   {initial}
                 </div>
               </div>
-              <span className="max-w-[160px] truncate text-base font-extrabold">{patientName}</span>
+              <span className="max-w-[160px] truncate text-base font-extrabold text-slate-800">
+                {patientName}
+              </span>
             </div>
           </div>
         </header>
@@ -199,26 +151,20 @@ function PatientLayout({ children, pathname, onSignOut }) {
             <nav className="space-y-[9px]">
               {patientLinks.map((link) => {
                 const active = pathname === link.href;
-
                 return (
                   <Link
                     key={link.href}
                     href={link.href}
-                    className={`flex h-[41px] items-center gap-4 rounded-[7px] px-3 text-[18px] font-extrabold transition ${active ? "bg-[#e4ebff] text-[#5e81cc]" : "text-black hover:bg-white"
-                      }`}
+                    className={`flex h-[41px] items-center gap-4 rounded-[7px] px-3 text-[18px] font-extrabold transition ${active ? "bg-[#e4ebff] text-[#5e81cc]" : "text-black hover:bg-white"}`}
                   >
                     <span
                       aria-hidden="true"
                       className="h-[22px] w-[22px] bg-current"
                       style={{
-                        WebkitMaskImage: `url(${link.icon.src})`,
-                        maskImage: `url(${link.icon.src})`,
-                        WebkitMaskPosition: "center",
-                        maskPosition: "center",
-                        WebkitMaskRepeat: "no-repeat",
-                        maskRepeat: "no-repeat",
-                        WebkitMaskSize: "contain",
-                        maskSize: "contain",
+                        WebkitMaskImage: `url(${link.icon.src})`, maskImage: `url(${link.icon.src})`,
+                        WebkitMaskPosition: "center", maskPosition: "center",
+                        WebkitMaskRepeat: "no-repeat", maskRepeat: "no-repeat",
+                        WebkitMaskSize: "contain", maskSize: "contain",
                       }}
                     />
                     <span>{link.label}</span>
@@ -228,30 +174,14 @@ function PatientLayout({ children, pathname, onSignOut }) {
             </nav>
 
             <div className="mt-auto border-t border-[#a7abb3] pt-7">
-              <button
-                type="button"
-                onClick={onSignOut}
-                className="flex items-center gap-5 px-3 text-[18px] font-extrabold text-black"
-              >
-                <svg
-                  aria-hidden="true"
-                  className="h-6 w-6"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth="2.3"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M15.5 8.5V6a2 2 0 0 0-2-2h-7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2v-2.5M10 12h9m0 0-3-3m3 3-3 3"
-                  />
+              <button type="button" onClick={onSignOut} className="flex items-center gap-5 px-3 text-[18px] font-extrabold text-black hover:opacity-70 transition">
+                <svg aria-hidden="true" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.3">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.5 8.5V6a2 2 0 0 0-2-2h-7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2v-2.5M10 12h9m0 0-3-3m3 3-3 3" />
                 </svg>
                 <span>Log out</span>
               </button>
             </div>
           </aside>
-
           <div className="min-w-0">{children}</div>
         </div>
       </div>
@@ -263,8 +193,6 @@ export default function AppSidebarLayout({ children, role }) {
   const pathname = usePathname();
   const router = useRouter();
 
-  // For MVP, we'll hardcode the links based on the requested Admin layout.
-  // In a real app with multiple roles, you'd switch this based on `role`.
   const links = role === 'admin' ? adminLinks : adminLinks;
 
   const handleSignOut = () => {
@@ -283,11 +211,7 @@ export default function AppSidebarLayout({ children, role }) {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-[#2D3748] font-sans p-6 md:p-10 flex flex-col w-full">
-
-      {/* Top Navbar */}
       <header className="w-full bg-white rounded-2xl shadow-sm px-6 md:px-8 py-4 flex items-center justify-between mb-8 z-20 relative">
-
-        {/* Left: Logo */}
         <Link href="/landing" className="flex items-center gap-2 hover:opacity-90 transition-opacity">
           <Image src={brandIcon} alt="ClinicaLink" width={35} height={35} priority />
           <span className="text-2xl font-extrabold tracking-tight">
@@ -295,12 +219,7 @@ export default function AppSidebarLayout({ children, role }) {
             <span className="text-[#5E81CC]">Link</span>
           </span>
         </Link>
-
-        {/* Center: Empty spacing */}
-        <div className="hidden md:flex relative flex-1 max-w-lg mx-8">
-        </div>
-
-        {/* Right: Bell & Profile */}
+        <div className="hidden md:flex relative flex-1 max-w-lg mx-8"></div>
         <div className="flex items-center gap-6 shrink-0">
           <button className="text-gray-600 hover:text-[#5E81CC] transition-colors relative p-1">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -308,7 +227,6 @@ export default function AppSidebarLayout({ children, role }) {
             </svg>
             <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
           </button>
-
           <div className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity">
             <img src="https://ui-avatars.com/api/?name=Admin&background=5E81CC&color=fff&rounded=true" alt="Admin Profile" className="w-10 h-10 rounded-full border border-gray-100" />
             <span className="font-bold text-[#2D3748] hidden sm:block">Admin</span>
@@ -316,10 +234,7 @@ export default function AppSidebarLayout({ children, role }) {
         </div>
       </header>
 
-      {/* Main Layout Area */}
       <div className="flex flex-col lg:flex-row gap-8 flex-1">
-
-        {/* Transparent Left Sidebar */}
         <aside className="w-full lg:w-64 shrink-0 flex flex-col justify-between bg-white/60 backdrop-blur-sm border border-gray-100 shadow-sm rounded-2xl p-4">
           <nav className="space-y-1.5 flex-1">
             {links.map((link) => {
@@ -328,10 +243,7 @@ export default function AppSidebarLayout({ children, role }) {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`flex items-center gap-4 px-4 py-3 rounded-xl text-[15px] font-bold transition-all duration-200 ${active
-                    ? "bg-[#E6EDFF] text-[#5E81CC] shadow-sm"
-                    : "text-gray-700 hover:bg-white hover:shadow-sm"
-                    }`}
+                  className={`flex items-center gap-4 px-4 py-3 rounded-xl text-[15px] font-bold transition-all duration-200 ${active ? "bg-[#E6EDFF] text-[#5E81CC] shadow-sm" : "text-gray-700 hover:bg-white hover:shadow-sm"}`}
                 >
                   <span className={`${active ? "text-[#5E81CC]" : "text-gray-600"}`}>
                     {icons[link.label] || icons["Dashboard"]}
@@ -341,8 +253,6 @@ export default function AppSidebarLayout({ children, role }) {
               );
             })}
           </nav>
-
-          {/* Bottom Logout Area */}
           <div className="mt-8">
             <hr className="border-gray-200 border-[1.5px] mb-6 mx-2" />
             <button
@@ -356,13 +266,10 @@ export default function AppSidebarLayout({ children, role }) {
             </button>
           </div>
         </aside>
-
-        {/* Content Area */}
         <main className="flex-1 w-full min-w-0">
           {children}
         </main>
       </div>
-
     </div>
   );
 }
