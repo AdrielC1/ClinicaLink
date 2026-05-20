@@ -10,27 +10,14 @@ const navLinks = [
   { label: "About", href: "#about" },
 ];
 
+import Image from "next/image";
+import brandIcon from "@/app/icons/ClinicaLink.svg";
+
 function Logo({ size = "md" }) {
   const s = size === "sm" ? 28 : 36;
-  const id = size === "sm" ? "hg-sm" : "hg-md";
   return (
     <div className="flex items-center gap-2 shrink-0">
-      <svg width={s} height={s} viewBox="0 0 36 36" fill="none" style={{ minWidth: s }}>
-        <path
-          d="M18 31C18 31 5 23 5 13a9 9 0 0118 0 9 9 0 0118 0c0 10-13 18-13 18z"
-          fill={`url(#${id})`}
-        />
-        <path
-          d="M9 18h4l3-5 4 10 3-7 2 4h4"
-          stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"
-        />
-        <defs>
-          <linearGradient id={id} x1="5" y1="4" x2="31" y2="31" gradientUnits="userSpaceOnUse">
-            <stop stopColor="#6366F1" />
-            <stop offset="1" stopColor="#3B82F6" />
-          </linearGradient>
-        </defs>
-      </svg>
+      <Image src={brandIcon} alt="ClinicaLink" width={s} height={s} priority />
       <span className="text-xl font-bold whitespace-nowrap">
         <span className="text-gray-800">Clinica</span>
         <span className="text-indigo-600">Link</span>

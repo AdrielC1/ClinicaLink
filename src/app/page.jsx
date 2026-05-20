@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 export default function SplashScreen() {
   const router = useRouter();
@@ -78,29 +79,7 @@ export default function SplashScreen() {
       <div className="flex flex-col items-center gap-6 z-10">
         {/* Logo */}
         <div className="flex items-center gap-4 animate-pulse-slow">
-          {/* Heart with pulse icon */}
-          <div
-            className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg"
-            style={{
-              background: "linear-gradient(135deg, #6366F1, #3B82F6)",
-            }}
-          >
-            <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
-              <path
-                d="M18 30s-13-8-13-17a8 8 0 0116 0 8 8 0 0116 0c0 9-13 17-13 17z"
-                fill="white"
-                opacity="0.9"
-              />
-              <path
-                d="M8 18h4l3-5 4 10 3-7 2 4h4"
-                stroke="white"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                fill="none"
-              />
-            </svg>
-          </div>
+          <Image src="/icons/ClinicaLink.svg" alt="ClinicaLink" width={48} height={48} priority />
 
           {/* Brand name */}
           <div>

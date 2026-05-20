@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import logoSvg from "../icons/ClinicaLink.svg"; // Pastikan path icon ini benar di folder Anda
+import Link from "next/link";
+import logoSvg from "../icons/ClinicaLink.svg";
 
 function CrossOrnament({ className, color = "#8AAAE5" }) {
     return (
@@ -11,6 +12,35 @@ function CrossOrnament({ className, color = "#8AAAE5" }) {
             <rect x="14" y="0" width="4" height="32" rx="2" fill={color} />
             <rect x="0" y="14" width="32" height="4" rx="2" fill={color} />
         </svg>
+    );
+}
+
+async function parseApiResponse(response) {
+    const text = await response.text();
+
+    try {
+        return text ? JSON.parse(text) : {};
+    } catch {
+        throw new Error("Server mengirim respons HTML, bukan JSON. Coba refresh dan submit ulang.");
+    }
+}
+
+function saveLocalPatientAccount({ user, password, phone_number }) {
+    const savedUsers = JSON.parse(localStorage.getItem("clinicalink:registeredUsers") || "[]");
+    const normalizedEmail = String(user.email || "").trim().toLowerCase();
+    const nextUser = {
+        id: user.id,
+        email: normalizedEmail,
+        password,
+        full_name: user.full_name,
+        phone_number,
+        role: "patient",
+    };
+    const filteredUsers = savedUsers.filter((item) => item.email !== normalizedEmail);
+
+    localStorage.setItem(
+        "clinicalink:registeredUsers",
+        JSON.stringify([...filteredUsers, nextUser])
     );
 }
 
@@ -33,7 +63,8 @@ export default function RegisterPage() {
     const [isClosing, setIsClosing] = useState(false);
 
     useEffect(() => {
-        setMounted(true);
+        const frame = requestAnimationFrame(() => setMounted(true));
+        return () => cancelAnimationFrame(frame);
     }, []);
 
     const handleNavigate = (path) => {
@@ -86,18 +117,31 @@ export default function RegisterPage() {
                     password: formData.password,
                     full_name: formData.namaLengkap,
                     phone_number: formData.noTelepon,
-                    role: "patient" // ✅ SUDAH DIPERBAIKI: Menggunakan "patient" agar cocok dengan API
+                    role: "patient" // Otomatis dikunci ke role pasien
                 })
             });
 
-            const data = await res.json();
+            const data = await parseApiResponse(res);
 
             if (!res.ok) {
                 throw new Error(data.message || "Gagal melakukan registrasi");
             }
 
-            // Sukses, redirect ke login dengan animasi
-            handleNavigate("/login");
+            const user = data.user ?? {
+                    email: formData.email,
+                    full_name: formData.namaLengkap,
+                    role: "patient",
+                };
+            saveLocalPatientAccount({
+                user,
+                password: formData.password,
+                phone_number: formData.noTelepon,
+            });
+            localStorage.setItem("clinicalink:user", JSON.stringify(user));
+            sessionStorage.removeItem("clinicalink:user");
+
+            // Sukses, role pasien langsung diarahkan ke dashboard pasien
+            handleNavigate("/patient/dashboard");
         } catch (err) {
             setErrorMsg(err.message || "Terjadi kesalahan jaringan.");
         } finally {
@@ -116,7 +160,6 @@ export default function RegisterPage() {
             <CrossOrnament className="top-1/2 left-10 opacity-40" color="#5E81CC" />
             <CrossOrnament className="top-1/3 right-10 opacity-40" color="#718096" />
             <CrossOrnament className="bottom-10 right-1/3 opacity-50" color="#5E81CC" />
-
             {/* Logo — fixed di tengah atas, tidak terpengaruh ukuran card */}
             <div className="fixed top-8 left-0 right-0 z-30 flex items-center justify-center gap-3 pointer-events-none">
                 <Image src={logoSvg} alt="ClinicaLink Logo" width={44} height={44} priority />
@@ -217,6 +260,8 @@ export default function RegisterPage() {
                             </div>
                         </div>
 
+                        {/* Pilihan Role Dihapus dari UI agar form bersih */}
+
                         {/* Password */}
                         <div>
                             <label className="block text-sm font-semibold text-gray-900 mb-2">Password</label>
@@ -253,6 +298,7 @@ export default function RegisterPage() {
                                     </svg>
                                 </button>
                             </div>
+
                         </div>
 
                         {/* Konfirmasi Password */}
