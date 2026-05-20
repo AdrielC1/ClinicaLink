@@ -10,6 +10,7 @@ export async function GET(request) {
         const id = searchParams.get('id');
         const patientId = searchParams.get('patient_id');
         const scheduleId = searchParams.get('schedule_id');
+        const doctorId = searchParams.get('doctor_id');
         const status = searchParams.get('status'); // Filter opsional: 'scheduled', 'completed', 'cancelled'
 
         // Base Query: Mengambil data janji temu beserta relasi mendalam ke profil Pasien dan Dokter
@@ -18,6 +19,8 @@ export async function GET(request) {
             .select(`
                 id,
                 appointment_date,
+                start_time,
+                end_time,
                 status,
                 medical_notes,
                 patient_id,
@@ -25,6 +28,7 @@ export async function GET(request) {
                     user:users ( full_name, email )
                 ),
                 schedule_id,
+                doctor_id,
                 schedule:doctor_schedules (
                     day_of_week,
                     start_time,
@@ -47,6 +51,10 @@ export async function GET(request) {
         // Filter C: Berdasarkan ID Jadwal Dokter (Untuk Dashboard Dokter melihat antrian)
         else if (scheduleId) {
             query = query.eq('schedule_id', scheduleId).order('appointment_date', { ascending: true });
+        }
+        // Filter D: Berdasarkan ID Dokter (Untuk cek ketersediaan jadwal)
+        else if (doctorId) {
+            query = query.eq('doctor_id', doctorId).order('appointment_date', { ascending: false });
         }
         // Filter Default: Semua (Untuk Admin)
         else {
@@ -74,7 +82,9 @@ export async function GET(request) {
             schedule_id: item.schedule_id,
             doctor_name: item.schedule?.doctor?.user?.full_name || "Unknown Doctor",
             room_number: item.schedule?.room_number || "-",
-            schedule_time: `${item.schedule?.start_time} - ${item.schedule?.end_time}`
+            start_time: item.start_time,
+            end_time: item.end_time,
+            schedule_time: item.start_time ? `${item.start_time} - ${item.end_time}` : `${item.schedule?.start_time} - ${item.schedule?.end_time}`
         });
 
         const formattedData = Array.isArray(data) ? data.map(formatData) : formatData(data);

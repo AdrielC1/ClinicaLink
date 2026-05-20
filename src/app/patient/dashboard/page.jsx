@@ -15,6 +15,30 @@ import {
   CalendarDays
 } from "lucide-react";
 
+function generateTimeSlots(startTimeStr, endTimeStr, intervalMinutes = 30) {
+  const slots = [];
+  if (!startTimeStr || !endTimeStr) return slots;
+  
+  let [h, m] = startTimeStr.split(':').map(Number);
+  let [eh, em] = endTimeStr.split(':').map(Number);
+  let start = h * 60 + m;
+  let end = eh * 60 + em;
+
+  for (let time = start; time + intervalMinutes <= end; time += intervalMinutes) {
+    const slotH = Math.floor(time / 60).toString().padStart(2, '0');
+    const slotM = (time % 60).toString().padStart(2, '0');
+    const nextTime = time + intervalMinutes;
+    const nextH = Math.floor(nextTime / 60).toString().padStart(2, '0');
+    const nextM = (nextTime % 60).toString().padStart(2, '0');
+    slots.push({
+      start_time: `${slotH}:${slotM}:00`,
+      end_time: `${nextH}:${nextM}:00`,
+      label: `${slotH}:${slotM} - ${nextH}:${nextM}`
+    });
+  }
+  return slots;
+}
+
 export default function PatientDashboardPage() {
   const router = useRouter();
 
@@ -31,6 +55,7 @@ export default function PatientDashboardPage() {
   const [selectedSchedule, setSelectedSchedule] = useState(null);
   const [medicalNotes, setMedicalNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [doctorAppointments, setDoctorAppointments] = useState([]);
 
   const today = new Date();
   const currentMonthYear = today.toLocaleDateString('id-ID', {
@@ -86,7 +111,14 @@ export default function PatientDashboardPage() {
       }
 
       const { data: userData } = await supabase.from("users").select("full_name").eq("id", user.id).single();
-      const fullName = userData?.full_name || user.user_metadata?.full_name || "Pasien";
+      
+      const rawUser = localStorage.getItem("clinicalink:user") ?? sessionStorage.getItem("clinicalink:user");
+      let storedName = null;
+      if (rawUser) {
+        try { storedName = JSON.parse(rawUser)?.full_name || JSON.parse(rawUser)?.name; } catch (e) {}
+      }
+
+      const fullName = storedName || userData?.full_name || user.user_metadata?.full_name || "Pasien";
       setCurrentUser({ id: user.id, name: fullName });
 
       await fetchDashboardData(user.id);
@@ -95,12 +127,23 @@ export default function PatientDashboardPage() {
     initData();
   }, [router]);
 
-  const handleOpenBooking = (doc) => {
+  const handleOpenBooking = async (doc) => {
     setSelectedDoctor(doc);
     setSelectedDate(next7Days[0].fullDate);
     setSelectedSchedule(null);
     setMedicalNotes("");
+    setDoctorAppointments([]);
     setBookingStep(1);
+
+    try {
+      const res = await fetch(`/api/appointments?doctor_id=${doc.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setDoctorAppointments(Array.isArray(data.data) ? data.data : (data.data ? [data.data] : []));
+      }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const submitBooking = async () => {
@@ -355,24 +398,59 @@ export default function PatientDashboardPage() {
                 <div>
                   <h4 className="mb-3 text-sm font-bold text-slate-900">Waktu Tersedia</h4>
                   <div className="grid grid-cols-2 gap-3">
-                    {doctorSchedules.filter(s => s.doctor_id === selectedDoctor.id).length > 0 ? (
-                      doctorSchedules.filter(s => s.doctor_id === selectedDoctor.id).map(sched => (
-                        <button
-                          key={sched.id}
-                          onClick={() => setSelectedSchedule(sched)}
-                          className={`rounded-xl border py-3 text-sm font-bold transition-all ${selectedSchedule?.id === sched.id
-                            ? "bg-indigo-50 border-indigo-600 text-indigo-700 shadow-sm"
-                            : "bg-white border-slate-200 text-slate-700 hover:border-indigo-300"
-                            }`}
-                        >
-                          {sched.start_time} - {sched.end_time}
-                        </button>
-                      ))
-                    ) : (
-                      <div className="col-span-2 text-sm text-center py-4 text-slate-500 border border-dashed rounded-xl border-slate-300">
-                        Tidak ada slot waktu di sistem untuk dokter ini.
-                      </div>
-                    )}
+                    {(() => {
+                      const selectedDayOfWeek = new Date(selectedDate).getDay();
+                      const schedulesForToday = doctorSchedules.filter(
+                        s => s.doctor_id === selectedDoctor.id && s.day_of_week === selectedDayOfWeek
+                      );
+
+                      if (schedulesForToday.length > 0) {
+                        return schedulesForToday.map(sched => {
+                          const slots = generateTimeSlots(sched.start_time, sched.end_time, sched.slot_duration_minutes || 30);
+                          
+                          return (
+                            <div key={sched.id} className="col-span-2 grid grid-cols-2 gap-3">
+                              {slots.map(slot => {
+                                const isBooked = doctorAppointments.some(
+                                  a => a.appointment_date === selectedDate && 
+                                       a.schedule_id === sched.id && 
+                                       a.start_time === slot.start_time &&
+                                       !['Dibatalkan', 'Selesai', 'Cancelled', 'Completed'].includes(a.status)
+                                );
+                                
+                                return (
+                                  <button
+                                    key={slot.start_time}
+                                    onClick={() => !isBooked && setSelectedSchedule({ ...sched, start_time: slot.start_time, end_time: slot.end_time })}
+                                    disabled={isBooked}
+                                    className={`flex flex-col items-center justify-center rounded-xl border py-2 text-sm font-bold transition-all ${
+                                      isBooked 
+                                        ? "bg-amber-50 border-amber-300 text-amber-700 cursor-not-allowed"
+                                        : selectedSchedule?.start_time === slot.start_time && selectedSchedule?.id === sched.id
+                                          ? "bg-indigo-600 border-indigo-600 text-white shadow-md"
+                                          : "bg-white border-slate-200 text-slate-700 hover:border-indigo-300 hover:bg-indigo-50"
+                                    }`}
+                                  >
+                                    <span>{slot.label}</span>
+                                    {isBooked ? (
+                                      <span className="block text-[10px] text-amber-600 mt-0.5 font-semibold">Sudah ada janji</span>
+                                    ) : (
+                                      <span className="block text-[10px] text-transparent mt-0.5 font-semibold select-none">Tersedia</span>
+                                    )}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          );
+                        });
+                      } else {
+                        return (
+                          <div className="col-span-2 text-sm text-center py-4 text-slate-500 border border-dashed rounded-xl border-slate-300">
+                            Tidak ada jadwal praktik dokter di hari ini.
+                          </div>
+                        );
+                      }
+                    })()}
                   </div>
                 </div>
 

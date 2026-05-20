@@ -31,7 +31,8 @@ export async function GET(request) {
                     user:users!inner ( full_name ),
                     specialization:specializations ( name )
                 )
-            `);
+            `)
+            .is('deleted_at', null); // Filter out soft-deleted schedules
 
         if (dayOfWeek !== null && dayOfWeek !== undefined) {
             query = query.eq('day_of_week', parseInt(dayOfWeek));
@@ -66,12 +67,13 @@ export async function POST(request) {
             return NextResponse.json({ message: "Kolom dokter, hari, jam mulai, dan jam selesai wajib diisi." }, { status: 400 });
         }
 
-        // Cek konflik: apakah dokter sudah punya jadwal di hari yang sama dengan irisan jam yang sama
+        // Cek konflik: apakah dokter sudah punya jadwal di hari yang sama dengan irisan jam yang sama (yang aktif)
         const { data: existingSchedules, error: checkError } = await supabase
             .from('doctor_schedules')
             .select('id, start_time, end_time')
             .eq('doctor_id', doctor_id)
-            .eq('day_of_week', day_of_week);
+            .eq('day_of_week', day_of_week)
+            .is('deleted_at', null);
             
         if (checkError) return NextResponse.json({ message: "Gagal memverifikasi konflik jadwal: " + checkError.message }, { status: 500 });
 
@@ -120,6 +122,7 @@ export async function PATCH(request) {
                 .select('id, start_time, end_time')
                 .eq('doctor_id', checkDoctorId)
                 .eq('day_of_week', day_of_week)
+                .is('deleted_at', null)
                 .neq('id', id); // exclude current row
                 
             if (checkError) return NextResponse.json({ message: "Gagal memverifikasi konflik jadwal: " + checkError.message }, { status: 500 });
@@ -141,9 +144,10 @@ export async function PATCH(request) {
             ...(end_time && { end_time }),
             ...(slot_duration_minutes && { slot_duration_minutes }),
             ...(room_number !== undefined && { room_number }),
-        }).eq('id', id).select().single();
+        }).eq('id', id).select().maybeSingle();
 
         if (error) return NextResponse.json({ message: "Gagal memperbarui jadwal: " + error.message }, { status: 500 });
+        if (!data) return NextResponse.json({ message: "Gagal memperbarui. Jadwal mungkin sudah terhapus." }, { status: 404 });
 
         return NextResponse.json({ message: "Jadwal berhasil diperbarui.", data }, { status: 200 });
     } catch (error) {
@@ -158,16 +162,22 @@ export async function DELETE(request) {
 
         if (!id) return NextResponse.json({ message: "ID jadwal diperlukan." }, { status: 400 });
 
-        const { error } = await supabase.from('doctor_schedules').delete().eq('id', id);
+        // Menggunakan Soft Delete agar reservasi pasien yang lama tidak rusak/terhapus
+        const { data, error } = await supabase
+            .from('doctor_schedules')
+            .update({ deleted_at: new Date().toISOString() })
+            .eq('id', id)
+            .select()
+            .maybeSingle();
 
         if (error) {
-            if (error.code === '23503') {
-                return NextResponse.json({ message: "Jadwal ini sudah memiliki reservasi pasien dan tidak dapat dihapus. Silakan batalkan atau pindahkan reservasi terlebih dahulu." }, { status: 400 });
-            }
             return NextResponse.json({ message: "Gagal menghapus jadwal: " + error.message }, { status: 500 });
         }
+        if (!data) {
+            return NextResponse.json({ message: "Gagal menghapus. Jadwal tidak ditemukan." }, { status: 404 });
+        }
 
-        return NextResponse.json({ message: "Jadwal berhasil dihapus." }, { status: 200 });
+        return NextResponse.json({ message: "Jadwal berhasil dinonaktifkan." }, { status: 200 });
     } catch (error) {
         return NextResponse.json({ message: "Kesalahan server: " + error.message }, { status: 500 });
     }

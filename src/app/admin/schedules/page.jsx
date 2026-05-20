@@ -240,17 +240,22 @@ export default function AdminSchedulesPage() {
     };
 
     // --- Derived Data ---
-    const selectedDayOfWeek = selectedDate.getDay();
-    const filteredSchedules = schedules.filter(s => {
-        const matchDay = s.day_of_week === selectedDayOfWeek;
+    const uniqueDoctorsSchedules = [];
+    schedules.forEach(s => {
+        if (!uniqueDoctorsSchedules.find(doc => doc.doctor_id === s.doctor_id)) {
+            uniqueDoctorsSchedules.push(s);
+        }
+    });
+
+    const filteredSchedules = uniqueDoctorsSchedules.filter(s => {
         const matchSearch = s.doctor_name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
                             s.specialization?.toLowerCase().includes(searchTerm.toLowerCase());
-        return matchDay && matchSearch;
+        return matchSearch;
     });
 
     return (
         <div className="font-sans text-slate-800 pb-10">
-            {/* Header Section & Calendar */}
+            {/* Header Section */}
             <div className="flex flex-col xl:flex-row justify-between items-stretch mb-4 gap-6">
                 
                 {/* Kiri: Title di atas */}
@@ -258,7 +263,7 @@ export default function AdminSchedulesPage() {
                     <div>
                         <h1 className="text-3xl font-bold text-gray-900 mb-2">Kelola Jadwal</h1>
                         <p className="text-gray-500 text-sm mb-4">
-                            Menampilkan jadwal praktik dokter untuk hari <strong className="text-[#5E81CC]">{DAYS_OF_WEEK[selectedDayOfWeek]}</strong>, {selectedDate.getDate()} {monthNames[selectedDate.getMonth()]} {selectedDate.getFullYear()}
+                            Menampilkan seluruh jadwal praktik dokter.
                         </p>
                     </div>
 
@@ -288,31 +293,12 @@ export default function AdminSchedulesPage() {
                     </div>
                 </div>
 
-                {/* Calendar Widget */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 w-[300px] shrink-0">
-                    <div className="flex justify-between items-center mb-4 px-2">
-                        <button onClick={handlePrevMonth} className="text-gray-400 hover:text-[#5E81CC] transition-colors p-1">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
-                        </button>
-                        <span className="font-bold text-sm text-gray-900">{monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}</span>
-                        <button onClick={handleNextMonth} className="text-gray-400 hover:text-[#5E81CC] transition-colors p-1">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
-                        </button>
-                    </div>
-                    <div className="grid grid-cols-7 gap-1 text-center text-[11px] mb-2 font-bold text-gray-800">
-                        <div>Sen</div><div>Sel</div><div>Rab</div><div>Kam</div><div>Jum</div><div>Sab</div><div>Min</div>
-                    </div>
-                    <div className="grid grid-cols-7 gap-y-2 text-center">
-                        {renderCalendarDays()}
-                    </div>
-                </div>
-
             </div>
 
             {/* Main Table Card */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden pb-4">
                 <div className="p-6 pb-4 flex justify-between items-center">
-                    <h2 className="text-lg font-bold text-gray-900">Daftar Jadwal Praktik ({DAYS_OF_WEEK[selectedDayOfWeek]})</h2>
+                    <h2 className="text-lg font-bold text-gray-900">Daftar Semua Jadwal Praktik</h2>
                 </div>
 
                 <div className="overflow-x-auto">
@@ -333,7 +319,7 @@ export default function AdminSchedulesPage() {
                             {isLoading ? (
                                 <tr><td colSpan="8" className="px-6 py-8 text-center text-gray-500 font-medium">Memuat data jadwal...</td></tr>
                             ) : filteredSchedules.length === 0 ? (
-                                <tr><td colSpan="8" className="px-6 py-8 text-center text-gray-500 font-medium">Tidak ada jadwal dokter di hari ini.</td></tr>
+                                <tr><td colSpan="8" className="px-6 py-8 text-center text-gray-500 font-medium">Tidak ada jadwal dokter.</td></tr>
                             ) : (
                                 filteredSchedules.map((schedule, index) => {
                                     // Hitung semua hari aktif dokter ini (mengambil dari state schedules)
@@ -348,7 +334,7 @@ export default function AdminSchedulesPage() {
                                             <td className="px-6 py-4">
                                                 <div className="flex flex-wrap gap-1 max-w-[160px]">
                                                     {activeDaysArray.map(d => (
-                                                        <span key={d} className={`px-2 py-0.5 rounded-md text-xs border ${d === selectedDayOfWeek ? "bg-blue-100 text-[#5E81CC] border-blue-200 font-bold shadow-sm" : "bg-gray-50 text-gray-500 border-gray-100 font-medium"}`}>
+                                                        <span key={d} className="px-2 py-0.5 rounded-md text-xs border bg-gray-50 text-gray-500 border-gray-100 font-medium">
                                                             {DAYS_OF_WEEK[d].substring(0, 3)}
                                                         </span>
                                                     ))}
