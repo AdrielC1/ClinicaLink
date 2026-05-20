@@ -1,468 +1,467 @@
 "use client";
 
-import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
-import doctorIcon from "@/app/icons/Doctor.svg";
-import calendarGreenIcon from "@/app/icons/Kalender hijau.svg";
-import calendarYellowIcon from "@/app/icons/Kalender kuning.svg";
-import reminderCalendarIcon from "@/app/icons/Kalender reminder.svg";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
+// HAPUS import AppSidebarLayout dari sini jika masih ada
+import {
+  CalendarCheck,
+  Bell,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  X,
+  CheckCircle2,
+  CalendarDays
+} from "lucide-react";
 
-const dummyUsers = [
-  { id: "usr-doctor-001", full_name: "Dr. Emily", role: "doctor" },
-  { id: "usr-doctor-002", full_name: "Dr. Emily", role: "doctor" },
-  { id: "usr-doctor-003", full_name: "Dr. Emily", role: "doctor" },
-  { id: "usr-doctor-004", full_name: "Dr. Emily", role: "doctor" },
-  { id: "usr-doctor-005", full_name: "Dr. Mike", role: "doctor" },
-  { id: "usr-doctor-006", full_name: "Dr. Jatmiko", role: "doctor" },
-];
+export default function PatientDashboardPage() {
+  const router = useRouter();
 
-const dummySpecializations = [
-  { id: 1, name: "Spesialis Gigi" },
-  { id: 2, name: "Spesialis Umum" },
-  { id: 3, name: "Spesialis Penyakit Dalam" },
-];
+  // ================= STATE MANAGEMENT =================
+  const [currentUser, setCurrentUser] = useState(null);
+  const [appointments, setAppointments] = useState([]);
+  const [doctors, setDoctors] = useState([]);
+  const [doctorSchedules, setDoctorSchedules] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-const dummyDoctors = [
-  { id: "usr-doctor-001", specialization_id: 1, is_active: true },
-  { id: "usr-doctor-002", specialization_id: 1, is_active: true },
-  { id: "usr-doctor-003", specialization_id: 1, is_active: true },
-  { id: "usr-doctor-004", specialization_id: 1, is_active: true },
-  { id: "usr-doctor-005", specialization_id: 2, is_active: true },
-  { id: "usr-doctor-006", specialization_id: 3, is_active: true },
-];
+  const [bookingStep, setBookingStep] = useState(0);
+  const [selectedDoctor, setSelectedDoctor] = useState(null);
+  const [selectedDate, setSelectedDate] = useState("");
+  const [selectedSchedule, setSelectedSchedule] = useState(null);
+  const [medicalNotes, setMedicalNotes] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-const dummyDoctorSchedules = [
-  { doctor_id: "usr-doctor-001", day_of_week: 2, start_time: "09.00", end_time: "12.00" },
-  { doctor_id: "usr-doctor-002", day_of_week: 2, start_time: "10.00", end_time: "13.00" },
-  { doctor_id: "usr-doctor-003", day_of_week: 2, start_time: "13.00", end_time: "16.00" },
-  { doctor_id: "usr-doctor-004", day_of_week: 2, start_time: "16.00", end_time: "19.00" },
-];
+  const today = new Date();
+  const currentMonthYear = today.toLocaleDateString('id-ID', {
+    timeZone: 'Asia/Jakarta',
+    month: 'long',
+    year: 'numeric'
+  });
 
-const availableDoctors = dummyDoctors
-  .filter((doctor) => doctor.is_active)
-  .slice(0, 4)
-  .map((doctor) => {
-    const user = dummyUsers.find((item) => item.id === doctor.id);
-    const specialization = dummySpecializations.find(
-      (item) => item.id === doctor.specialization_id,
-    );
-    const schedule = dummyDoctorSchedules.find((item) => item.doctor_id === doctor.id);
-
+  const next7Days = Array.from({ length: 7 }).map((_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() + i + 1);
     return {
-      id: doctor.id,
-      name: user?.full_name ?? "Dr. Emily",
-      specialty: specialization?.name ?? "Spesialis Gigi",
-      schedule: schedule ? `${schedule.start_time} - ${schedule.end_time}` : "09.00 - 12.00",
+      fullDate: d.toISOString().split('T')[0],
+      dayName: d.toLocaleDateString('id-ID', { weekday: 'long' }),
+      dateNum: d.getDate(),
+      monthShort: d.toLocaleDateString('id-ID', { month: 'short' })
     };
   });
 
-const weekdays = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"];
+  // ================= DATA FETCHING =================
+  const fetchDashboardData = async (userId) => {
+    try {
+      const apptRes = await fetch(`/api/appointments?patient_id=${userId}`);
+      if (apptRes.ok) {
+        const apptData = await apptRes.json();
+        setAppointments(Array.isArray(apptData.data) ? apptData.data : (apptData.data ? [apptData.data] : []));
+      }
 
-function readStoredUser() {
-  if (typeof window === "undefined") {
-    return null;
-  }
+      const docRes = await fetch("/api/doctors");
+      if (docRes.ok) {
+        const docData = await docRes.json();
+        const docsArray = Array.isArray(docData.data) ? docData.data : [];
+        setDoctors(docsArray.filter(doc => doc.is_active !== false));
+      }
 
-  const rawUser =
-    localStorage.getItem("clinicalink:user") ?? sessionStorage.getItem("clinicalink:user");
-
-  if (!rawUser) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(rawUser);
-  } catch {
-    return null;
-  }
-}
-
-function getPatientName(user) {
-  const name = user?.full_name || user?.fullName || user?.name || "Kimmy";
-  return String(name).trim() || "Kimmy";
-}
-
-function getJakartaDateParts() {
-  const formatter = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Jakarta",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-  const parts = formatter.formatToParts(new Date());
-
-  return {
-    year: Number(parts.find((part) => part.type === "year")?.value),
-    month: Number(parts.find((part) => part.type === "month")?.value),
-    day: Number(parts.find((part) => part.type === "day")?.value),
+      const schedRes = await fetch("/api/doctorSchedules");
+      if (schedRes.ok) {
+        const schedData = await schedRes.json();
+        setDoctorSchedules(Array.isArray(schedData.data) ? schedData.data : []);
+      }
+    } catch (error) {
+      console.error("Gagal memuat data dashboard:", error);
+    }
   };
-}
-
-function buildCalendarDays(year, month) {
-  const firstDay = new Date(Date.UTC(year, month - 1, 1));
-  const totalDays = new Date(Date.UTC(year, month, 0)).getUTCDate();
-  const previousMonthDays = new Date(Date.UTC(year, month - 1, 0)).getUTCDate();
-  const mondayBasedStart = (firstDay.getUTCDay() + 6) % 7;
-  const days = [];
-
-  for (let index = mondayBasedStart - 1; index >= 0; index -= 1) {
-    days.push({ day: previousMonthDays - index, muted: true });
-  }
-
-  for (let day = 1; day <= totalDays; day += 1) {
-    days.push({ day, muted: false });
-  }
-
-  const nextMonthFill = (7 - (days.length % 7)) % 7;
-  for (let day = 1; day <= nextMonthFill; day += 1) {
-    days.push({ day, muted: true });
-  }
-
-  return days;
-}
-
-function CalendarLineIcon({ tone }) {
-  const color = tone === "green" ? "#45C57B" : "#F2B900";
-
-  return (
-    <svg
-      aria-hidden="true"
-      className="h-7 w-7"
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke={color}
-      strokeWidth="2.1"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M7 3v4m10-4v4M5 9h14M7 5h10a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Zm3 9 2 2 4-5"
-      />
-    </svg>
-  );
-}
-
-function BellLineIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="h-7 w-7"
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="#FF4B1A"
-      strokeWidth="2.1"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5m6 0a3 3 0 0 1-6 0"
-      />
-    </svg>
-  );
-}
-
-function StatIcon({ background, backgroundClass = "", children }) {
-  return (
-    <div className="relative flex h-[47px] w-[54px] shrink-0 items-center justify-center">
-      {background ? (
-        <Image src={background} alt="" fill sizes="54px" className="object-contain" />
-      ) : (
-        <span className={`absolute inset-0 rounded-[15px] ${backgroundClass}`} />
-      )}
-      <span className="relative z-10">{children}</span>
-    </div>
-  );
-}
-
-function DoctorAvatar({ size = "large" }) {
-  const dimensions = size === "small" ? "h-11 w-11" : "h-14 w-14";
-  const imageSize = size === "small" ? 32 : 42;
-
-  return (
-    <div
-      className={`flex ${dimensions} shrink-0 items-end justify-center overflow-hidden rounded-full bg-[#d8d1c7] ring-4 ring-white`}
-    >
-      <Image src={doctorIcon} alt="" width={imageSize} height={imageSize} />
-    </div>
-  );
-}
-
-export default function PatientDashboardPage() {
-  const [currentUser, setCurrentUser] = useState(null);
-  const patientName = getPatientName(currentUser);
-  const today = useMemo(() => getJakartaDateParts(), []);
-  const calendarDays = useMemo(() => buildCalendarDays(today.year, today.month), [today]);
-  const monthLabel = useMemo(
-    () =>
-      new Intl.DateTimeFormat("id-ID", {
-        month: "long",
-        year: "numeric",
-        timeZone: "Asia/Jakarta",
-      }).format(new Date(Date.UTC(today.year, today.month - 1, today.day))),
-    [today],
-  );
-  const appointmentDate = useMemo(
-    () =>
-      new Intl.DateTimeFormat("id-ID", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-        timeZone: "Asia/Jakarta",
-      }).format(new Date(Date.UTC(today.year, today.month - 1, today.day))),
-    [today],
-  );
 
   useEffect(() => {
-    const frame = requestAnimationFrame(() => setCurrentUser(readStoredUser()));
-    return () => cancelAnimationFrame(frame);
-  }, []);
+    const initData = async () => {
+      setLoading(true);
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        router.push("/login");
+        return;
+      }
+
+      const { data: userData } = await supabase.from("users").select("full_name").eq("id", user.id).single();
+      const fullName = userData?.full_name || user.user_metadata?.full_name || "Pasien";
+      setCurrentUser({ id: user.id, name: fullName });
+
+      await fetchDashboardData(user.id);
+      setLoading(false);
+    };
+    initData();
+  }, [router]);
+
+  const handleOpenBooking = (doc) => {
+    setSelectedDoctor(doc);
+    setSelectedDate(next7Days[0].fullDate);
+    setSelectedSchedule(null);
+    setMedicalNotes("");
+    setBookingStep(1);
+  };
+
+  const submitBooking = async () => {
+    if (!selectedSchedule) return alert("Pilih jam jadwal terlebih dahulu.");
+    setIsSubmitting(true);
+
+    try {
+      const res = await fetch("/api/appointments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          patient_id: currentUser.id,
+          schedule_id: selectedSchedule.id,
+          appointment_date: selectedDate,
+          notes: medicalNotes
+        })
+      });
+
+      if (res.ok) {
+        setBookingStep(3);
+        fetchDashboardData(currentUser.id);
+      } else {
+        const errData = await res.json();
+        alert(errData.message || "Gagal membuat janji temu.");
+      }
+    } catch (error) {
+      alert("Error menghubungi server.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const upcomingAppointments = appointments.filter(a => a.status === "Menunggu" || a.status === "Scheduled");
+  const completedAppointments = appointments.filter(a => a.status === "Selesai" || a.status === "Completed");
+
+  // Jika loading, tidak perlu me-render AppSidebarLayout lagi di sini
+  if (loading) {
+    return (
+      <div className="flex h-full min-h-[60vh] items-center justify-center">
+        <p className="text-slate-500 font-medium animate-pulse">Memuat Dashboard...</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-[770px] border border-[#d8eef4] bg-[#f4fcff] px-5 py-5">
-      <div className="grid gap-7 xl:grid-cols-[minmax(0,1fr)_300px]">
-        <main className="min-w-0">
-          <h1 className="text-[23px] font-extrabold tracking-[-0.01em]">Daftar Dokter</h1>
+    <> {/* <-- Cukup gunakan Fragment atau <div> biasa sebagai pembungkus paling luar */}
 
-          <section className="mt-[14px] rounded-[8px] bg-gradient-to-br from-[#d6e6ff] via-[#abc4fa] to-[#7fa2f2] px-7 py-[26px] shadow-[0_3px_8px_rgba(94,129,201,0.28)]">
-            <h2 className="text-[28px] font-extrabold leading-tight tracking-[-0.01em]">
-              Selamat Pagi, {patientName}
-            </h2>
-            <p className="mt-2 text-[15px] font-bold">
-              Kelola janji temu klinik anda dengan mudah hari ini
-            </p>
-            <button
-              type="button"
-              className="mt-7 h-[27px] rounded-[5px] bg-[#5e81cc] px-5 text-[11px] font-extrabold text-white"
-            >
-              Booking Sekarang
-            </button>
-          </section>
+      {/* GRID UTAMA */}
+      <div className="flex flex-col lg:flex-row gap-8 w-full">
 
-          <section className="mt-8 grid grid-cols-1 gap-5 md:grid-cols-3 md:gap-8">
-            {[
-              {
-                label: "Janji Temu mendatang",
-                value: "2",
-                icon: <CalendarLineIcon tone="yellow" />,
-                background: calendarYellowIcon,
-              },
-              {
-                label: "Janji Temu Selesai",
-                value: "12",
-                icon: <CalendarLineIcon tone="green" />,
-                background: calendarGreenIcon,
-              },
-              {
-                label: "Pengingat Hari ini",
-                value: "1",
-                icon: <BellLineIcon />,
-                background: null,
-                backgroundClass: "bg-[#ffe2e2]",
-              },
-            ].map((item) => (
-              <article
-                key={item.label}
-                className="grid min-h-[130px] grid-cols-[54px_minmax(0,1fr)] items-start gap-4 rounded-[8px] border border-[#dedede] bg-white px-4 py-5 shadow-sm"
-              >
-                <StatIcon background={item.background} backgroundClass={item.backgroundClass}>
-                  {item.icon}
-                </StatIcon>
-                <div className="min-w-0 pt-1">
-                  <p className="text-[12px] font-extrabold leading-[15px]">{item.label}</p>
-                  <p className="mt-[20px] text-center text-[25px] font-extrabold leading-none">
-                    {item.value}
-                  </p>
-                </div>
-              </article>
-            ))}
-          </section>
+        {/* ================= KOLOM KIRI ================= */}
+        <div className="flex-1 space-y-8 min-w-0">
 
-          <section className="mt-[10px] rounded-[8px] bg-white px-5 py-4 shadow-sm">
-            <h2 className="text-[16px] font-extrabold">Janji Temu Mendatang</h2>
-            <div className="mt-5 grid gap-4 md:grid-cols-[170px_minmax(130px,1fr)_190px] md:items-center">
-              <div className="flex min-w-0 items-center gap-4">
-                <DoctorAvatar />
-                <div className="min-w-0">
-                  <p className="truncate text-[12px] font-extrabold">Dr. Mike</p>
-                  <p className="mt-1 text-[10px] font-semibold leading-4 text-[#6b7280]">
-                    Spesialis Umum
-                  </p>
-                </div>
-              </div>
-
-              <div className="border-[#edf0f2] text-[11px] font-extrabold md:border-l md:pl-7">
-                <p className="whitespace-nowrap">{appointmentDate}</p>
-                <p className="mt-3 whitespace-nowrap">10.00 - 10.30</p>
-              </div>
-
-              <div className="flex min-w-0 flex-col gap-4 md:items-end">
-                <span className="inline-flex h-[23px] w-[122px] items-center justify-center rounded-full bg-[#bff4c3] text-[9px] font-extrabold text-[#16922d]">
-                  Dijadwalkan
-                </span>
-                <div className="flex w-full flex-wrap gap-3 md:justify-end">
-                  <button
-                    type="button"
-                    className="h-[24px] min-w-[88px] rounded-full bg-[#5e81cc] px-4 text-[10px] font-extrabold text-white"
-                  >
-                    Lihat Detail
-                  </button>
-                  <button
-                    type="button"
-                    className="h-[24px] min-w-[88px] rounded-full border border-[#ff3f3f] px-4 text-[10px] font-extrabold text-[#ff3f3f]"
-                  >
-                    Batalkan
-                  </button>
-                </div>
-              </div>
+          {/* Hero Banner */}
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-500 to-[#5E81CC] p-8 sm:p-10 text-white shadow-lg border border-indigo-400/30">
+            <div className="relative z-10 w-full md:w-3/4">
+              <h1 className="mb-3 text-3xl sm:text-4xl font-extrabold tracking-tight">
+                Selamat Pagi, {currentUser?.name?.split(" ")[0]}!
+              </h1>
+              <p className="mb-6 text-indigo-100 font-medium leading-relaxed">
+                Pantau kesehatanmu dan kelola jadwal konsultasi klinik hari ini dengan lebih mudah.
+              </p>
+              <button className="rounded-xl bg-white text-indigo-600 px-6 py-3 font-bold shadow-sm hover:bg-indigo-50 hover:scale-[1.02] transition-all active:scale-95">
+                Mulai Booking Baru
+              </button>
             </div>
-          </section>
+            <div className="absolute -bottom-16 -right-16 h-80 w-80 rounded-full bg-white/10 blur-3xl"></div>
+            <div className="absolute -top-10 right-20 h-40 w-40 rounded-full bg-blue-300/20 blur-2xl"></div>
+          </div>
 
-          <section className="mt-[15px] rounded-[8px] border border-[#dedede] bg-white px-4 py-4 shadow-sm">
-            <h2 className="text-[17px] font-extrabold">Dokter Tersedia</h2>
-            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {availableDoctors.map((doctor) => (
-                <article
-                  key={doctor.id}
-                  className="min-h-[132px] rounded-[8px] border border-[#dedede] bg-white px-3 py-5"
-                >
-                  <div className="grid grid-cols-[44px_minmax(0,1fr)] items-center gap-3">
-                    <DoctorAvatar size="small" />
-                    <div className="min-w-0">
-                      <p className="truncate text-[12px] font-extrabold">{doctor.name}</p>
-                      <p className="mt-1 text-[10px] font-bold leading-4 text-[#6b7280]">
-                        {doctor.specialty}
-                      </p>
-                    </div>
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <StatCard icon={<CalendarCheck className="text-amber-500" size={24} />} title="Janji Temu Mendatang" value={upcomingAppointments.length} />
+            <StatCard icon={<CheckCircle2 className="text-emerald-500" size={24} />} title="Konsultasi Selesai" value={completedAppointments.length} />
+            <StatCard icon={<Bell className="text-rose-500" size={24} />} title="Notifikasi Baru" value={1} />
+          </div>
+
+          {/* Dokter Tersedia */}
+          <div>
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-xl font-extrabold text-slate-800 tracking-tight">Dokter Tersedia</h2>
+              <button className="text-sm font-bold text-indigo-600 hover:underline">Lihat Semua</button>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {doctors.map((doc) => (
+                <div key={doc.id} className="group flex flex-col items-center rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm hover:shadow-lg transition-all duration-300">
+                  <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-indigo-50 border-4 border-white shadow-sm text-3xl group-hover:scale-110 transition-transform">
+                    👨‍⚕️
                   </div>
-                  <div className="mt-2 flex justify-center">
-                    <span className="rounded-full bg-[#bdf6c3] px-3 py-[2px] text-[9px] font-extrabold text-[#24a942]">
+                  <h3 className="font-bold text-slate-900 text-[15px]">{doc.full_name}</h3>
+                  <p className="mb-4 text-xs font-semibold text-slate-400 uppercase tracking-wide mt-1">{doc.specialization_name || "Poli Umum"}</p>
+
+                  <div className="w-full space-y-2 mt-auto">
+                    <span className="block w-full rounded-lg bg-green-50 border border-green-200 py-1.5 text-[11px] font-extrabold text-green-600 uppercase tracking-wider">
                       Tersedia
                     </span>
-                  </div>
-                  <div className="mt-3 flex justify-center">
                     <button
-                      type="button"
-                      className="h-[22px] min-w-[73px] rounded-[4px] bg-[#5e81cc] px-4 text-[9px] font-extrabold text-white"
-                      title={doctor.schedule}
+                      onClick={() => handleOpenBooking(doc)}
+                      className="w-full rounded-xl bg-indigo-600 py-2.5 text-sm font-bold text-white hover:bg-indigo-700 active:scale-95 transition-all shadow-md"
                     >
                       Booking
                     </button>
                   </div>
-                </article>
+                </div>
               ))}
+              {doctors.length === 0 && (
+                <div className="col-span-full rounded-2xl border border-dashed border-slate-300 p-8 text-center text-slate-500">
+                  Belum ada dokter yang tersedia saat ini.
+                </div>
+              )}
             </div>
-          </section>
-        </main>
+          </div>
 
-        <aside className="space-y-[13px] xl:pt-[39px]">
-          <section className="bg-white px-6 py-7 sm:px-8">
-            <div className="flex items-center justify-between gap-4">
-              <button type="button" aria-label="Bulan sebelumnya" className="shrink-0 p-1">
-                <svg
-                  aria-hidden="true"
-                  className="h-8 w-8"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth="2.6"
+          {/* List Janji Temu Mendatang */}
+          <div>
+            <h2 className="mb-5 text-xl font-extrabold text-slate-800 tracking-tight">Jadwal Anda Selanjutnya</h2>
+            {upcomingAppointments.length > 0 ? (
+              <div className="space-y-4">
+                {upcomingAppointments.slice(0, 3).map((appt) => (
+                  <div key={appt.id} className="flex flex-col justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center hover:border-indigo-200 transition-colors">
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-xl border border-indigo-100">👨‍⚕️</div>
+                      <div>
+                        <h3 className="font-bold text-slate-900">{appt.doctor_name}</h3>
+                        <p className="text-xs font-medium text-slate-500 mt-0.5">{appt.room_number || "ClinicaLink Center"}</p>
+                      </div>
+                    </div>
+                    <div className="flex flex-col sm:items-end gap-1">
+                      <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
+                        <CalendarDays size={16} className="text-indigo-500" />
+                        {new Date(appt.appointment_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </div>
+                      <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
+                        <Clock size={16} className="text-indigo-500" />
+                        {appt.schedule_time} WIB
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-500 shadow-sm">
+                Tidak ada janji temu terdekat.
+              </div>
+            )}
+          </div>
+
+        </div>
+
+        {/* ================= KOLOM KANAN ================= */}
+        <div className="w-full lg:w-[360px] shrink-0 space-y-8">
+
+          {/* Widget Kalender */}
+          <div className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
+            <div className="mb-6 flex items-center justify-between">
+              <button className="rounded-xl p-2 hover:bg-slate-100 transition"><ChevronLeft size={18} className="text-slate-600" /></button>
+              <span className="text-sm font-extrabold text-slate-900">{currentMonthYear}</span>
+              <button className="rounded-xl p-2 hover:bg-slate-100 transition"><ChevronRight size={18} className="text-slate-600" /></button>
+            </div>
+            <div className="mb-3 grid grid-cols-7 gap-1 text-center text-xs font-bold text-slate-400">
+              <div>S</div><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div>
+            </div>
+            <div className="grid grid-cols-7 gap-y-3 text-center text-sm font-bold text-slate-700">
+              <div className="text-slate-300">28</div><div className="text-slate-300">29</div><div className="text-slate-300">30</div>
+              <div className="hover:bg-indigo-50 hover:text-indigo-600 rounded-lg cursor-pointer p-1.5 transition">1</div>
+              <div className="hover:bg-indigo-50 hover:text-indigo-600 rounded-lg cursor-pointer p-1.5 transition">2</div>
+              <div className="hover:bg-indigo-50 hover:text-indigo-600 rounded-lg cursor-pointer p-1.5 transition">3</div>
+              <div className="hover:bg-indigo-50 hover:text-indigo-600 rounded-lg cursor-pointer p-1.5 transition">4</div>
+              <div className="hover:bg-indigo-50 hover:text-indigo-600 rounded-lg cursor-pointer p-1.5 transition">5</div>
+              <div className="hover:bg-indigo-50 hover:text-indigo-600 rounded-lg cursor-pointer p-1.5 transition">6</div>
+              <div className="hover:bg-indigo-50 hover:text-indigo-600 rounded-lg cursor-pointer p-1.5 transition">7</div>
+              <div className="hover:bg-indigo-50 hover:text-indigo-600 rounded-lg cursor-pointer p-1.5 transition">8</div>
+              <div className="hover:bg-indigo-50 hover:text-indigo-600 rounded-lg cursor-pointer p-1.5 transition">9</div>
+              <div className="bg-indigo-600 text-white rounded-lg p-1.5 shadow-md cursor-pointer">10</div>
+              <div className="hover:bg-indigo-50 hover:text-indigo-600 rounded-lg cursor-pointer p-1.5 transition">11</div>
+              <div className="hover:bg-indigo-50 hover:text-indigo-600 rounded-lg cursor-pointer p-1.5 transition">12</div>
+              <div className="hover:bg-indigo-50 hover:text-indigo-600 rounded-lg cursor-pointer p-1.5 transition">13</div>
+              <div className="hover:bg-indigo-50 hover:text-indigo-600 rounded-lg cursor-pointer p-1.5 transition">14</div>
+            </div>
+          </div>
+
+          {/* Widget Jadwal Hari Ini */}
+          <div className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
+            <h3 className="mb-5 text-sm font-extrabold text-slate-900 tracking-tight">Jadwal Hari ini</h3>
+            {upcomingAppointments.length > 0 ? (
+              <div className="flex items-start gap-4 rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4">
+                <div className="mt-1 flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-indigo-600 shrink-0"><Clock size={16} /></div>
+                <div>
+                  <p className="text-sm font-bold text-slate-900">{upcomingAppointments[0].schedule_time} WIB</p>
+                  <p className="text-xs font-semibold text-slate-500 mt-0.5">{upcomingAppointments[0].doctor_name}</p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-slate-400 font-medium">Tidak ada jadwal hari ini.</p>
+            )}
+          </div>
+        </div>
+
+      </div>
+
+      {/* ================= MODAL BOOKING MANAGER ================= */}
+      {bookingStep > 0 && selectedDoctor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+          <div className="w-full max-w-[480px] rounded-3xl bg-white p-6 shadow-2xl">
+            {/* Header Modal */}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-5">
+              <h2 className="text-lg font-bold text-slate-900 tracking-tight">
+                {bookingStep === 1 && "Pilih Jadwal Konsultasi"}
+                {bookingStep === 2 && "Detail Keluhan"}
+                {bookingStep === 3 && "Berhasil!"}
+              </h2>
+              {bookingStep < 3 && (
+                <button onClick={() => setBookingStep(0)} className="rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition">
+                  <X size={20} />
+                </button>
+              )}
+            </div>
+
+            {/* STEP 1 */}
+            {bookingStep === 1 && (
+              <div className="space-y-6">
+                <div className="flex items-center gap-4 rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-2xl shadow-sm border border-slate-200">👨‍⚕️</div>
+                  <div>
+                    <h3 className="font-bold text-slate-900">{selectedDoctor.full_name}</h3>
+                    <p className="text-xs font-medium text-slate-500">{selectedDoctor.specialization_name || "Klinik Umum"}</p>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="mb-3 text-sm font-bold text-slate-900">Pilih Tanggal</h4>
+                  <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
+                    {next7Days.map((d) => (
+                      <button
+                        key={d.fullDate}
+                        onClick={() => { setSelectedDate(d.fullDate); setSelectedSchedule(null); }}
+                        className={`flex min-w-[70px] flex-col items-center justify-center rounded-2xl border p-3 transition-all ${selectedDate === d.fullDate
+                          ? "bg-indigo-600 border-indigo-600 text-white shadow-md"
+                          : "bg-white border-slate-200 text-slate-600 hover:border-indigo-300 hover:bg-indigo-50"
+                          }`}
+                      >
+                        <span className={`text-[10px] font-bold uppercase tracking-wider mb-1 ${selectedDate === d.fullDate ? "text-indigo-100" : "text-slate-400"}`}>{d.monthShort}</span>
+                        <span className="text-lg font-extrabold">{d.dateNum}</span>
+                        <span className={`text-xs font-medium ${selectedDate === d.fullDate ? "text-indigo-100" : "text-slate-500"}`}>{d.dayName}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="mb-3 text-sm font-bold text-slate-900">Waktu Tersedia</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    {doctorSchedules.filter(s => s.doctor_id === selectedDoctor.id).length > 0 ? (
+                      doctorSchedules.filter(s => s.doctor_id === selectedDoctor.id).map(sched => (
+                        <button
+                          key={sched.id}
+                          onClick={() => setSelectedSchedule(sched)}
+                          className={`rounded-xl border py-3 text-sm font-bold transition-all ${selectedSchedule?.id === sched.id
+                            ? "bg-indigo-50 border-indigo-600 text-indigo-700 shadow-sm"
+                            : "bg-white border-slate-200 text-slate-700 hover:border-indigo-300"
+                            }`}
+                        >
+                          {sched.start_time} - {sched.end_time}
+                        </button>
+                      ))
+                    ) : (
+                      <div className="col-span-2 text-sm text-center py-4 text-slate-500 border border-dashed rounded-xl border-slate-300">
+                        Tidak ada slot waktu di sistem untuk dokter ini.
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setBookingStep(2)}
+                  disabled={!selectedSchedule}
+                  className="w-full mt-4 rounded-xl bg-indigo-600 py-3.5 text-sm font-bold text-white shadow-md hover:bg-indigo-700 active:scale-95 transition-all disabled:opacity-50"
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m15 19-7-7 7-7" />
-                </svg>
-              </button>
-              <p className="min-w-0 truncate text-[11px] font-extrabold capitalize">
-                {monthLabel}
-              </p>
-              <button type="button" aria-label="Bulan berikutnya" className="shrink-0 p-1">
-                <svg
-                  aria-hidden="true"
-                  className="h-8 w-8"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth="2.6"
+                  Selanjutnya
+                </button>
+              </div>
+            )}
+
+            {/* STEP 2 */}
+            {bookingStep === 2 && (
+              <div className="space-y-6">
+                <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4 space-y-3">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-500 font-medium">Tanggal</span>
+                    <span className="font-bold text-slate-900">{new Date(selectedDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-500 font-medium">Waktu</span>
+                    <span className="font-bold text-slate-900">{selectedSchedule.start_time} - {selectedSchedule.end_time} WIB</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-500 font-medium">Dokter</span>
+                    <span className="font-bold text-slate-900">{selectedDoctor.full_name}</span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-slate-900 mb-2">Detail Keluhan (Opsional)</label>
+                  <textarea
+                    rows={4}
+                    placeholder="Tuliskan keluhan yang Anda rasakan..."
+                    value={medicalNotes}
+                    onChange={(e) => setMedicalNotes(e.target.value)}
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm focus:border-indigo-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100 transition resize-none"
+                  ></textarea>
+                </div>
+
+                <div className="flex gap-3">
+                  <button onClick={() => setBookingStep(1)} className="w-1/3 rounded-xl border border-slate-200 bg-white py-3.5 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors">
+                    Kembali
+                  </button>
+                  <button
+                    onClick={submitBooking}
+                    disabled={isSubmitting}
+                    className="w-2/3 rounded-xl bg-indigo-600 py-3.5 text-sm font-bold text-white shadow-md hover:bg-indigo-700 active:scale-95 transition-all disabled:opacity-50"
+                  >
+                    {isSubmitting ? "Memproses..." : "Konfirmasi Booking"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 3 */}
+            {bookingStep === 3 && (
+              <div className="flex flex-col items-center text-center p-4">
+                <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-50 text-emerald-500 border-4 border-emerald-100">
+                  <CheckCircle2 size={40} />
+                </div>
+                <h2 className="mb-2 text-2xl font-extrabold text-slate-900 tracking-tight">Booking Berhasil!</h2>
+                <p className="mb-8 text-sm text-slate-500 font-medium leading-relaxed">
+                  Janji temu Anda dengan <span className="text-slate-800 font-bold">{selectedDoctor.full_name}</span> telah berhasil dijadwalkan.
+                </p>
+                <button
+                  onClick={() => setBookingStep(0)}
+                  className="w-full rounded-xl bg-indigo-600 py-3.5 text-sm font-bold text-white shadow-md hover:bg-indigo-700 active:scale-95 transition-all"
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m9 5 7 7-7 7" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="mt-7 grid grid-cols-7 gap-y-4 text-center text-[8px] font-extrabold">
-              {weekdays.map((day) => (
-                <span key={day}>{day}</span>
-              ))}
-            </div>
-            <div className="mt-3 grid grid-cols-7 gap-y-4 text-center text-[9px] font-extrabold">
-              {calendarDays.map((date, index) => {
-                const isToday = !date.muted && date.day === today.day;
-
-                return (
-                  <span
-                    key={`${date.day}-${index}`}
-                    className={`mx-auto flex h-[22px] w-[22px] items-center justify-center rounded-full ${
-                      isToday
-                        ? "bg-[#dce6ff] text-[#5e81cc]"
-                        : date.muted
-                          ? "text-[#b9bec7]"
-                          : "text-black"
-                    }`}
-                  >
-                    {date.day}
-                  </span>
-                );
-              })}
-            </div>
-
-            <div className="mt-6 border-t border-[#d8d8d8] pt-5">
-              <h3 className="text-[12px] font-extrabold">Jadwal Hari ini</h3>
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-x-5 gap-y-2 text-[12px] font-extrabold">
-                <p className="whitespace-nowrap">10.00 - 10.30</p>
-                <p className="whitespace-nowrap">Dr. Jatmiko</p>
+                  Lihat Janji Temu
+                </button>
               </div>
-              <button
-                type="button"
-                className="mt-5 inline-flex whitespace-nowrap text-[11px] font-extrabold text-[#5e81cc]"
-              >
-                Lihat Semua
-              </button>
-            </div>
-          </section>
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
 
-          <section className="bg-white px-5 py-5">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <span className="flex h-8 w-8 items-center justify-center text-[#5e81cc]">
-                  <svg
-                    aria-hidden="true"
-                    className="h-6 w-6"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5m6 0a3 3 0 0 1-6 0"
-                    />
-                  </svg>
-                </span>
-                <h3 className="text-[12px] font-extrabold">Reminder</h3>
-              </div>
-              <span className="shrink-0 rounded-[4px] bg-[#ffe3e3] px-3 py-1 text-[10px] font-extrabold text-[#ff6262]">
-                H-1
-              </span>
-            </div>
-            <div className="mt-4 grid grid-cols-[minmax(0,1fr)_70px] items-end gap-4">
-              <p className="text-[12px] font-semibold leading-[18px] text-[#344054]">
-                Jangan lupa appointment dengan <span className="font-extrabold">DR. Jatmiko</span>{" "}
-                besok pukul <span className="font-extrabold">10.00 WIB.</span>
-              </p>
-              <div className="flex justify-end">
-                <Image src={reminderCalendarIcon} alt="" width={58} height={58} />
-              </div>
-            </div>
-          </section>
-        </aside>
+function StatCard({ icon, title, value }) {
+  return (
+    <div className="flex items-center gap-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md">
+      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-slate-50 border border-slate-100 shadow-sm">
+        {icon}
+      </div>
+      <div>
+        <p className="mb-1 text-xs font-bold uppercase tracking-wider text-slate-400">{title}</p>
+        <h3 className="text-3xl font-black text-slate-900 tracking-tight">{value}</h3>
       </div>
     </div>
   );
