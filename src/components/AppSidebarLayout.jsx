@@ -110,7 +110,7 @@ export default function AppSidebarLayout({ children, role }) {
   }, []);
 
   const links = role === 'admin' ? adminLinks : role === 'doctor' ? doctorLinks : patientLinks;
-  
+
   const handleSignOut = () => {
     localStorage.removeItem("clinicalink:user");
     sessionStorage.removeItem("clinicalink:user");
@@ -118,8 +118,8 @@ export default function AppSidebarLayout({ children, role }) {
   };
 
   const displayUserName = getUserName(currentUser, role);
-  const avatarUrl = role === 'admin' 
-    ? "https://ui-avatars.com/api/?name=Admin&background=5E81CC&color=fff&rounded=true" 
+  const avatarUrl = role === 'admin'
+    ? "https://ui-avatars.com/api/?name=Admin&background=5E81CC&color=fff&rounded=true"
     : `https://ui-avatars.com/api/?name=${encodeURIComponent(displayUserName)}&background=5E81CC&color=fff&rounded=true`;
 
   return (
@@ -134,7 +134,7 @@ export default function AppSidebarLayout({ children, role }) {
             <span className="text-[#5E81CC]">Link</span>
           </span>
         </Link>
-        
+
         {/* Center: Search (if needed, otherwise empty) */}
         <div className="hidden md:flex relative flex-1 max-w-lg mx-8">
           {role !== 'admin' && (
@@ -148,7 +148,7 @@ export default function AppSidebarLayout({ children, role }) {
             </label>
           )}
         </div>
-        
+
         {/* Right: Bell & Profile */}
         <div className="flex items-center gap-6 shrink-0">
           <button className="text-gray-600 hover:text-[#5E81CC] transition-colors relative p-1">
@@ -178,16 +178,16 @@ export default function AppSidebarLayout({ children, role }) {
                   className={`flex items-center gap-4 px-4 py-3 rounded-xl text-[15px] font-bold transition-all duration-200 ${active ? "bg-[#E6EDFF] text-[#5E81CC] shadow-sm" : "text-gray-700 hover:bg-white hover:shadow-sm"}`}
                 >
                   {link.customIcon ? (
-                     <span
-                        aria-hidden="true"
-                        className={`h-5 w-5 ${active ? "bg-[#5E81CC]" : "bg-gray-600"}`}
-                        style={{
-                          WebkitMaskImage: `url(${link.customIcon.src})`, maskImage: `url(${link.customIcon.src})`,
-                          WebkitMaskPosition: "center", maskPosition: "center",
-                          WebkitMaskRepeat: "no-repeat", maskRepeat: "no-repeat",
-                          WebkitMaskSize: "contain", maskSize: "contain",
-                        }}
-                      />
+                    <span
+                      aria-hidden="true"
+                      className={`h-5 w-5 ${active ? "bg-[#5E81CC]" : "bg-gray-600"}`}
+                      style={{
+                        WebkitMaskImage: `url(${link.customIcon.src})`, maskImage: `url(${link.customIcon.src})`,
+                        WebkitMaskPosition: "center", maskPosition: "center",
+                        WebkitMaskRepeat: "no-repeat", maskRepeat: "no-repeat",
+                        WebkitMaskSize: "contain", maskSize: "contain",
+                      }}
+                    />
                   ) : (
                     <span className={`${active ? "text-[#5E81CC]" : "text-gray-600"}`}>
                       {icons[link.label] || icons["Dashboard"]}
@@ -198,7 +198,7 @@ export default function AppSidebarLayout({ children, role }) {
               );
             })}
           </nav>
-          
+
           {/* Bottom Logout Area */}
           <div className="mt-8">
             <hr className="border-gray-200 border-[1.5px] mb-6 mx-2" />
@@ -213,7 +213,7 @@ export default function AppSidebarLayout({ children, role }) {
             </button>
           </div>
         </aside>
-        
+
         {/* Content Area */}
         <main className="flex-1 w-full min-w-0">
           {children}

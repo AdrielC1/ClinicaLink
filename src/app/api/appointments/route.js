@@ -125,7 +125,7 @@ export async function POST(request) {
             );
         }
 
-        // Ekstrak data otomatis dari jadwal dokter (bisa di-override dari frontend untuk slot 30 menit)
+        // Ekstrak data otomatis dari jadwal dokter (gunakan waktu slot spesifik jika ada, kalau tidak fallback ke jadwal)
         const autoDoctorId = scheduleData.doctor_id;
         const autoStartTime = start_time || scheduleData.start_time;
         const autoEndTime = end_time || scheduleData.end_time;
@@ -138,8 +138,8 @@ export async function POST(request) {
                 doctor_id: autoDoctorId,         // ⬅️ Otomatis
                 schedule_id: Number(schedule_id),
                 appointment_date,
-                start_time: autoStartTime,       // ⬅️ Otomatis atau dari slot frontend
-                end_time: autoEndTime,           // ⬅️ Otomatis atau dari slot frontend
+                start_time: autoStartTime,       // ⬅️ Sesuai slot yang dipilih
+                end_time: autoEndTime,           // ⬅️ Sesuai slot yang dipilih
                 status: 'Menunggu',
                 medical_notes: notes || null
             }])
