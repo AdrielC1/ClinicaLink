@@ -177,12 +177,20 @@ export default function AdminAppointmentsPage() {
   };
 
   const openEditModal = (app) => {
+    let waktu = app.schedule_time || "-";
+    if (app.start_time && app.end_time) {
+      waktu = `${formatTime(app.start_time)} - ${formatTime(app.end_time)} WIB`;
+    } else if (waktu !== "-" && waktu.includes("-")) {
+      const parts = waktu.split("-").map(p => formatTime(p.trim()));
+      waktu = `${parts[0]} - ${parts[1]} WIB`;
+    }
+    
     setEditForm({
       id: app.id,
       patient_name: app.patient_name,
       doctor_name: app.doctor_name,
       appointment_date: app.appointment_date,
-      waktu: app.schedule_time,
+      waktu,
       status: app.status || "Menunggu",
       notes: app.notes || "",
     });
@@ -216,9 +224,11 @@ export default function AdminAppointmentsPage() {
 
   const openDetailModal = (app) => {
     const patientInfo = patients.find((p) => p.id === app.patient_id);
-    let timeDisplay = app.schedule_time;
-    if (timeDisplay && timeDisplay.includes("-")) {
-      const parts = timeDisplay.split("-").map((p) => formatTime(p.trim()));
+    let timeDisplay = app.schedule_time || "-";
+    if (app.start_time && app.end_time) {
+      timeDisplay = `${formatTime(app.start_time)} - ${formatTime(app.end_time)} WIB`;
+    } else if (timeDisplay !== "-" && timeDisplay.includes("-")) {
+      const parts = timeDisplay.split("-").map(p => formatTime(p.trim()));
       timeDisplay = `${parts[0]} - ${parts[1]} WIB`;
     }
 
@@ -336,8 +346,10 @@ export default function AdminAppointmentsPage() {
                 </tr>
               ) : (
                 paginatedAppointments.map((app, index) => {
-                  let timeDisplay = app.schedule_time;
-                  if (timeDisplay && timeDisplay.includes("-")) {
+                  let timeDisplay = app.schedule_time || "-";
+                  if (app.start_time && app.end_time) {
+                    timeDisplay = `${formatTime(app.start_time)} - ${formatTime(app.end_time)} WIB`;
+                  } else if (timeDisplay !== "-" && timeDisplay.includes("-")) {
                     const parts = timeDisplay.split("-").map(p => formatTime(p.trim()));
                     timeDisplay = `${parts[0]} - ${parts[1]} WIB`;
                   }

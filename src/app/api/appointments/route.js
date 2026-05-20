@@ -91,7 +91,7 @@ export async function GET(request) {
 // ===================================================================
 export async function POST(request) {
     try {
-        const { patient_id, schedule_id, appointment_date, notes } = await request.json();
+        const { patient_id, schedule_id, appointment_date, notes, start_time, end_time } = await request.json();
 
         // 1. Validasi kolom wajib dari request JSON
         if (!patient_id || !schedule_id || !appointment_date) {
@@ -115,10 +115,10 @@ export async function POST(request) {
             );
         }
 
-        // Ekstrak data otomatis dari jadwal dokter
+        // Ekstrak data otomatis dari jadwal dokter (gunakan waktu slot spesifik jika ada, kalau tidak fallback ke jadwal)
         const autoDoctorId = scheduleData.doctor_id;
-        const autoStartTime = scheduleData.start_time;
-        const autoEndTime = scheduleData.end_time;
+        const autoStartTime = start_time || scheduleData.start_time;
+        const autoEndTime = end_time || scheduleData.end_time;
 
         // 3. Lakukan insert ke tabel appointments dengan parameter lengkap sesuai not-null constraint database
         const { data, error } = await supabase
@@ -128,8 +128,8 @@ export async function POST(request) {
                 doctor_id: autoDoctorId,         // ⬅️ Otomatis
                 schedule_id: Number(schedule_id),
                 appointment_date,
-                start_time: autoStartTime,       // ⬅️ Otomatis dari jadwal dokter
-                end_time: autoEndTime,           // ⬅️ Otomatis dari jadwal dokter
+                start_time: autoStartTime,       // ⬅️ Sesuai slot yang dipilih
+                end_time: autoEndTime,           // ⬅️ Sesuai slot yang dipilih
                 status: 'Menunggu',
                 medical_notes: notes || null
             }])
