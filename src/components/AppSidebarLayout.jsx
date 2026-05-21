@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
 import appointmentIcon from "@/app/icons/Appointment.svg";
 import brandIcon from "@/app/icons/ClinicaLink.svg";
 import dashboardIcon from "@/app/icons/Dashboard.svg";
@@ -90,7 +91,7 @@ function readStoredUser() {
 
 function getUserName(user, role) {
   if (role === 'admin') return 'Admin';
-  const name = user?.full_name || user?.fullName || user?.name || (role === 'doctor' ? 'Dokter' : 'Pasien');
+  const name = user?.full_name || user?.fullName || user?.name || user?.username || (role === 'doctor' ? 'Dokter' : 'Pasien');
   return String(name).trim();
 }
 
@@ -100,20 +101,41 @@ export default function AppSidebarLayout({ children, role }) {
   const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
-    const loadUser = () => {
-      const user = readStoredUser();
+    const loadUser = async () => {
+      // 1. Coba baca dari localStorage (sistem lama)
+      let user = readStoredUser();
+
+      // 2. Ambil dari Supabase (sistem baru)
+      const { data: { user: authUser }, error } = await supabase.auth.getUser();
+      if (authUser && !error) {
+        const { data: userData } = await supabase.from("users").select("full_name, username").eq("id", authUser.id).single();
+        user = {
+          ...user,
+          ...authUser,
+          full_name: userData?.full_name || authUser.user_metadata?.full_name || user?.full_name,
+          username: userData?.username || user?.username
+        };
+      }
+
       if (user) setCurrentUser(user);
     };
+
     loadUser();
-    window.addEventListener("storage", loadUser);
-    return () => window.removeEventListener("storage", loadUser);
+
+    const handleStorage = () => {
+      const u = readStoredUser();
+      if (u) setCurrentUser(prev => ({ ...prev, ...u }));
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
   }, []);
 
   const links = role === 'admin' ? adminLinks : role === 'doctor' ? doctorLinks : patientLinks;
 
-  const handleSignOut = () => {
+  const handleSignOut = async () => {
     localStorage.removeItem("clinicalink:user");
     sessionStorage.removeItem("clinicalink:user");
+    await supabase.auth.signOut();
     router.push("/login");
   };
 
