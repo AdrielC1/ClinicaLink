@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import {
@@ -12,7 +12,8 @@ import {
   ChevronRight,
   Bell,
   X,
-  CheckCircle2
+  CheckCircle2,
+  ListFilter
 } from "lucide-react";
 
 export default function PatientAppointmentsPage() {
@@ -23,6 +24,16 @@ export default function PatientAppointmentsPage() {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // State Pagination & Sorting
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+  const [sortOption, setSortOption] = useState("date-nearest"); // date-nearest, date-farthest, name-asc, name-desc
+  const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
+
+  // State Calendar
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [currentMonthView, setCurrentMonthView] = useState(new Date());
+
   // State Modal
   const [activeModal, setActiveModal] = useState(null);
   const [selectedAppt, setSelectedAppt] = useState(null);
@@ -30,10 +41,6 @@ export default function PatientAppointmentsPage() {
   // State Form Reschedule
   const [newDate, setNewDate] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
-
-  // Ambil Bulan & Tahun Aktual untuk Kalender Kanan
-  const today = new Date();
-  const currentMonthYear = today.toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', month: 'long', year: 'numeric' });
 
   const fetchAppointments = async (userId) => {
     try {
@@ -62,6 +69,112 @@ export default function PatientAppointmentsPage() {
     initData();
   }, [router]);
 
+  // Derived Data: Sorted & Paginated Appointments
+  const sortedAppointments = useMemo(() => {
+    return [...appointments].sort((a, b) => {
+      const dateA = new Date(`${a.appointment_date}T${a.schedule_time.split(' - ')[0] || '00:00'}:00`);
+      const dateB = new Date(`${b.appointment_date}T${b.schedule_time.split(' - ')[0] || '00:00'}:00`);
+      
+      switch (sortOption) {
+        case "date-nearest":
+          return dateA - dateB;
+        case "date-farthest":
+          return dateB - dateA;
+        case "name-asc":
+          return a.doctor_name.localeCompare(b.doctor_name);
+        case "name-desc":
+          return b.doctor_name.localeCompare(a.doctor_name);
+        default:
+          return 0;
+      }
+    });
+  }, [appointments, sortOption]);
+
+  const totalPages = Math.ceil(sortedAppointments.length / itemsPerPage);
+  const paginatedAppointments = sortedAppointments.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  // Derived Data: Calendar
+  const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
+  const getFirstDayOfMonth = (year, month) => {
+    let day = new Date(year, month, 1).getDay();
+    return day === 0 ? 6 : day - 1; // Adjust so Monday is 0
+  };
+
+  const currentYear = currentMonthView.getFullYear();
+  const currentMonthIdx = currentMonthView.getMonth();
+  const daysInMonth = getDaysInMonth(currentYear, currentMonthIdx);
+  const firstDay = getFirstDayOfMonth(currentYear, currentMonthIdx);
+
+  const prevMonthDays = getDaysInMonth(currentYear, currentMonthIdx - 1);
+  const calendarCells = [];
+
+  // Previous month trailing days
+  for (let i = firstDay - 1; i >= 0; i--) {
+    calendarCells.push({ day: prevMonthDays - i, isCurrentMonth: false, date: new Date(currentYear, currentMonthIdx - 1, prevMonthDays - i) });
+  }
+  // Current month days
+  for (let i = 1; i <= daysInMonth; i++) {
+    calendarCells.push({ day: i, isCurrentMonth: true, date: new Date(currentYear, currentMonthIdx, i) });
+  }
+  // Next month leading days (to fill 42 cells typically, or just complete the week)
+  const remainingCells = 42 - calendarCells.length;
+  for (let i = 1; i <= remainingCells; i++) {
+    calendarCells.push({ day: i, isCurrentMonth: false, date: new Date(currentYear, currentMonthIdx + 1, i) });
+  }
+
+  const handlePrevMonth = () => {
+    setCurrentMonthView(new Date(currentYear, currentMonthIdx - 1, 1));
+  };
+  const handleNextMonth = () => {
+    setCurrentMonthView(new Date(currentYear, currentMonthIdx + 1, 1));
+  };
+
+  const isSameDate = (date1, date2) => {
+    return date1.getFullYear() === date2.getFullYear() &&
+           date1.getMonth() === date2.getMonth() &&
+           date1.getDate() === date2.getDate();
+  };
+  const today = new Date();
+  
+  // Derived Data: Selected Date Appointments
+  const selectedDateAppointments = useMemo(() => {
+    return appointments.filter(appt => {
+      const apptDate = new Date(appt.appointment_date);
+      return isSameDate(apptDate, selectedDate);
+    });
+  }, [appointments, selectedDate]);
+
+  // Derived Data: Next Reminder
+  const nextReminder = useMemo(() => {
+    const upcoming = appointments
+      .filter(appt => (appt.status === 'Menunggu' || appt.status === 'Scheduled' || appt.status === 'Confirmed' || appt.status === 'Akan Datang'))
+      .filter(appt => {
+        const apptDate = new Date(`${appt.appointment_date}T${appt.schedule_time.split(' - ')[0] || '00:00'}:00`);
+        return apptDate >= new Date();
+      })
+      .sort((a, b) => {
+        const dateA = new Date(`${a.appointment_date}T${a.schedule_time.split(' - ')[0] || '00:00'}:00`);
+        const dateB = new Date(`${b.appointment_date}T${b.schedule_time.split(' - ')[0] || '00:00'}:00`);
+        return dateA - dateB;
+      });
+    return upcoming.length > 0 ? upcoming[0] : null;
+  }, [appointments]);
+
+  const getReminderText = (reminderAppt) => {
+    if (!reminderAppt) return null;
+    const apptDate = new Date(reminderAppt.appointment_date);
+    const timeDiff = apptDate.getTime() - new Date().setHours(0,0,0,0);
+    const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
+    
+    if (daysDiff === 0) return "Hari Ini";
+    if (daysDiff === 1) return "Besok";
+    return `H-${daysDiff}`;
+  };
+
+  // Handlers
   const handleCancelAppointment = async (apptId) => {
     const confirmCancel = window.confirm("Apakah Anda yakin ingin membatalkan janji temu ini?");
     if (!confirmCancel) return;
@@ -86,7 +199,7 @@ export default function PatientAppointmentsPage() {
 
   const handleRescheduleSubmit = async () => {
     if (!newDate) return alert("Pilih tanggal baru terlebih dahulu.");
-    isProcessing(true);
+    setIsProcessing(true);
 
     try {
       const res = await fetch(`/api/appointments?id=${selectedAppt.id}`, {
@@ -126,9 +239,7 @@ export default function PatientAppointmentsPage() {
 
   return (
     <>
-      {/* Grid Utama: Membagi 12 kolom untuk mencegah elemen terpotong */}
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-12 items-start w-full">
-
         {/* ================= KOLOM KIRI (Daftar Janji Temu - 8 Kolom) ================= */}
         <div className="lg:col-span-8 space-y-6 w-full">
           <div className="flex items-center justify-between">
@@ -136,16 +247,31 @@ export default function PatientAppointmentsPage() {
               <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Appointment</h1>
               <p className="text-sm text-slate-500 mt-1">Kelola jadwal konsultasi dan appointment anda.</p>
             </div>
-            <button className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 shadow-sm transition active:scale-95">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 5h10" /><path d="M11 9h7" /><path d="M11 13h4" /><path d="M3 17l3 3 3-3" /><path d="M6 18V4" /></svg>
-              Urutkan
-            </button>
+            
+            <div className="relative">
+              <button 
+                onClick={() => setIsSortDropdownOpen(!isSortDropdownOpen)}
+                className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 shadow-sm transition active:scale-95"
+              >
+                <ListFilter size={16} />
+                Urutkan
+              </button>
+              
+              {isSortDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-48 rounded-xl border border-slate-100 bg-white shadow-lg py-1 z-20">
+                  <button onClick={() => { setSortOption('date-nearest'); setIsSortDropdownOpen(false); }} className={`block w-full text-left px-4 py-2 text-sm hover:bg-slate-50 ${sortOption === 'date-nearest' ? 'font-bold text-indigo-600' : 'text-slate-700'}`}>Waktu Terdekat</button>
+                  <button onClick={() => { setSortOption('date-farthest'); setIsSortDropdownOpen(false); }} className={`block w-full text-left px-4 py-2 text-sm hover:bg-slate-50 ${sortOption === 'date-farthest' ? 'font-bold text-indigo-600' : 'text-slate-700'}`}>Waktu Terjauh</button>
+                  <button onClick={() => { setSortOption('name-asc'); setIsSortDropdownOpen(false); }} className={`block w-full text-left px-4 py-2 text-sm hover:bg-slate-50 ${sortOption === 'name-asc' ? 'font-bold text-indigo-600' : 'text-slate-700'}`}>Dokter (A-Z)</button>
+                  <button onClick={() => { setSortOption('name-desc'); setIsSortDropdownOpen(false); }} className={`block w-full text-left px-4 py-2 text-sm hover:bg-slate-50 ${sortOption === 'name-desc' ? 'font-bold text-indigo-600' : 'text-slate-700'}`}>Dokter (Z-A)</button>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Wrapper Card List */}
           <div className="space-y-4 w-full">
-            {appointments.length > 0 ? (
-              appointments.map((appt) => (
+            {paginatedAppointments.length > 0 ? (
+              paginatedAppointments.map((appt) => (
                 <AppointmentCard
                   key={appt.id}
                   appt={appt}
@@ -162,13 +288,37 @@ export default function PatientAppointmentsPage() {
           </div>
 
           {/* Pagination */}
-          {appointments.length > 0 && (
+          {totalPages > 1 && (
             <div className="flex items-center justify-center gap-2 pt-4">
-              <button className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition"><ChevronLeft size={18} /></button>
-              <button className="h-8 w-8 rounded-lg bg-indigo-600 text-sm font-bold text-white shadow-sm">1</button>
-              <button className="h-8 w-8 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100 transition">2</button>
-              <button className="h-8 w-8 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100 transition">3</button>
-              <button className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition"><ChevronRight size={18} /></button>
+              <button 
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition disabled:opacity-50"
+              >
+                <ChevronLeft size={18} />
+              </button>
+              
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                <button 
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`h-8 w-8 rounded-lg text-sm font-semibold transition ${
+                    currentPage === page 
+                      ? 'bg-indigo-600 text-white shadow-sm font-bold' 
+                      : 'text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+
+              <button 
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition disabled:opacity-50"
+              >
+                <ChevronRight size={18} />
+              </button>
             </div>
           )}
         </div>
@@ -179,44 +329,83 @@ export default function PatientAppointmentsPage() {
           {/* Widget Kalender */}
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="mb-4 flex items-center justify-between">
-              <button className="rounded-lg p-1.5 hover:bg-slate-50 text-slate-600 transition"><ChevronLeft size={16} /></button>
-              <span className="text-sm font-bold text-slate-800">{currentMonthYear}</span>
-              <button className="rounded-lg p-1.5 hover:bg-slate-50 text-slate-600 transition"><ChevronRight size={16} /></button>
+              <button onClick={handlePrevMonth} className="rounded-lg p-1.5 hover:bg-slate-50 text-slate-600 transition"><ChevronLeft size={16} /></button>
+              <span className="text-sm font-bold text-slate-800">
+                {currentMonthView.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
+              </span>
+              <button onClick={handleNextMonth} className="rounded-lg p-1.5 hover:bg-slate-50 text-slate-600 transition"><ChevronRight size={16} /></button>
             </div>
             <div className="mb-2 grid grid-cols-7 gap-1 text-center text-xs font-bold text-slate-400">
               <div>Sen</div><div>Sel</div><div>Rab</div><div>Kam</div><div>Jum</div><div>Sab</div><div>Min</div>
             </div>
             <div className="grid grid-cols-7 gap-1 text-center text-sm font-semibold text-slate-700">
-              <div className="p-1 text-slate-200">28</div><div className="p-1 text-slate-200">29</div><div className="p-1 text-slate-200">30</div>
-              <div className="rounded-lg p-1 hover:bg-indigo-50 hover:text-indigo-600 cursor-pointer transition">1</div>
-              <div className="rounded-lg p-1 hover:bg-indigo-50 hover:text-indigo-600 cursor-pointer transition">2</div>
-              <div className="rounded-lg p-1 hover:bg-indigo-50 hover:text-indigo-600 cursor-pointer transition">3</div>
-              <div className="rounded-lg p-1 hover:bg-indigo-50 hover:text-indigo-600 cursor-pointer transition">4</div>
-              <div className="rounded-lg p-1 hover:bg-indigo-50 hover:text-indigo-600 cursor-pointer transition">5</div>
-              <div className="rounded-lg p-1 hover:bg-indigo-50 hover:text-indigo-600 cursor-pointer transition">6</div>
-              <div className="rounded-lg p-1 hover:bg-indigo-50 hover:text-indigo-600 cursor-pointer transition">7</div>
-              <div className="rounded-lg p-1 hover:bg-indigo-50 hover:text-indigo-600 cursor-pointer transition">8</div>
-              <div className="rounded-lg p-1 hover:bg-indigo-50 hover:text-indigo-600 cursor-pointer transition">9</div>
-              <div className="rounded-full bg-indigo-600 p-1 text-white shadow-md cursor-pointer">10</div>
-              <div className="rounded-lg p-1 hover:bg-indigo-50 hover:text-indigo-600 cursor-pointer transition">11</div>
-              <div className="rounded-lg p-1 hover:bg-indigo-50 hover:text-indigo-600 cursor-pointer transition">12</div>
-              <div className="rounded-lg p-1 hover:bg-indigo-50 hover:text-indigo-600 cursor-pointer transition">13</div>
+              {calendarCells.map((cell, idx) => {
+                const isSelected = isSameDate(cell.date, selectedDate);
+                const isToday = isSameDate(cell.date, today);
+                const hasAppt = appointments.some(a => isSameDate(new Date(a.appointment_date), cell.date));
+
+                let btnClass = "rounded-lg p-1 transition cursor-pointer relative ";
+                if (!cell.isCurrentMonth) {
+                  btnClass += "text-slate-300 ";
+                } else if (isSelected) {
+                  btnClass += "bg-indigo-600 text-white shadow-md font-bold ";
+                } else {
+                  btnClass += "hover:bg-indigo-50 hover:text-indigo-600 ";
+                  if (isToday) btnClass += "bg-slate-100 text-slate-900 font-bold ";
+                }
+
+                return (
+                  <div 
+                    key={idx} 
+                    className={btnClass}
+                    onClick={() => setSelectedDate(cell.date)}
+                  >
+                    {cell.day}
+                    {hasAppt && !isSelected && (
+                      <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1 h-1 bg-indigo-400 rounded-full"></span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
+          </div>
+          
+          {/* Jadwal pada Tanggal yang Dipilih */}
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h3 className="text-sm font-bold text-slate-800 mb-3">
+              Jadwal {isSameDate(selectedDate, today) ? "Hari Ini" : selectedDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long' })}
+            </h3>
+            {selectedDateAppointments.length > 0 ? (
+              <div className="space-y-3">
+                {selectedDateAppointments.map(appt => (
+                  <div key={appt.id} className="flex items-center gap-3 text-sm">
+                    <span className="font-semibold text-slate-800 w-24 shrink-0">{appt.schedule_time.split(' - ')[0]}</span>
+                    <span className="text-slate-600 truncate">{appt.doctor_name}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-slate-400 italic">Tidak ada jadwal.</p>
+            )}
           </div>
 
           {/* Reminder Card */}
-          <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-red-50/60 p-5 shadow-sm">
-            <div className="relative z-10 mb-3 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm font-bold text-red-600">
-                <Bell size={16} /> Reminder berikutnya
+          {nextReminder && (
+            <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-red-50/60 p-5 shadow-sm">
+              <div className="relative z-10 mb-3 flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm font-bold text-red-600">
+                  <Bell size={16} /> Reminder berikutnya
+                </div>
+                <span className="rounded bg-white px-2 py-0.5 text-[10px] font-bold text-red-500 shadow-sm border border-red-100">
+                  {getReminderText(nextReminder)}
+                </span>
               </div>
-              <span className="rounded bg-white px-2 py-0.5 text-[10px] font-bold text-red-500 shadow-sm border border-red-100">H-1</span>
+              <p className="relative z-10 text-sm leading-relaxed text-slate-700">
+                Konsultasi dengan <span className="font-bold text-slate-900">{nextReminder.doctor_name}</span><br />
+                {new Date(nextReminder.appointment_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })} pukul <span className="font-bold text-slate-900">{nextReminder.schedule_time.split(' - ')[0]} WIB</span> di {nextReminder.room_number}.
+              </p>
             </div>
-            <p className="relative z-10 text-sm leading-relaxed text-slate-700">
-              Konsultasi dengan <span className="font-bold text-slate-900">DR. Mike</span><br />
-              Besok pukul <span className="font-bold text-slate-900">10.00 WIB</span> di Ruang Konsultasi 1.
-            </p>
-          </div>
+          )}
         </div>
 
       </div>
@@ -265,7 +454,7 @@ export default function PatientAppointmentsPage() {
             </div>
           </div>
 
-          {(selectedAppt.status === 'Menunggu' || selectedAppt.status === 'Scheduled') && (
+          {(selectedAppt.status === 'Menunggu' || selectedAppt.status === 'Scheduled' || selectedAppt.status === 'Akan Datang') && (
             <div className="flex gap-3 pt-4 border-t border-slate-100">
               <button onClick={() => openModal('reschedule', selectedAppt)} className="flex-1 rounded-xl border border-indigo-600 py-2.5 text-sm font-bold text-indigo-600 hover:bg-indigo-50/60 transition active:scale-95">
                 Reschedule
@@ -357,7 +546,7 @@ export default function PatientAppointmentsPage() {
 // ================= LAYOUT SUB-COMPONENTS =================
 
 function AppointmentCard({ appt, onDetail, onReschedule, onCancel }) {
-  const isWaiting = appt.status === 'Menunggu' || appt.status === 'Scheduled';
+  const isWaiting = appt.status === 'Menunggu' || appt.status === 'Scheduled' || appt.status === 'Akan Datang';
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-12 gap-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md transition duration-200 items-center w-full">
@@ -433,7 +622,7 @@ function ModalWrapper({ children, onClose }) {
 }
 
 function StatusBadge({ status }) {
-  if (status === 'Menunggu' || status === 'Scheduled') {
+  if (status === 'Menunggu' || status === 'Scheduled' || status === 'Akan Datang') {
     return <span className="inline-flex rounded-full bg-green-50 border border-green-200 px-2.5 py-0.5 text-xs font-bold text-green-600">Dijadwalkan</span>;
   }
   if (status === 'Dibatalkan' || status === 'Cancelled') {
