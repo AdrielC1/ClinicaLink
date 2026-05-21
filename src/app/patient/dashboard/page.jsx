@@ -57,6 +57,17 @@ export default function PatientDashboardPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [doctorAppointments, setDoctorAppointments] = useState([]);
 
+  const [currentCalendarMonth, setCurrentCalendarMonth] = useState(() => {
+    const d = new Date();
+    d.setDate(1);
+    return d;
+  });
+  
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState(() => {
+    const d = new Date();
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+  });
+
   const today = new Date();
   const currentMonthYear = today.toLocaleDateString('id-ID', {
     timeZone: 'Asia/Jakarta',
@@ -182,6 +193,84 @@ export default function PatientDashboardPage() {
   const upcomingAppointments = appointments.filter(a => a.status === "Menunggu" || a.status === "Scheduled");
   const completedAppointments = appointments.filter(a => a.status === "Selesai" || a.status === "Completed");
 
+  // --- Dynamic Calendar Logic ---
+  const currentMonthYearStr = currentCalendarMonth.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+  
+  const handlePrevMonth = () => {
+    setCurrentCalendarMonth(prev => {
+      const newDate = new Date(prev);
+      newDate.setMonth(newDate.getMonth() - 1);
+      return newDate;
+    });
+  };
+
+  const handleNextMonth = () => {
+    setCurrentCalendarMonth(prev => {
+      const newDate = new Date(prev);
+      newDate.setMonth(newDate.getMonth() + 1);
+      return newDate;
+    });
+  };
+
+  // Generate 42 days grid (6 weeks)
+  const calendarDays = [];
+  const year = currentCalendarMonth.getFullYear();
+  const month = currentCalendarMonth.getMonth();
+  
+  const firstDayOfMonth = new Date(year, month, 1);
+  const lastDayOfMonth = new Date(year, month + 1, 0);
+  
+  const firstDayWeekday = firstDayOfMonth.getDay(); // 0 (Sun) to 6 (Sat)
+  
+  // Padding previous month
+  const prevMonthLastDay = new Date(year, month, 0).getDate();
+  for (let i = firstDayWeekday - 1; i >= 0; i--) {
+    const d = new Date(year, month - 1, prevMonthLastDay - i);
+    calendarDays.push({ date: d, isCurrentMonth: false });
+  }
+  
+  // Current month
+  for (let i = 1; i <= lastDayOfMonth.getDate(); i++) {
+    const d = new Date(year, month, i);
+    calendarDays.push({ date: d, isCurrentMonth: true });
+  }
+  
+  // Padding next month
+  const remainingDays = 42 - calendarDays.length;
+  for (let i = 1; i <= remainingDays; i++) {
+    const d = new Date(year, month + 1, i);
+    calendarDays.push({ date: d, isCurrentMonth: false });
+  }
+
+  // --- Daily Schedule & Reminder Logic ---
+  const appointmentsOnSelectedDate = appointments.filter(a => {
+    if (!a.appointment_date) return false;
+    const aDate = a.appointment_date.split('T')[0];
+    return aDate === selectedCalendarDate;
+  });
+
+  const todayStr = new Date(today.getTime() - today.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+  const validUpcomingAppts = upcomingAppointments
+    .filter(a => (a.appointment_date?.split('T')[0] || "") >= todayStr)
+    .sort((a, b) => {
+      const dateA = a.appointment_date?.split('T')[0] || "";
+      const dateB = b.appointment_date?.split('T')[0] || "";
+      if (dateA !== dateB) return dateA.localeCompare(dateB);
+      const timeA = a.schedule_time || "23:59:59";
+      const timeB = b.schedule_time || "23:59:59";
+      return timeA.localeCompare(timeB);
+    });
+
+  const nearestAppointment = validUpcomingAppts.length > 0 ? validUpcomingAppts[0] : null;
+  let reminderLabel = "";
+  if (nearestAppointment) {
+    const apptDate = nearestAppointment.appointment_date.split('T')[0];
+    const diffTime = Math.abs(new Date(apptDate) - new Date(todayStr));
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    if (diffDays === 0) reminderLabel = "Hari Ini";
+    else reminderLabel = `H-${diffDays}`;
+  }
+
   // Jika loading, tidak perlu me-render AppSidebarLayout lagi di sini
   if (loading) {
     return (
@@ -300,49 +389,105 @@ export default function PatientDashboardPage() {
         <div className="w-full lg:w-[360px] shrink-0 space-y-8">
 
           {/* Widget Kalender */}
-          <div className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
-            <div className="mb-6 flex items-center justify-between">
-              <button className="rounded-xl p-2 hover:bg-slate-100 transition"><ChevronLeft size={18} className="text-slate-600" /></button>
-              <span className="text-sm font-extrabold text-slate-900">{currentMonthYear}</span>
-              <button className="rounded-xl p-2 hover:bg-slate-100 transition"><ChevronRight size={18} className="text-slate-600" /></button>
+          <div className="rounded-3xl border border-slate-200 bg-white p-7 shadow-[0_2px_12px_rgba(0,0,0,0.02)] relative overflow-hidden">
+            <div className="mb-6 flex items-center justify-between relative z-10">
+              <button onClick={handlePrevMonth} className="rounded-xl p-2 bg-slate-50 hover:bg-slate-100 transition shadow-sm"><ChevronLeft size={16} className="text-slate-600" /></button>
+              <span className="text-[13px] font-extrabold text-slate-900">{currentMonthYearStr}</span>
+              <button onClick={handleNextMonth} className="rounded-xl p-2 bg-slate-50 hover:bg-slate-100 transition shadow-sm"><ChevronRight size={16} className="text-slate-600" /></button>
             </div>
-            <div className="mb-3 grid grid-cols-7 gap-1 text-center text-xs font-bold text-slate-400">
-              <div>S</div><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div>
+            
+            <div className="mb-3 grid grid-cols-7 gap-1 text-center text-[10px] uppercase tracking-wider font-extrabold text-slate-400 relative z-10">
+              <div>Min</div><div>Sen</div><div>Sel</div><div>Rab</div><div>Kam</div><div>Jum</div><div>Sab</div>
             </div>
-            <div className="grid grid-cols-7 gap-y-3 text-center text-sm font-bold text-slate-700">
-              <div className="text-slate-300">28</div><div className="text-slate-300">29</div><div className="text-slate-300">30</div>
-              <div className="hover:bg-indigo-50 hover:text-indigo-600 rounded-lg cursor-pointer p-1.5 transition">1</div>
-              <div className="hover:bg-indigo-50 hover:text-indigo-600 rounded-lg cursor-pointer p-1.5 transition">2</div>
-              <div className="hover:bg-indigo-50 hover:text-indigo-600 rounded-lg cursor-pointer p-1.5 transition">3</div>
-              <div className="hover:bg-indigo-50 hover:text-indigo-600 rounded-lg cursor-pointer p-1.5 transition">4</div>
-              <div className="hover:bg-indigo-50 hover:text-indigo-600 rounded-lg cursor-pointer p-1.5 transition">5</div>
-              <div className="hover:bg-indigo-50 hover:text-indigo-600 rounded-lg cursor-pointer p-1.5 transition">6</div>
-              <div className="hover:bg-indigo-50 hover:text-indigo-600 rounded-lg cursor-pointer p-1.5 transition">7</div>
-              <div className="hover:bg-indigo-50 hover:text-indigo-600 rounded-lg cursor-pointer p-1.5 transition">8</div>
-              <div className="hover:bg-indigo-50 hover:text-indigo-600 rounded-lg cursor-pointer p-1.5 transition">9</div>
-              <div className="bg-indigo-600 text-white rounded-lg p-1.5 shadow-md cursor-pointer">10</div>
-              <div className="hover:bg-indigo-50 hover:text-indigo-600 rounded-lg cursor-pointer p-1.5 transition">11</div>
-              <div className="hover:bg-indigo-50 hover:text-indigo-600 rounded-lg cursor-pointer p-1.5 transition">12</div>
-              <div className="hover:bg-indigo-50 hover:text-indigo-600 rounded-lg cursor-pointer p-1.5 transition">13</div>
-              <div className="hover:bg-indigo-50 hover:text-indigo-600 rounded-lg cursor-pointer p-1.5 transition">14</div>
+            
+            <div className="grid grid-cols-7 gap-y-2 gap-x-1 text-center text-[13px] font-bold text-slate-700 relative z-10">
+              {calendarDays.map((c, i) => {
+                const dateStr = new Date(c.date.getTime() - c.date.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+                const isSelected = selectedCalendarDate === dateStr;
+                const hasAppt = appointments.some(a => a.appointment_date?.split('T')[0] === dateStr);
+                
+                return (
+                  <div 
+                    key={i}
+                    onClick={() => setSelectedCalendarDate(dateStr)}
+                    className={`relative flex items-center justify-center rounded-[10px] w-full aspect-square cursor-pointer transition-all active:scale-95 ${
+                      !c.isCurrentMonth ? "text-slate-300" : ""
+                    } ${
+                      isSelected 
+                        ? "bg-[#5E81CC] text-white shadow-md font-extrabold scale-105" 
+                        : "hover:bg-indigo-50 hover:text-[#5E81CC]"
+                    }`}
+                  >
+                    <span>{c.date.getDate()}</span>
+                    {hasAppt && !isSelected && (
+                      <span className="absolute bottom-1 w-[4px] h-[4px] rounded-full bg-[#5E81CC]"></span>
+                    )}
+                    {hasAppt && isSelected && (
+                      <span className="absolute bottom-1 w-[4px] h-[4px] rounded-full bg-white"></span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
-          </div>
 
-          {/* Widget Jadwal Hari Ini */}
-          <div className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
-            <h3 className="mb-5 text-sm font-extrabold text-slate-900 tracking-tight">Jadwal Hari ini</h3>
-            {upcomingAppointments.length > 0 ? (
-              <div className="flex items-start gap-4 rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4">
-                <div className="mt-1 flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-indigo-600 shrink-0"><Clock size={16} /></div>
-                <div>
-                  <p className="text-sm font-bold text-slate-900">{upcomingAppointments[0].schedule_time} WIB</p>
-                  <p className="text-xs font-semibold text-slate-500 mt-0.5">{upcomingAppointments[0].doctor_name}</p>
-                </div>
+            <div className="mt-7 border-t border-slate-100 pt-6 relative z-10">
+              <h3 className="mb-4 text-[13px] font-extrabold text-slate-900 tracking-tight">
+                {selectedCalendarDate === todayStr ? "Jadwal Hari ini" : `Jadwal ${new Date(selectedCalendarDate).toLocaleDateString('id-ID', {day:'numeric', month:'short'})}`}
+              </h3>
+              
+              <div className="space-y-3">
+                {appointmentsOnSelectedDate.length > 0 ? (
+                  appointmentsOnSelectedDate.map(appt => (
+                    <div key={appt.id} className="flex items-start gap-4 rounded-[16px] border border-slate-100 bg-slate-50 p-3 hover:border-indigo-100 hover:bg-white transition-all hover:shadow-sm">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-[12px] bg-white text-[#5E81CC] shrink-0 shadow-sm border border-slate-100">
+                         <Clock size={16} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                           <p className="text-[13px] font-extrabold text-slate-900">{appt.schedule_time} WIB</p>
+                           <span className={`text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md ${appt.status === 'Selesai' || appt.status === 'Completed' ? 'bg-emerald-100 text-emerald-600' : 'bg-indigo-100 text-[#5E81CC]'}`}>{appt.status}</span>
+                        </div>
+                        <p className="text-[11px] font-bold text-slate-500 mt-1 truncate">{appt.doctor_name}</p>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-[11px] text-slate-400 font-bold py-4 text-center border border-dashed border-slate-200 rounded-[16px] bg-slate-50/50">Tidak ada jadwal.</p>
+                )}
               </div>
-            ) : (
-              <p className="text-sm text-slate-400 font-medium">Tidak ada jadwal hari ini.</p>
-            )}
+              
+              <div className="mt-5 text-center">
+                 <button onClick={() => router.push('/patient/appointments')} className="text-[11px] font-extrabold text-[#5E81CC] hover:underline hover:text-indigo-700 transition-colors">Lihat Semua</button>
+              </div>
+            </div>
+            
+            {/* Dekorasi blur background */}
+            <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-indigo-50/50 rounded-full blur-3xl pointer-events-none"></div>
           </div>
+          
+          {/* Widget Reminder */}
+          {nearestAppointment && (
+            <div className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-[0_2px_12px_rgba(0,0,0,0.02)] relative overflow-hidden group">
+               <div className="absolute top-0 right-0 w-32 h-32 bg-rose-50 rounded-full blur-3xl -mr-10 -mt-10 group-hover:bg-rose-100 transition-colors duration-500 pointer-events-none"></div>
+               
+               <div className="flex items-start justify-between mb-4 relative z-10">
+                 <div className="flex items-center gap-2">
+                    <Bell className="w-[18px] h-[18px] text-rose-500 animate-[bounce_3s_infinite]" />
+                    <h3 className="text-[13px] font-extrabold text-slate-900">Reminder</h3>
+                 </div>
+                 <span className="bg-rose-100 text-rose-600 text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-md shadow-sm">{reminderLabel}</span>
+               </div>
+               
+               <p className="text-[13px] font-bold text-slate-600 leading-relaxed relative z-10 mb-4 pr-6">
+                 Jangan lupa appointment dengan <span className="text-slate-900 font-extrabold">{nearestAppointment.doctor_name}</span> {reminderLabel === 'Hari Ini' ? 'hari ini' : reminderLabel === 'H-1' ? 'besok' : 'nanti'} pukul <span className="text-slate-900 font-extrabold">{nearestAppointment.schedule_time} WIB</span>.
+               </p>
+               
+               <div className="w-full flex justify-end relative z-10 -mt-2">
+                 <CalendarDays className="w-12 h-12 text-slate-100 group-hover:text-rose-100 transition-colors opacity-80 -mb-2 -mr-2" strokeWidth={1.5} />
+               </div>
+            </div>
+          )}
+
         </div>
 
       </div>
