@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { supabase } from "@/lib/supabase";
 
 function getStoredUser() {
   const rawUser =
@@ -122,6 +123,17 @@ export default function PatientProfilePage() {
     setMessage("");
 
     try {
+      if (user.email !== formData.email) {
+        const { error: authError } = await supabase.auth.updateUser({ email: formData.email });
+        if (authError) {
+          setMessage("Gagal mengubah email autentikasi.");
+          setMessageType("error");
+          alert("Gagal mengubah email autentikasi.");
+          setSaving(false);
+          return;
+        }
+      }
+
       const response = await fetch("/api/profile", {
         method: "PATCH",
         headers: {
@@ -137,6 +149,7 @@ export default function PatientProfilePage() {
       if (!response.ok) {
         setMessage(data.message || "Gagal menyimpan profil.");
         setMessageType("error");
+        alert(data.message || "Gagal menyimpan profil.");
         return;
       }
 
@@ -150,12 +163,14 @@ export default function PatientProfilePage() {
       setSavedData(nextProfileData);
       setUser(data.profile);
       updateStoredUser(data.profile);
-      setIsEditing(false);
-      setMessage(data.message || "Profil berhasil diperbarui.");
+      const successMsg = data.message || "Profil berhasil diperbarui.";
+      setMessage(successMsg);
       setMessageType("success");
+      alert(successMsg);
     } catch (error) {
       setMessage("Tidak bisa menyimpan profil saat ini.");
       setMessageType("error");
+      alert("Tidak bisa menyimpan profil saat ini.");
     } finally {
       setSaving(false);
     }

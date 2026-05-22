@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useMemo, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { 
   Search, 
@@ -49,7 +49,16 @@ function generateTimeSlots(startTimeStr, endTimeStr, intervalMinutes = 30) {
 }
 
 export default function PatientDoctorsPage() {
+  return (
+    <Suspense fallback={<div className="flex justify-center items-center h-full"><p className="text-slate-500 font-medium animate-pulse">Memuat...</p></div>}>
+      <PatientDoctorsContent />
+    </Suspense>
+  );
+}
+
+function PatientDoctorsContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   // --- States ---
   const [currentUser, setCurrentUser] = useState(null);
@@ -61,7 +70,7 @@ export default function PatientDoctorsPage() {
   const [schedules, setSchedules] = useState([]);
 
   // Filtering & Sorting
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
   const [selectedSpecialization, setSelectedSpecialization] = useState("Semua Spesialis");
   const [sortOption, setSortOption] = useState(""); // "" | "A-Z" | "Z-A" | "Terdekat"
   const [showSortDropdown, setShowSortDropdown] = useState(false);
@@ -82,8 +91,16 @@ export default function PatientDoctorsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [doctorAppointments, setDoctorAppointments] = useState([]);
 
+  // Favorites
+  const [favoriteDoctors, setFavoriteDoctors] = useState({});
+
   // --- Fetch Data ---
   useEffect(() => {
+    const savedFav = localStorage.getItem("favorite_doctors");
+    if (savedFav) {
+      try { setFavoriteDoctors(JSON.parse(savedFav)); } catch (e) {}
+    }
+    
     const initData = async () => {
       setLoading(true);
       // Get User
@@ -278,6 +295,14 @@ export default function PatientDoctorsPage() {
     }
   };
 
+  const toggleFavorite = (doctorId) => {
+    setFavoriteDoctors((prev) => {
+      const next = { ...prev, [doctorId]: !prev[doctorId] };
+      localStorage.setItem("favorite_doctors", JSON.stringify(next));
+      return next;
+    });
+  };
+
   // --- Render Helpers ---
   const getIconForSpec = (specName) => {
     const name = specName?.toLowerCase() || "";
@@ -377,8 +402,8 @@ export default function PatientDoctorsPage() {
                      <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(doc.full_name)}&background=random&size=256`} alt={doc.full_name} className="w-full h-full object-cover opacity-80 mix-blend-multiply" />
                   </div>
                   {/* Heart Icon Top Right */}
-                  <button className="absolute top-4 right-4 p-2 bg-white/40 backdrop-blur-md rounded-full hover:bg-white text-slate-500 hover:text-rose-500 transition-colors shadow-sm">
-                    <Heart className="h-4 w-4" />
+                  <button onClick={() => toggleFavorite(doc.id)} className="absolute top-4 right-4 p-2 bg-white/40 backdrop-blur-md rounded-full hover:bg-white text-slate-500 hover:text-rose-500 transition-colors shadow-sm">
+                    <Heart className={`h-4 w-4 ${favoriteDoctors[doc.id] ? "fill-rose-500 text-rose-500" : ""}`} />
                   </button>
                 </div>
 

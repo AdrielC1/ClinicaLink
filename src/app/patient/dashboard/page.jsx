@@ -48,6 +48,7 @@ export default function PatientDashboardPage() {
   const [doctors, setDoctors] = useState([]);
   const [doctorSchedules, setDoctorSchedules] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [hasUnread, setHasUnread] = useState(true);
 
   const [bookingStep, setBookingStep] = useState(0);
   const [selectedDoctor, setSelectedDoctor] = useState(null);
@@ -133,6 +134,16 @@ export default function PatientDashboardPage() {
       setCurrentUser({ id: user.id, name: fullName });
 
       await fetchDashboardData(user.id);
+      
+      const read = localStorage.getItem("notifications_read");
+      setHasUnread(read !== "true");
+      
+      const handleStorage = () => {
+        const r = localStorage.getItem("notifications_read");
+        setHasUnread(r !== "true");
+      };
+      window.addEventListener("storage", handleStorage);
+      
       setLoading(false);
     };
     initData();
@@ -310,7 +321,7 @@ export default function PatientDashboardPage() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <StatCard icon={<CalendarCheck className="text-amber-500" size={24} />} title="Janji Temu Mendatang" value={upcomingAppointments.length} />
             <StatCard icon={<CheckCircle2 className="text-emerald-500" size={24} />} title="Konsultasi Selesai" value={completedAppointments.length} />
-            <StatCard icon={<Bell className="text-rose-500" size={24} />} title="Notifikasi Baru" value={1} />
+            <StatCard icon={<Bell className="text-rose-500" size={24} />} title="Notifikasi Baru" value={hasUnread ? 1 : 0} />
           </div>
 
           {/* Dokter Tersedia */}
