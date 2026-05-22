@@ -99,6 +99,7 @@ export default function AppSidebarLayout({ children, role }) {
   const pathname = usePathname();
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState(null);
+  const [hasUnread, setHasUnread] = useState(true);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -125,8 +126,15 @@ export default function AppSidebarLayout({ children, role }) {
     const handleStorage = () => {
       const u = readStoredUser();
       if (u) setCurrentUser(prev => ({ ...prev, ...u }));
+      
+      const read = localStorage.getItem("notifications_read");
+      setHasUnread(read !== "true");
     };
     window.addEventListener("storage", handleStorage);
+    
+    // Check notification initially
+    setHasUnread(localStorage.getItem("notifications_read") !== "true");
+    
     return () => window.removeEventListener("storage", handleStorage);
   }, []);
 
@@ -136,7 +144,7 @@ export default function AppSidebarLayout({ children, role }) {
     localStorage.removeItem("clinicalink:user");
     sessionStorage.removeItem("clinicalink:user");
     await supabase.auth.signOut();
-    router.push("/login");
+    router.push("/landing");
   };
 
   const displayUserName = getUserName(currentUser, role);
@@ -166,20 +174,40 @@ export default function AppSidebarLayout({ children, role }) {
                   <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.3-4.3m1.3-5.2a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z" />
                 </svg>
               </span>
-              <input type="search" placeholder="Search..." className="h-11 w-full rounded-lg border-0 bg-gray-50 pl-12 pr-4 text-[13px] font-medium outline-none focus:ring-2 focus:ring-indigo-100 transition-shadow placeholder:text-gray-400" />
+              <input 
+                type="search" 
+                placeholder="Search..." 
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && e.target.value) {
+                     router.push(`/${role}/doctors?search=${encodeURIComponent(e.target.value)}`);
+                  }
+                }}
+                className="h-11 w-full rounded-lg border-0 bg-gray-50 pl-12 pr-4 text-[13px] font-medium outline-none focus:ring-2 focus:ring-indigo-100 transition-shadow placeholder:text-gray-400" 
+              />
             </label>
           )}
         </div>
 
         {/* Right: Bell & Profile */}
         <div className="flex items-center gap-6 shrink-0">
-          <button className="text-gray-600 hover:text-[#5E81CC] transition-colors relative p-1">
+          <button 
+            onClick={() => {
+              if (role === 'patient') router.push('/patient/notifications');
+            }}
+            className="text-gray-600 hover:text-[#5E81CC] transition-colors relative p-1"
+          >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
             </svg>
-            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+            {hasUnread && <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>}
           </button>
-          <div className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity">
+          <div 
+            onClick={() => {
+              if (role === 'patient') router.push('/patient/profile');
+              else if (role === 'admin') router.push('/admin/settings');
+            }}
+            className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
+          >
             <img src={avatarUrl} alt="Profile" className="w-10 h-10 rounded-full border border-gray-100" />
             <span className="font-bold text-[#2D3748] hidden sm:block">{displayUserName}</span>
           </div>
