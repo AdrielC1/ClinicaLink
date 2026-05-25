@@ -25,6 +25,7 @@ export async function GET(request) {
                 medical_notes,
                 patient_id,
                 patient:patients (
+                    phone_number,
                     user:users ( full_name, email )
                 ),
                 schedule_id,
@@ -79,6 +80,8 @@ export async function GET(request) {
             notes: item.medical_notes || "",
             patient_id: item.patient_id,
             patient_name: item.patient?.user?.full_name || "Unknown Patient",
+            patient_email: item.patient?.user?.email || "-",
+            patient_phone: item.patient?.phone_number || "-",
             schedule_id: item.schedule_id,
             doctor_name: item.schedule?.doctor?.user?.full_name || "Unknown Doctor",
             room_number: item.schedule?.room_number || "-",

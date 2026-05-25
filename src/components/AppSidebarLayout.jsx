@@ -293,7 +293,7 @@ export default function AppSidebarLayout({ children, role }) {
       {/* Main Layout Area */}
       <div className="flex flex-col lg:flex-row gap-8 flex-1">
         {/* Transparent Left Sidebar */}
-        <aside className="w-full lg:w-64 shrink-0 flex flex-col justify-between bg-white/60 backdrop-blur-sm border border-gray-100 shadow-sm rounded-2xl p-4">
+        <aside className="w-full lg:w-64 shrink-0 flex flex-col justify-between bg-white/60 backdrop-blur-sm border border-gray-100 shadow-sm rounded-2xl p-4 self-start lg:sticky lg:top-10 lg:h-[calc(100vh-180px)]">
           <nav className="space-y-1.5 flex-1">
             {links.map((link) => {
               const active = pathname === link.href;
