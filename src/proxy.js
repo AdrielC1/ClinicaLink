@@ -13,7 +13,7 @@ const PUBLIC_ONLY_ROUTES = ["/login", "/register"];
 // URL yang perlu autentikasi (mulai dengan /admin, /doctor, atau /patient)
 const PROTECTED_PREFIXES = Object.values(ROLE_ROUTES);
 
-export function middleware(request) {
+export function proxy(request) {
   const { pathname } = request.nextUrl;
 
   // Ambil role dari cookie (ditulis saat login, lebih cepat dari query DB)
