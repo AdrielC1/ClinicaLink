@@ -1,10 +1,20 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function DoctorDashboardPage() {
-  const doctorName = "Emily"; // Placeholder, can be made dynamic later
+  const [doctorName, setDoctorName] = useState("");
+
+  useEffect(() => {
+    // Ambil nama dari local storage yang diset saat login
+    const name = localStorage.getItem("clinicalink:name");
+    if (name) {
+      // Hapus awalan "Dr." atau "dr" agar tidak ganda saat ditampilkan
+      const cleanName = name.replace(/^dr\.?\s*/i, "");
+      setDoctorName(cleanName);
+    }
+  }, []);
 
   // Calendar Logic (Simplified for UI display)
   const today = new Date();
