@@ -82,6 +82,12 @@ const doctorLinks = [
   { href: "/doctor/patients", label: "Pasien List" },
 ];
 
+const ROLE_ROUTES = {
+  admin: "/admin",
+  doctor: "/doctor",
+  patient: "/patient",
+};
+
 function readStoredUser() {
   if (typeof window === "undefined") return null;
   const rawUser = localStorage.getItem("clinicalink:user") ?? sessionStorage.getItem("clinicalink:user");
@@ -101,6 +107,27 @@ export default function AppSidebarLayout({ children, role }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [hasUnread, setHasUnread] = useState(true);
 
+  // Cek role secara SINKRON sebelum render pertama (mencegah flash UI)
+  // Lazy initializer useState berjalan saat komponen dibuat, sebelum render apapun
+  const [isRoleValid] = useState(() => {
+    if (typeof window === "undefined") return true; // SSR: izinkan dulu
+    const storedRole = localStorage.getItem("clinicalink:role");
+    if (!storedRole) return true; // Belum ada data, biarkan async guard yang handle
+    return storedRole === role; // false = role salah, jangan render apapun
+  });
+
+  // Jika role tidak sesuai (misal: dokter buka URL /admin), langsung redirect
+  useEffect(() => {
+    if (!isRoleValid) {
+      const correctRole = localStorage.getItem("clinicalink:role");
+      if (correctRole && ROLE_ROUTES[correctRole]) {
+        window.location.replace(`/${correctRole}/dashboard`);
+      } else {
+        window.location.replace("/login");
+      }
+    }
+  }, [isRoleValid]);
+
   useEffect(() => {
     const loadUser = async () => {
       // 1. Coba baca dari localStorage (sistem lama)
@@ -108,20 +135,55 @@ export default function AppSidebarLayout({ children, role }) {
 
       // 2. Ambil dari Supabase (sistem baru)
       const { data: { user: authUser }, error } = await supabase.auth.getUser();
-      if (authUser && !error) {
-        const { data: userData } = await supabase.from("users").select("full_name, username").eq("id", authUser.id).single();
-        user = {
-          ...user,
-          ...authUser,
-          full_name: userData?.full_name || authUser.user_metadata?.full_name || user?.full_name,
-          username: userData?.username || user?.username
-        };
+      
+      if (!authUser || error) {
+        // Jika tidak ada sesi, paksa ke login (menghindari cache)
+        window.location.replace("/login");
+        return;
       }
+
+      const { data: userData } = await supabase.from("users").select("role, full_name, username").eq("id", authUser.id).single();
+      
+      // GUARD: Jika role user tidak sama dengan role layout ini (efek klik Back di browser),
+      // lemparkan mereka ke dashboard yang seharusnya!
+      if (userData?.role && userData.role !== role) {
+        window.location.replace(`/${userData.role}/dashboard`);
+        return;
+      }
+
+      // Update role di local storage untuk sinkronisasi cache berikutnya
+      if (userData?.role) {
+        localStorage.setItem("clinicalink:role", userData.role);
+      }
+
+      user = {
+        ...user,
+        ...authUser,
+        full_name: userData?.full_name || authUser.user_metadata?.full_name || user?.full_name,
+        username: userData?.username || user?.username
+      };
 
       if (user) setCurrentUser(user);
     };
 
     loadUser();
+
+    // Penjaga Cache Ganda (BFCache Browser & Next.js Router Cache)
+    // Berjalan saat pengguna menggunakan tombol Back/Forward di browser
+    const handleHistoryNavigation = () => {
+      const currentRole = localStorage.getItem("clinicalink:role");
+      if (currentRole && currentRole !== role) {
+        // Cache Next.js / Browser mencoba menampilkan halaman yang role-nya tidak cocok
+        // Paksa reload penuh agar server (middleware.js) yang mengambil alih
+        window.location.href = `/${currentRole}/dashboard`;
+      } else if (!currentRole) {
+        window.location.href = "/login";
+      }
+    };
+
+    // Dengarkan event 'pageshow' (untuk BFCache) dan 'popstate' (untuk Next.js Client Cache)
+    window.addEventListener("pageshow", handleHistoryNavigation);
+    window.addEventListener("popstate", handleHistoryNavigation);
 
     const handleStorage = () => {
       const u = readStoredUser();
@@ -135,17 +197,31 @@ export default function AppSidebarLayout({ children, role }) {
     // Check notification initially
     setHasUnread(localStorage.getItem("notifications_read") !== "true");
     
-    return () => window.removeEventListener("storage", handleStorage);
-  }, []);
+    return () => {
+      window.removeEventListener("pageshow", handleHistoryNavigation);
+      window.removeEventListener("popstate", handleHistoryNavigation);
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, [role]);
 
   const links = role === 'admin' ? adminLinks : role === 'doctor' ? doctorLinks : patientLinks;
 
   const handleSignOut = async () => {
-    localStorage.removeItem("clinicalink:user");
-    sessionStorage.removeItem("clinicalink:user");
-    await supabase.auth.signOut();
-    router.push("/landing");
+    try {
+      localStorage.removeItem("clinicalink:user");
+      localStorage.removeItem("clinicalink:role");
+      sessionStorage.removeItem("clinicalink:user");
+      document.cookie = "clinicalink_role=; path=/; max-age=0";
+      await supabase.auth.signOut();
+    } catch (e) {
+      console.error("Logout error", e);
+    } finally {
+      window.location.href = "/landing";
+    }
   };
+
+  // Jangan render apapun jika role salah (mencegah flash UI admin bagi akun dokter)
+  if (!isRoleValid) return null;
 
   const displayUserName = getUserName(currentUser, role);
   const avatarUrl = role === 'admin'
@@ -252,15 +328,24 @@ export default function AppSidebarLayout({ children, role }) {
           {/* Bottom Logout Area */}
           <div className="mt-8">
             <hr className="border-gray-200 border-[1.5px] mb-6 mx-2" />
-            <button
-              onClick={handleSignOut}
+            <a
+              href="/api/logout"
+              onClick={() => {
+                // Bersihkan data lokal sebelum redirect (bonus, bukan wajib)
+                try {
+                  localStorage.removeItem("clinicalink:user");
+                  localStorage.removeItem("clinicalink:role");
+                  sessionStorage.removeItem("clinicalink:user");
+                  document.cookie = "clinicalink_role=; path=/; max-age=0";
+                } catch(e) {}
+              }}
               className="flex items-center gap-4 px-5 py-3.5 w-full rounded-xl text-[15px] font-bold text-gray-800 hover:bg-red-50 hover:text-red-600 transition-colors"
             >
               <svg className="w-5 h-5 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
               </svg>
               Log out
-            </button>
+            </a>
           </div>
         </aside>
 

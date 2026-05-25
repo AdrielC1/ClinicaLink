@@ -50,6 +50,23 @@ export default function LoginPage() {
         return () => cancelAnimationFrame(frame);
     }, []);
 
+    // Guard: Jika user masuk ke halaman login (entah lewat tombol Back atau direct link),
+    // kita asumsikan mereka ingin login ulang/keluar, jadi kita HANCURKAN sesi lamanya.
+    useEffect(() => {
+        const checkAndDestroySession = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                // Hancurkan sesi di Supabase (menghapus cookie)
+                await supabase.auth.signOut();
+                // Hancurkan local storage legacy
+                localStorage.removeItem("clinicalink:user");
+                sessionStorage.removeItem("clinicalink:user");
+                console.log("Sesi lama telah dihancurkan karena user kembali ke halaman login.");
+            }
+        };
+        checkAndDestroySession();
+    }, []);
+
     const handleNavigate = (path) => {
         setIsClosing(true);
         setTimeout(() => {
@@ -88,6 +105,11 @@ export default function LoginPage() {
                 return;
             }
 
+            // Simpan role di localStorage DAN cookie agar proxy server bisa membaca role tanpa query DB
+            localStorage.setItem("clinicalink:role", userData.role);
+            // Cookie ini dibaca oleh proxy.js untuk validasi role di sisi server
+            document.cookie = `clinicalink_role=${userData.role}; path=/; max-age=86400; SameSite=Lax`;
+
             // 3. Routing Pintar Berdasarkan Role
             let targetRoute = "/";
             if (userData.role === "patient") {
@@ -98,8 +120,10 @@ export default function LoginPage() {
                 targetRoute = "/admin/dashboard";
             }
 
-            // 4. Arahkan ke rute yang benar dengan efek animasi yang sudah Anda buat
-            handleNavigate(targetRoute);
+            // 4. Arahkan ke rute yang benar — pakai replace() agar /login tidak bisa
+            // diakses kembali via tombol Back browser.
+            setIsClosing(true);
+            setTimeout(() => router.replace(targetRoute), 150);
 
             // Catatan: setLoading(false) sengaja dilewati di blok sukses ini 
             // agar tombol tetap berstatus "Memproses..." selama animasi pindah halaman.
