@@ -11,12 +11,10 @@ import {
   CalendarDays, 
   ChevronLeft, 
   ChevronRight,
-  Star,
   MapPin,
   X,
   CheckCircle2,
   Clock,
-  ShieldCheck,
   UserRound,
   Baby,
   Activity
@@ -176,9 +174,7 @@ function PatientDoctorsContent() {
         ...doc,
         schedules: docSchedules,
         scheduleText,
-        timeText,
-        rating: 4.9, // Hardcoded per requirement
-        reviews: 260
+        timeText
       };
     });
   }, [doctors, schedules]);
@@ -359,7 +355,7 @@ function PatientDoctorsContent() {
         </div>
 
         {/* Sort Button */}
-        <div className="relative ml-auto">
+        <div className="relative">
           <button 
             onClick={() => setShowSortDropdown(!showSortDropdown)}
             className="flex items-center gap-2 bg-white border border-slate-100 text-slate-700 text-[13px] font-bold rounded-xl px-4 py-2.5 hover:bg-slate-50 transition-colors shadow-sm"
@@ -424,17 +420,13 @@ function PatientDoctorsContent() {
                     </span>
                   </div>
 
-                  <div className="flex items-center justify-between w-full mt-auto">
+                  <div className="w-full mt-auto">
                     <button 
                       onClick={() => openBookingModal(doc)}
-                      className="bg-[#5E81CC] hover:bg-indigo-600 text-white text-[13px] font-extrabold py-2 px-6 rounded-xl transition-colors shadow-sm"
+                      className="w-full bg-[#5E81CC] hover:bg-indigo-600 text-white text-[13px] font-extrabold py-2 px-6 rounded-xl transition-colors shadow-sm"
                     >
                       Booking
                     </button>
-                    <div className="flex items-center gap-1.5">
-                      <Star className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />
-                      <span className="text-[11px] font-extrabold text-slate-700">{doc.rating} <span className="text-slate-400 font-bold">({doc.reviews})</span></span>
-                    </div>
                   </div>
                 </div>
               </div>
@@ -481,17 +473,6 @@ function PatientDoctorsContent() {
               </button>
             </div>
           )}
-
-          {/* Bottom Banner */}
-          <div className="mt-10 bg-[#E6EDFF] rounded-[20px] p-4 flex items-center justify-center gap-3">
-             <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 text-[#5E81CC]">
-                <ShieldCheck className="w-4 h-4" />
-             </div>
-             <div>
-                <h4 className="text-[13px] font-extrabold text-slate-900 leading-none mb-1">Semua Dokter sudah terverifikasi</h4>
-                <p className="text-[11px] font-bold text-slate-500 leading-none">Kami memastikan semua dokter memiliki izin praktik yang resmi.</p>
-             </div>
-          </div>
 
         </div>
 
