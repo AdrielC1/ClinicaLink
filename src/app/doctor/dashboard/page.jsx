@@ -414,9 +414,9 @@ export default function DoctorDashboardPage() {
         <div className="overflow-hidden rounded-3xl shadow-sm bg-white border border-gray-100">
 
           {/* Header Kalender */}
-          <div className="bg-[#5E81CC] px-5 pt-6 pb-2">
+          <div className="bg-[#5E81CC] px-5 pt-3 pb-1">
             {/* Navigasi bulan */}
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between mb-3">
               <button
                 type="button"
                 aria-label="Bulan sebelumnya"
