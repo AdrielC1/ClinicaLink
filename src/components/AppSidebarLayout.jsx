@@ -107,16 +107,13 @@ export default function AppSidebarLayout({ children, role }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [hasUnread, setHasUnread] = useState(true);
 
-  // Cek role secara SINKRON sebelum render pertama (mencegah flash UI)
-  // Lazy initializer useState berjalan saat komponen dibuat, sebelum render apapun
   const [isRoleValid] = useState(() => {
-    if (typeof window === "undefined") return true; // SSR: izinkan dulu
+    if (typeof window === "undefined") return true;
     const storedRole = localStorage.getItem("clinicalink:role");
-    if (!storedRole) return true; // Belum ada data, biarkan async guard yang handle
-    return storedRole === role; // false = role salah, jangan render apapun
+    if (!storedRole) return true;
+    return storedRole === role;
   });
 
-  // Jika role tidak sesuai (misal: dokter buka URL /admin), langsung redirect
   useEffect(() => {
     if (!isRoleValid) {
       const correctRole = localStorage.getItem("clinicalink:role");
@@ -130,58 +127,86 @@ export default function AppSidebarLayout({ children, role }) {
 
   useEffect(() => {
     const loadUser = async () => {
-      // 1. Coba baca dari localStorage (sistem lama)
       let user = readStoredUser();
 
-      // 2. Ambil dari Supabase (sistem baru)
       const { data: { user: authUser }, error } = await supabase.auth.getUser();
       
       if (!authUser || error) {
-        // Jika tidak ada sesi, paksa ke login (menghindari cache)
         window.location.replace("/login");
         return;
       }
 
-      const { data: userData } = await supabase.from("users").select("role, full_name, username").eq("id", authUser.id).single();
-      
-      // GUARD: Jika role user tidak sama dengan role layout ini (efek klik Back di browser),
-      // lemparkan mereka ke dashboard yang seharusnya!
-      if (userData?.role && userData.role !== role) {
-        window.location.replace(`/${userData.role}/dashboard`);
+      let profileData = null;
+      try {
+        const profileRes = await fetch(`/api/profile?userId=${authUser.id}`);
+        const profileJson = await profileRes.json();
+        if (profileRes.ok && profileJson.profile) {
+          profileData = profileJson.profile;
+        }
+      } catch (fetchError) {
+        console.error("Sidebar gagal memuat profile dari API:", fetchError);
+      }
+
+      if (profileData?.role && profileData.role !== role) {
+        window.location.replace(`/${profileData.role}/dashboard`);
         return;
       }
 
-      // Update role di local storage untuk sinkronisasi cache berikutnya
-      if (userData?.role) {
-        localStorage.setItem("clinicalink:role", userData.role);
+      if (profileData?.role) {
+        localStorage.setItem("clinicalink:role", profileData.role);
       }
 
-      user = {
-        ...user,
-        ...authUser,
-        full_name: userData?.full_name || authUser.user_metadata?.full_name || user?.full_name,
-        username: userData?.username || user?.username
-      };
+      if (profileData) {
+        user = {
+          ...user,
+          ...authUser,
+          full_name: profileData.full_name || authUser.user_metadata?.full_name || user?.full_name,
+          username: user?.username,
+          img_url: profileData.img_url || user?.img_url,
+        };
+      } else {
+        const { data: userData, error: userDataError } = await supabase
+          .from("users")
+          .select("role, full_name, username, img_url")
+          .eq("id", authUser.id)
+          .single();
+
+        if (userDataError) {
+          console.error("Sidebar gagal memuat user data dari Supabase:", userDataError);
+        }
+
+        if (userData?.role && userData.role !== role) {
+          window.location.replace(`/${userData.role}/dashboard`);
+          return;
+        }
+
+        if (userData?.role) {
+          localStorage.setItem("clinicalink:role", userData.role);
+        }
+
+        user = {
+          ...user,
+          ...authUser,
+          full_name: userData?.full_name || authUser.user_metadata?.full_name || user?.full_name,
+          username: userData?.username || userData?.username,
+          img_url: userData?.img_url || user?.img_url,
+        };
+      }
 
       if (user) setCurrentUser(user);
     };
 
     loadUser();
 
-    // Penjaga Cache Ganda (BFCache Browser & Next.js Router Cache)
-    // Berjalan saat pengguna menggunakan tombol Back/Forward di browser
     const handleHistoryNavigation = () => {
       const currentRole = localStorage.getItem("clinicalink:role");
       if (currentRole && currentRole !== role) {
-        // Cache Next.js / Browser mencoba menampilkan halaman yang role-nya tidak cocok
-        // Paksa reload penuh agar server (middleware.js) yang mengambil alih
         window.location.href = `/${currentRole}/dashboard`;
       } else if (!currentRole) {
         window.location.href = "/login";
       }
     };
 
-    // Dengarkan event 'pageshow' (untuk BFCache) dan 'popstate' (untuk Next.js Client Cache)
     window.addEventListener("pageshow", handleHistoryNavigation);
     window.addEventListener("popstate", handleHistoryNavigation);
 
@@ -194,7 +219,6 @@ export default function AppSidebarLayout({ children, role }) {
     };
     window.addEventListener("storage", handleStorage);
     
-    // Check notification initially
     setHasUnread(localStorage.getItem("notifications_read") !== "true");
     
     return () => {
@@ -220,13 +244,17 @@ export default function AppSidebarLayout({ children, role }) {
     }
   };
 
-  // Jangan render apapun jika role salah (mencegah flash UI admin bagi akun dokter)
   if (!isRoleValid) return null;
 
   const displayUserName = getUserName(currentUser, role);
-  const avatarUrl = role === 'admin'
-    ? "https://ui-avatars.com/api/?name=Admin&background=5E81CC&color=fff&rounded=true"
-    : `https://ui-avatars.com/api/?name=${encodeURIComponent(displayUserName)}&background=5E81CC&color=fff&rounded=true`;
+
+  // LOGIKA DINAMIS AVATAR: Menggunakan img_url dari database jika ada, jika tidak, pakai placeholder
+  const avatarUrl = currentUser?.img_url 
+    ? currentUser.img_url 
+    : (role === 'admin'
+        ? "https://ui-avatars.com/api/?name=Admin&background=5E81CC&color=fff&rounded=true"
+        : `https://ui-avatars.com/api/?name=${encodeURIComponent(displayUserName)}&background=5E81CC&color=fff&rounded=true`
+      );
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-[#2D3748] font-sans p-6 md:p-10 flex flex-col w-full">
@@ -241,7 +269,7 @@ export default function AppSidebarLayout({ children, role }) {
           </span>
         </Link>
 
-        {/* Center: Search (if needed, otherwise empty) */}
+        {/* Center: Search */}
         <div className="hidden md:flex relative flex-1 max-w-lg mx-8">
           {role !== 'admin' && (
             <label className="relative w-full">
@@ -277,14 +305,21 @@ export default function AppSidebarLayout({ children, role }) {
             </svg>
             {hasUnread && <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>}
           </button>
+          
           <div 
             onClick={() => {
               if (role === 'patient') router.push('/patient/profile');
               else if (role === 'admin') router.push('/admin/settings');
+              else if (role === 'doctor') router.push('/doctor/dashboard'); // Navigasi opsional untuk dokter
             }}
             className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
           >
-            <img src={avatarUrl} alt="Profile" className="w-10 h-10 rounded-full border border-gray-100" />
+            {/* Tag img sekarang secara dinamis memuat avatarUrl dari database */}
+            <img 
+              src={avatarUrl} 
+              alt="Profile" 
+              className="w-10 h-10 rounded-full border border-gray-100 object-cover" 
+            />
             <span className="font-bold text-[#2D3748] hidden sm:block">{displayUserName}</span>
           </div>
         </div>
@@ -330,14 +365,9 @@ export default function AppSidebarLayout({ children, role }) {
             <hr className="border-gray-200 border-[1.5px] mb-6 mx-2" />
             <a
               href="/api/logout"
-              onClick={() => {
-                // Bersihkan data lokal sebelum redirect (bonus, bukan wajib)
-                try {
-                  localStorage.removeItem("clinicalink:user");
-                  localStorage.removeItem("clinicalink:role");
-                  sessionStorage.removeItem("clinicalink:user");
-                  document.cookie = "clinicalink_role=; path=/; max-age=0";
-                } catch(e) {}
+              onClick={(e) => {
+                e.preventDefault();
+                handleSignOut();
               }}
               className="flex items-center gap-4 px-5 py-3.5 w-full rounded-xl text-[15px] font-bold text-gray-800 hover:bg-red-50 hover:text-red-600 transition-colors"
             >
