@@ -177,7 +177,6 @@ function PatientDoctorsContent() {
         schedules: docSchedules,
         scheduleText,
         timeText,
-        rating: 4.9, // Hardcoded per requirement
         reviews: 260
       };
     });
@@ -432,8 +431,6 @@ function PatientDoctorsContent() {
                       Booking
                     </button>
                     <div className="flex items-center gap-1.5">
-                      <Star className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />
-                      <span className="text-[11px] font-extrabold text-slate-700">{doc.rating} <span className="text-slate-400 font-bold">({doc.reviews})</span></span>
                     </div>
                   </div>
                 </div>
