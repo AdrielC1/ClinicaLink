@@ -241,28 +241,8 @@ export default function AppSidebarLayout({ children, role }) {
           </span>
         </Link>
 
-        {/* Center: Search (if needed, otherwise empty) */}
-        <div className="hidden md:flex relative flex-1 max-w-lg mx-8">
-          {role !== 'admin' && (
-            <label className="relative w-full">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
-                <svg aria-hidden="true" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.3-4.3m1.3-5.2a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z" />
-                </svg>
-              </span>
-              <input 
-                type="search" 
-                placeholder="Search..." 
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && e.target.value) {
-                     router.push(`/${role}/doctors?search=${encodeURIComponent(e.target.value)}`);
-                  }
-                }}
-                className="h-11 w-full rounded-lg border-0 bg-gray-50 pl-12 pr-4 text-[13px] font-medium outline-none focus:ring-2 focus:ring-indigo-100 transition-shadow placeholder:text-gray-400" 
-              />
-            </label>
-          )}
-        </div>
+        {/* Center: Search (dihapus per permintaan) */}
+        <div className="hidden md:flex relative flex-1 max-w-lg mx-8"></div>
 
         {/* Right: Bell & Profile */}
         <div className="flex items-center gap-6 shrink-0">
