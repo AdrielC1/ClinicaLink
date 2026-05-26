@@ -192,6 +192,7 @@ function formatDoctor(doc) {
         id: doc.id,
         full_name: doc.user?.full_name || "Tanpa Nama",
         email: doc.user?.email || "",
+        img_url: doc.user?.img_url || null,
         phone_number: doc.phone_number || "-",
         specialization_id: doc.specialization?.id || null,
         specialization_name: doc.specialization?.name || "Belum ada spesialisasi",

@@ -1,6 +1,40 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
+const INDONESIAN_MONTHS = [
+    "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+    "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+];
+
+function formatDateLabel(rawDate) {
+    if (!rawDate) return "-";
+    const date = new Date(rawDate);
+    if (Number.isNaN(date.getTime())) return rawDate;
+    return `${date.getDate()} ${INDONESIAN_MONTHS[date.getMonth()]} ${date.getFullYear()}`;
+}
+
+function formatTimeLabel(timeValue) {
+    if (!timeValue) return "-";
+    return timeValue.substring(0, 5).replace(":", ".");
+}
+
+async function createNotification(userId, title, message) {
+    if (!userId || !title || !message) return null;
+
+    const { data, error } = await supabase
+        .from('notifications')
+        .insert([{ user_id: userId, title, message, is_read: false }])
+        .select()
+        .single();
+
+    if (error) {
+        console.error("Gagal membuat notifikasi:", error.message || error);
+        return null;
+    }
+
+    return data;
+}
+
 // ===================================================================
 // 1. GET: Ambil Semua Janji Temu / Filter by Patient / Filter by Schedule / ID
 // ===================================================================
@@ -38,7 +72,7 @@ export async function GET(request) {
                     end_time,
                     room_number,
                     doctor:doctors (
-                        user:users ( full_name )
+                        user:users ( full_name, img_url )
                     )
                 )
             `);
@@ -88,11 +122,12 @@ export async function GET(request) {
             patient_dob: item.patient?.date_of_birth || "",
             schedule_id: item.schedule_id,
             doctor_name: item.schedule?.doctor?.user?.full_name || "Unknown Doctor",
+            doctor_img: item.schedule?.doctor?.user?.img_url || null,
             room_number: item.schedule?.room_number || "-",
             start_time: item.start_time,
             end_time: item.end_time,
-            schedule_time: item.start_time 
-                ? `${item.start_time.substring(0, 5)} - ${item.end_time?.substring(0, 5) || ""}` 
+            schedule_time: item.start_time
+                ? `${item.start_time.substring(0, 5)} - ${item.end_time?.substring(0, 5) || ""}`
                 : `${item.schedule?.start_time?.substring(0, 5) || ""} - ${item.schedule?.end_time?.substring(0, 5) || ""}`
         });
 
@@ -120,10 +155,10 @@ export async function POST(request) {
             );
         }
 
-        // 2. Query ke doctor_schedules untuk ambil doctor_id, start_time, dan end_time sekaligus
+        // 2. Query ke doctor_schedules untuk ambil doctor_id, start_time, end_time, dan nama dokter
         const { data: scheduleData, error: scheduleError } = await supabase
             .from('doctor_schedules')
-            .select('doctor_id, start_time, end_time')
+            .select(`doctor_id, start_time, end_time, room_number, doctor:doctors ( user:users ( full_name ) )`)
             .eq('id', schedule_id)
             .maybeSingle();
 
@@ -157,6 +192,13 @@ export async function POST(request) {
 
         if (error) return NextResponse.json({ message: "Gagal membuat janji temu: " + error.message }, { status: 500 });
 
+        const doctorName = scheduleData?.doctor?.user?.full_name || "dokter";
+        await createNotification(
+            patient_id,
+            "Booking Janji Temu Berhasil",
+            `Janji temu Anda dengan Dr. ${doctorName} pada ${formatDateLabel(appointment_date)} pukul ${formatTimeLabel(autoStartTime)} berhasil dibuat.`
+        );
+
         return NextResponse.json({ message: "Janji temu berhasil dibuat!", data }, { status: 201 });
 
     } catch (error) {
@@ -179,10 +221,21 @@ export async function PUT(request) {
         const body = await request.json();
         const updateData = {};
 
-        // Menerima perubahan status dinamis sesuai dengan enum baru (Menunggu, Selesai, Dibatalkan, dll)
+        const { data: existingAppointment, error: existingError } = await supabase
+            .from('appointments')
+            .select('id, appointment_date, start_time, end_time, status, patient_id')
+            .eq('id', id)
+            .maybeSingle();
+
+        if (existingError) return NextResponse.json({ message: existingError.message }, { status: 500 });
+        if (!existingAppointment) return NextResponse.json({ message: "Janji temu tidak ditemukan." }, { status: 404 });
+
+        // Menerima perubahan status/notes/jadwal yang dapat memicu notifikasi
         if (body.status !== undefined) updateData.status = body.status;
         if (body.notes !== undefined) updateData.medical_notes = body.notes;
         if (body.appointment_date !== undefined) updateData.appointment_date = body.appointment_date;
+        if (body.start_time !== undefined) updateData.start_time = body.start_time;
+        if (body.end_time !== undefined) updateData.end_time = body.end_time;
 
         if (Object.keys(updateData).length === 0) {
             return NextResponse.json({ message: "Tidak ada data perubahan yang dikirim." }, { status: 400 });
@@ -197,6 +250,37 @@ export async function PUT(request) {
 
         if (error) return NextResponse.json({ message: error.message }, { status: 500 });
         if (!data) return NextResponse.json({ message: "Janji temu tidak ditemukan." }, { status: 404 });
+
+        const patientId = existingAppointment.patient_id;
+        const newAppointmentDate = updateData.appointment_date ?? existingAppointment.appointment_date;
+        const newStartTime = updateData.start_time ?? existingAppointment.start_time;
+        const newEndTime = updateData.end_time ?? existingAppointment.end_time;
+        const newStatus = updateData.status ?? existingAppointment.status;
+
+        if (updateData.status !== undefined && updateData.status !== existingAppointment.status) {
+            let title = "Status Janji Temu Diperbarui";
+            let message = `Status janji temu Anda berubah menjadi ${newStatus}.`;
+
+            if (newStatus === "Dibatalkan") {
+                title = "Janji Temu Dibatalkan";
+                message = `Janji temu Anda pada ${formatDateLabel(newAppointmentDate)} pukul ${formatTimeLabel(newStartTime)} telah dibatalkan.`;
+            } else if (newStatus === "Selesai") {
+                title = "Konsultasi Selesai";
+                message = `Konsultasi Anda pada ${formatDateLabel(newAppointmentDate)} pukul ${formatTimeLabel(newStartTime)} telah selesai.`;
+            }
+
+            await createNotification(patientId, title, message);
+        } else if (
+            (updateData.appointment_date !== undefined && updateData.appointment_date !== existingAppointment.appointment_date) ||
+            (updateData.start_time !== undefined && updateData.start_time !== existingAppointment.start_time) ||
+            (updateData.end_time !== undefined && updateData.end_time !== existingAppointment.end_time)
+        ) {
+            await createNotification(
+                patientId,
+                "Jadwal Janji Temu Diperbarui",
+                `Jadwal janji temu Anda telah diperbarui menjadi ${formatDateLabel(newAppointmentDate)} pukul ${formatTimeLabel(newStartTime)} WIB.`
+            );
+        }
 
         return NextResponse.json({ message: "Data janji temu berhasil diperbarui!", data }, { status: 200 });
 
@@ -226,6 +310,12 @@ export async function DELETE(request) {
 
         if (error) return NextResponse.json({ message: error.message }, { status: 500 });
         if (!data) return NextResponse.json({ message: "Gagal membatalkan. Janji temu tidak ditemukan." }, { status: 404 });
+
+        await createNotification(
+            data.patient_id,
+            "Janji Temu Dibatalkan",
+            `Janji temu Anda pada ${formatDateLabel(data.appointment_date)} pukul ${formatTimeLabel(data.start_time)} telah dibatalkan.`
+        );
 
         return NextResponse.json({ message: `Janji temu dengan ID ${id} berhasil dibatalkan/dihapus.`, deletedData: data }, { status: 200 });
 
