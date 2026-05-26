@@ -107,6 +107,11 @@ export default function LoginPage() {
 
             // Simpan role di localStorage DAN cookie agar proxy server bisa membaca role tanpa query DB
             localStorage.setItem("clinicalink:role", userData.role);
+            
+            // Simpan juga nama untuk ditampilkan di dashboard
+            const fullName = authData.user?.user_metadata?.full_name || userData?.full_name || "Doctor";
+            localStorage.setItem("clinicalink:name", fullName);
+
             // Cookie ini dibaca oleh proxy.js untuk validasi role di sisi server
             document.cookie = `clinicalink_role=${userData.role}; path=/; max-age=86400; SameSite=Lax`;
 

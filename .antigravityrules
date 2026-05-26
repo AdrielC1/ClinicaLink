@@ -9,12 +9,12 @@ You are an expert full-stack developer. Always write robust, type-safe TypeScrip
 * **NO HARD DELETES:** Never use `DELETE FROM` queries. This project strictly enforces a Soft Delete Protocol. Use `UPDATE [table] SET deleted_at = NOW()` instead. Always append `WHERE deleted_at IS NULL` on read operations.
 * **SUPABASE CLIENT:** Use `@supabase/ssr` or standard Supabase JS client depending on the environment (Server Actions vs Client Components).
 
-## 3. The "Virtual State Logic" (CRITICAL)
-The `status` of an appointment is NOT always a 1:1 reflection of the database's `status` column. The frontend must compute the "Display Status" based on time and conditions:
-1.  **Menunggu:** Default state. If `current_time > end_time` and no check-in occurred -> compute as **"Dibatalkan (Otomatis)"**.
-2.  **Check-in:** Manual trigger by Admin. If `current_time >= start_time` -> compute as **"Sedang Berlangsung"**.
-3.  **Sedang Berlangsung (Awaiting Notes):** If `current_time > end_time` BUT the doctor hasn't filled `medical_notes` yet -> compute as **"Menunggu Catatan Dokter"** on the UI. The DB status remains 'Sedang Berlangsung'.
-4.  **Selesai (The 4-Hour Forced Rule):** If `current_time > end_time + 4 hours`, the system strictly overrides the state to **"Selesai"**, regardless of whether `medical_notes` is null. The database state should be considered finalized.
+## 3. The "Virtual State Logic" (CRITICAL - UPDATED FLOW)
+The `status` of an appointment is managed through a mix of manual triggers by the Doctor and time-based virtual states. The 'Check-in' status is no longer used.
+1.  **Menunggu:** Default state upon booking. If the appointment date/time has completely passed and the doctor never clicked "Mulai", compute as **"Dibatalkan (Otomatis)"**.
+2.  **Sedang Berlangsung:** Manual trigger ONLY by the Doctor clicking the "Mulai" button. This updates the DB status directly from 'Menunggu' to 'Sedang Berlangsung'.
+3.  **Sedang Berlangsung (Awaiting Notes):** If the DB status is 'Sedang Berlangsung' and `current_time > end_time` BUT the doctor hasn't filled `medical_notes` yet -> compute display as **"Menunggu Catatan Dokter"** on the UI. The DB status remains 'Sedang Berlangsung'.
+4.  **Selesai (The 4-Hour Forced Rule):** If the DB status is 'Sedang Berlangsung' and `current_time > end_time + 4 hours`, the system strictly overrides the state to **"Selesai"**, regardless of whether `medical_notes` is null. The database state should be considered finalized.
 
 ## 4. Appointment Generation Rule
 When creating slots for the UI, dynamically iterate based on `doctor_schedules.start_time`, `end_time`, and `slot_duration_minutes`. Check for conflicts against the `appointments` table enforcing the unique combination of `(doctor_id, appointment_date, start_time)`.

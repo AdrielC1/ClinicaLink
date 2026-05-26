@@ -7,14 +7,15 @@ ClinicaLink adalah sistem manajemen janji temu klinik berbasis web yang dirancan
 Sistem ini melayani 3 aktor utama dengan fungsionalitas yang terisolasi berdasarkan peran (Role-Based Access Control):
 
 * **👨‍⚕️ Pasien:** Reservasi mandiri secara *real-time*, memantau jadwal aktif, membatalkan (*reschedule*), dan meninjau riwayat medis.
-* **🩺 Dokter:** Memantau daftar pasien harian, melakukan sesi konsultasi, dan memberikan catatan medis (*medical notes*).
-* **⚙️ Admin:** Mengelola *master data* (Dokter, Jadwal, Pasien), menyetujui proses *Check-in* fisik pasien, serta memantau statistik klinik.
+* **🩺 Dokter:** Memantau daftar pasien harian, memulai sesi konsultasi, dan menginput catatan medis (*medical notes*).
+* **⚙️ Admin:** Mengelola *master data* (Dokter, Jadwal, Pasien), serta memantau daftar reservasi dan statistik operasional klinik.
 
-## 🧠 Smart Virtual State Logic
-Aplikasi ini tidak bergantung murni pada intervensi manual. Status pasien dihitung secara cerdas berbasis waktu:
-* **Auto-Start:** Status otomatis menjadi "Sedang Berlangsung" ketika waktu saat ini memasuki jam pendaftaran dan admin telah melakukan "Check-in".
-* **Menunggu Catatan Dokter:** Jika sesi telah melewati waktu selesai (`end_time`) namun dokter belum menginput catatan medis, sistem akan mengingatkan dokter di *dashboard*.
-* **Selesai Paksa (4-Hour Rule):** Untuk menjaga integritas operasional, jika telah melewati 4 jam dari waktu selesai dan dokter tidak merespons, sistem akan secara otomatis memotong status menjadi "Selesai".
+## 🧠 Hybrid Virtual State Logic
+Aplikasi ini menggunakan kombinasi pemicu manual dari dokter dan perhitungan waktu otomatis (Virtual State) untuk mengelola antrean secara cerdas:
+* **Batal Otomatis (No-Show):** Jika jam janji temu telah terlewati namun dokter tidak pernah memulai sesi, sistem secara otomatis menganggap sesi tersebut hangus dan mengubah statusnya menjadi "Dibatalkan".
+* **Sesi Interaktif:** Dokter memegang kendali penuh untuk memulai sesi dengan menekan tombol "Mulai", yang langsung mengubah status pasien menjadi "Sedang Berlangsung".
+* **Menunggu Catatan Dokter:** Jika sesi telah melewati batas waktu selesai (`end_time`) namun dokter belum menginput catatan medis, sistem akan memberikan peringatan visual di *dashboard* dokter.
+* **Selesai Paksa (4-Hour Rule):** Untuk menjaga integritas data harian, jika telah melewati 4 jam dari waktu selesai dan dokter tetap tidak merespons/menyimpan catatan, sistem akan secara otomatis memaksa status menjadi "Selesai".
 
 ## 🛠️ Tech Stack
 * **Frontend:** Next.js 14 (App Router), React, Tailwind CSS
