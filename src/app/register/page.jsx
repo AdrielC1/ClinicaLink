@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import logoSvg from "../icons/ClinicaLink.svg";
+import { supabase } from "@/lib/supabase";
 
 function CrossOrnament({ className, color = "#8AAAE5" }) {
     return (
@@ -65,6 +66,19 @@ export default function RegisterPage() {
     useEffect(() => {
         const frame = requestAnimationFrame(() => setMounted(true));
         return () => cancelAnimationFrame(frame);
+    }, []);
+
+    // Guard: Jika user masuk ke halaman register, hancurkan sesi lama
+    useEffect(() => {
+        const checkAndDestroySession = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                await supabase.auth.signOut();
+                localStorage.removeItem("clinicalink:user");
+                sessionStorage.removeItem("clinicalink:user");
+            }
+        };
+        checkAndDestroySession();
     }, []);
 
     const handleNavigate = (path) => {

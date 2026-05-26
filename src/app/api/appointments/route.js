@@ -23,8 +23,11 @@ export async function GET(request) {
                 end_time,
                 status,
                 medical_notes,
+                patient_complaints,
                 patient_id,
                 patient:patients (
+                    phone_number,
+                    date_of_birth,
                     user:users ( full_name, email )
                 ),
                 schedule_id,
@@ -77,8 +80,12 @@ export async function GET(request) {
             appointment_date: item.appointment_date,
             status: item.status,
             notes: item.medical_notes || "",
+            complaints: item.patient_complaints || "",
             patient_id: item.patient_id,
             patient_name: item.patient?.user?.full_name || "Unknown Patient",
+            patient_email: item.patient?.user?.email || "-",
+            patient_phone: item.patient?.phone_number || "-",
+            patient_dob: item.patient?.date_of_birth || "",
             schedule_id: item.schedule_id,
             doctor_name: item.schedule?.doctor?.user?.full_name || "Unknown Doctor",
             room_number: item.schedule?.room_number || "-",
@@ -103,7 +110,7 @@ export async function GET(request) {
 // ===================================================================
 export async function POST(request) {
     try {
-        const { patient_id, schedule_id, appointment_date, notes, start_time, end_time } = await request.json();
+        const { patient_id, schedule_id, appointment_date, complaints, start_time, end_time } = await request.json();
 
         // 1. Validasi kolom wajib dari request JSON
         if (!patient_id || !schedule_id || !appointment_date) {
@@ -143,7 +150,7 @@ export async function POST(request) {
                 start_time: autoStartTime,       // ⬅️ Sesuai slot yang dipilih
                 end_time: autoEndTime,           // ⬅️ Sesuai slot yang dipilih
                 status: 'Menunggu',
-                medical_notes: notes || null
+                patient_complaints: complaints || null
             }])
             .select()
             .single();

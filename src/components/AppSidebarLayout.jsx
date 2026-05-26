@@ -15,7 +15,7 @@ import profileIcon from "@/app/icons/Profile.svg";
 
 // SVG Icons for Sidebar (Admin & Doctor)
 const icons = {
-  Dashboard: (
+  Beranda: (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
     </svg>
@@ -30,7 +30,7 @@ const icons = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
   ),
-  "Pasien List": (
+  "Riwayat Konsultasi": (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
     </svg>
@@ -59,7 +59,7 @@ const icons = {
 };
 
 const adminLinks = [
-  { href: "/admin/dashboard", label: "Dashboard" },
+  { href: "/admin/dashboard", label: "Beranda" },
   { href: "/admin/doctors", label: "Kelola Dokter" },
   { href: "/admin/patients", label: "Kelola Pasien" },
   { href: "/admin/appointments", label: "Kelola Appointment" },
@@ -69,18 +69,24 @@ const adminLinks = [
 ];
 
 const patientLinks = [
-  { href: "/patient/dashboard", label: "Dashboard", customIcon: dashboardIcon },
-  { href: "/patient/doctors", label: "Doctor", customIcon: doctorIcon },
-  { href: "/patient/appointments", label: "Appointment", customIcon: appointmentIcon },
-  { href: "/patient/history", label: "History", customIcon: historyIcon },
-  { href: "/patient/notifications", label: "Notification", customIcon: notificationIcon },
-  { href: "/patient/profile", label: "Profile", customIcon: profileIcon },
+  { href: "/patient/dashboard", label: "Beranda", customIcon: dashboardIcon },
+  { href: "/patient/doctors", label: "Dokter", customIcon: doctorIcon },
+  { href: "/patient/appointments", label: "Janji Temu", customIcon: appointmentIcon },
+  { href: "/patient/history", label: "Riwayat", customIcon: historyIcon },
+  { href: "/patient/notifications", label: "Notifikasi", customIcon: notificationIcon },
+  { href: "/patient/profile", label: "Profil", customIcon: profileIcon },
 ];
 
 const doctorLinks = [
-  { href: "/doctor/dashboard", label: "Dashboard" },
-  { href: "/doctor/patients", label: "Pasien List" },
+  { href: "/doctor/dashboard", label: "Beranda" },
+  { href: "/doctor/patients", label: "Riwayat Konsultasi" },
 ];
+
+const ROLE_ROUTES = {
+  admin: "/admin",
+  doctor: "/doctor",
+  patient: "/patient",
+};
 
 function readStoredUser() {
   if (typeof window === "undefined") return null;
@@ -99,21 +105,91 @@ export default function AppSidebarLayout({ children, role }) {
   const pathname = usePathname();
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState(null);
+  const [hasUnread, setHasUnread] = useState(true);
+
+  const [isRoleValid] = useState(() => {
+    if (typeof window === "undefined") return true;
+    const storedRole = localStorage.getItem("clinicalink:role");
+    if (!storedRole) return true;
+    return storedRole === role;
+  });
+
+  useEffect(() => {
+    if (!isRoleValid) {
+      const correctRole = localStorage.getItem("clinicalink:role");
+      if (correctRole && ROLE_ROUTES[correctRole]) {
+        window.location.replace(`/${correctRole}/dashboard`);
+      } else {
+        window.location.replace("/login");
+      }
+    }
+  }, [isRoleValid]);
 
   useEffect(() => {
     const loadUser = async () => {
-      // 1. Coba baca dari localStorage (sistem lama)
       let user = readStoredUser();
 
-      // 2. Ambil dari Supabase (sistem baru)
       const { data: { user: authUser }, error } = await supabase.auth.getUser();
-      if (authUser && !error) {
-        const { data: userData } = await supabase.from("users").select("full_name, username").eq("id", authUser.id).single();
+      
+      if (!authUser || error) {
+        window.location.replace("/login");
+        return;
+      }
+
+      let profileData = null;
+      try {
+        const profileRes = await fetch(`/api/profile?userId=${authUser.id}`);
+        const profileJson = await profileRes.json();
+        if (profileRes.ok && profileJson.profile) {
+          profileData = profileJson.profile;
+        }
+      } catch (fetchError) {
+        console.error("Sidebar gagal memuat profile dari API:", fetchError);
+      }
+
+      if (profileData?.role && profileData.role !== role) {
+        window.location.replace(`/${profileData.role}/dashboard`);
+        return;
+      }
+
+      if (profileData?.role) {
+        localStorage.setItem("clinicalink:role", profileData.role);
+      }
+
+      if (profileData) {
+        user = {
+          ...user,
+          ...authUser,
+          full_name: profileData.full_name || authUser.user_metadata?.full_name || user?.full_name,
+          username: user?.username,
+          img_url: profileData.img_url || user?.img_url,
+        };
+      } else {
+        const { data: userData, error: userDataError } = await supabase
+          .from("users")
+          .select("role, full_name, username, img_url")
+          .eq("id", authUser.id)
+          .single();
+
+        if (userDataError) {
+          console.error("Sidebar gagal memuat user data dari Supabase:", userDataError);
+        }
+
+        if (userData?.role && userData.role !== role) {
+          window.location.replace(`/${userData.role}/dashboard`);
+          return;
+        }
+
+        if (userData?.role) {
+          localStorage.setItem("clinicalink:role", userData.role);
+        }
+
         user = {
           ...user,
           ...authUser,
           full_name: userData?.full_name || authUser.user_metadata?.full_name || user?.full_name,
-          username: userData?.username || user?.username
+          username: userData?.username || userData?.username,
+          img_url: userData?.img_url || user?.img_url,
         };
       }
 
@@ -122,27 +198,63 @@ export default function AppSidebarLayout({ children, role }) {
 
     loadUser();
 
+    const handleHistoryNavigation = () => {
+      const currentRole = localStorage.getItem("clinicalink:role");
+      if (currentRole && currentRole !== role) {
+        window.location.href = `/${currentRole}/dashboard`;
+      } else if (!currentRole) {
+        window.location.href = "/login";
+      }
+    };
+
+    window.addEventListener("pageshow", handleHistoryNavigation);
+    window.addEventListener("popstate", handleHistoryNavigation);
+
     const handleStorage = () => {
       const u = readStoredUser();
       if (u) setCurrentUser(prev => ({ ...prev, ...u }));
+      
+      const read = localStorage.getItem("notifications_read");
+      setHasUnread(read !== "true");
     };
     window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
-  }, []);
+    
+    setHasUnread(localStorage.getItem("notifications_read") !== "true");
+    
+    return () => {
+      window.removeEventListener("pageshow", handleHistoryNavigation);
+      window.removeEventListener("popstate", handleHistoryNavigation);
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, [role]);
 
   const links = role === 'admin' ? adminLinks : role === 'doctor' ? doctorLinks : patientLinks;
 
   const handleSignOut = async () => {
-    localStorage.removeItem("clinicalink:user");
-    sessionStorage.removeItem("clinicalink:user");
-    await supabase.auth.signOut();
-    router.push("/login");
+    try {
+      localStorage.removeItem("clinicalink:user");
+      localStorage.removeItem("clinicalink:role");
+      sessionStorage.removeItem("clinicalink:user");
+      document.cookie = "clinicalink_role=; path=/; max-age=0";
+      await supabase.auth.signOut();
+    } catch (e) {
+      console.error("Logout error", e);
+    } finally {
+      window.location.href = "/landing";
+    }
   };
 
+  if (!isRoleValid) return null;
+
   const displayUserName = getUserName(currentUser, role);
-  const avatarUrl = role === 'admin'
-    ? "https://ui-avatars.com/api/?name=Admin&background=5E81CC&color=fff&rounded=true"
-    : `https://ui-avatars.com/api/?name=${encodeURIComponent(displayUserName)}&background=5E81CC&color=fff&rounded=true`;
+
+  // LOGIKA DINAMIS AVATAR: Menggunakan img_url dari database jika ada, jika tidak, pakai placeholder
+  const avatarUrl = currentUser?.img_url 
+    ? currentUser.img_url 
+    : (role === 'admin'
+        ? "https://ui-avatars.com/api/?name=Admin&background=5E81CC&color=fff&rounded=true"
+        : `https://ui-avatars.com/api/?name=${encodeURIComponent(displayUserName)}&background=5E81CC&color=fff&rounded=true`
+      );
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-[#2D3748] font-sans p-6 md:p-10 flex flex-col w-full">
@@ -157,30 +269,37 @@ export default function AppSidebarLayout({ children, role }) {
           </span>
         </Link>
 
-        {/* Center: Search (if needed, otherwise empty) */}
-        <div className="hidden md:flex relative flex-1 max-w-lg mx-8">
-          {role !== 'admin' && (
-            <label className="relative w-full">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
-                <svg aria-hidden="true" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.3-4.3m1.3-5.2a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z" />
-                </svg>
-              </span>
-              <input type="search" placeholder="Search..." className="h-11 w-full rounded-lg border-0 bg-gray-50 pl-12 pr-4 text-[13px] font-medium outline-none focus:ring-2 focus:ring-indigo-100 transition-shadow placeholder:text-gray-400" />
-            </label>
-          )}
-        </div>
+        {/* Center: Search (dihapus per permintaan) */}
+        <div className="hidden md:flex relative flex-1 max-w-lg mx-8"></div>
 
         {/* Right: Bell & Profile */}
         <div className="flex items-center gap-6 shrink-0">
-          <button className="text-gray-600 hover:text-[#5E81CC] transition-colors relative p-1">
+          <button 
+            onClick={() => {
+              if (role === 'patient') router.push('/patient/notifications');
+            }}
+            className="text-gray-600 hover:text-[#5E81CC] transition-colors relative p-1"
+          >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
             </svg>
-            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+            {hasUnread && <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>}
           </button>
-          <div className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity">
-            <img src={avatarUrl} alt="Profile" className="w-10 h-10 rounded-full border border-gray-100" />
+          
+          <div 
+            onClick={() => {
+              if (role === 'patient') router.push('/patient/profile');
+              else if (role === 'admin') router.push('/admin/settings');
+              else if (role === 'doctor') router.push('/doctor/dashboard'); // Navigasi opsional untuk dokter
+            }}
+            className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
+          >
+            {/* Tag img sekarang secara dinamis memuat avatarUrl dari database */}
+            <img 
+              src={avatarUrl} 
+              alt="Profile" 
+              className="w-10 h-10 rounded-full border border-gray-100 object-cover" 
+            />
             <span className="font-bold text-[#2D3748] hidden sm:block">{displayUserName}</span>
           </div>
         </div>
@@ -189,7 +308,7 @@ export default function AppSidebarLayout({ children, role }) {
       {/* Main Layout Area */}
       <div className="flex flex-col lg:flex-row gap-8 flex-1">
         {/* Transparent Left Sidebar */}
-        <aside className="w-full lg:w-64 shrink-0 flex flex-col justify-between bg-white/60 backdrop-blur-sm border border-gray-100 shadow-sm rounded-2xl p-4">
+        <aside className="w-full lg:w-64 shrink-0 flex flex-col justify-between bg-white/60 backdrop-blur-sm border border-gray-100 shadow-sm rounded-2xl p-4 self-start lg:sticky lg:top-10 lg:h-[calc(100vh-180px)]">
           <nav className="space-y-1.5 flex-1">
             {links.map((link) => {
               const active = pathname === link.href;
@@ -212,7 +331,7 @@ export default function AppSidebarLayout({ children, role }) {
                     />
                   ) : (
                     <span className={`${active ? "text-[#5E81CC]" : "text-gray-600"}`}>
-                      {icons[link.label] || icons["Dashboard"]}
+                      {icons[link.label] || icons["Beranda"]}
                     </span>
                   )}
                   {link.label}
@@ -224,15 +343,19 @@ export default function AppSidebarLayout({ children, role }) {
           {/* Bottom Logout Area */}
           <div className="mt-8">
             <hr className="border-gray-200 border-[1.5px] mb-6 mx-2" />
-            <button
-              onClick={handleSignOut}
+            <a
+              href="/api/logout"
+              onClick={(e) => {
+                e.preventDefault();
+                handleSignOut();
+              }}
               className="flex items-center gap-4 px-5 py-3.5 w-full rounded-xl text-[15px] font-bold text-gray-800 hover:bg-red-50 hover:text-red-600 transition-colors"
             >
               <svg className="w-5 h-5 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
               </svg>
-              Log out
-            </button>
+              Keluar
+            </a>
           </div>
         </aside>
 
