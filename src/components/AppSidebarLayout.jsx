@@ -10,7 +10,6 @@ import brandIcon from "@/app/icons/ClinicaLink.svg";
 import dashboardIcon from "@/app/icons/Dashboard.svg";
 import doctorIcon from "@/app/icons/Doctor.svg";
 import historyIcon from "@/app/icons/History.svg";
-import notificationIcon from "@/app/icons/Notification.svg";
 import profileIcon from "@/app/icons/Profile.svg";
 
 // SVG Icons for Sidebar (Admin & Doctor)
@@ -73,7 +72,6 @@ const patientLinks = [
   { href: "/patient/doctors", label: "Doctor", customIcon: doctorIcon },
   { href: "/patient/appointments", label: "Appointment", customIcon: appointmentIcon },
   { href: "/patient/history", label: "History", customIcon: historyIcon },
-  { href: "/patient/notifications", label: "Notification", customIcon: notificationIcon },
   { href: "/patient/profile", label: "Profile", customIcon: profileIcon },
 ];
 
