@@ -181,7 +181,7 @@ export default function PatientDashboardPage() {
           patient_id: currentUser.id,
           schedule_id: selectedSchedule.id,
           appointment_date: selectedDate,
-          notes: medicalNotes,
+          complaints: medicalNotes,
           start_time: selectedSchedule.start_time,
           end_time: selectedSchedule.end_time
         })

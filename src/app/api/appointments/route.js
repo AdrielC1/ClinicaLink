@@ -110,7 +110,7 @@ export async function GET(request) {
 // ===================================================================
 export async function POST(request) {
     try {
-        const { patient_id, schedule_id, appointment_date, notes, start_time, end_time } = await request.json();
+        const { patient_id, schedule_id, appointment_date, complaints, start_time, end_time } = await request.json();
 
         // 1. Validasi kolom wajib dari request JSON
         if (!patient_id || !schedule_id || !appointment_date) {
@@ -150,7 +150,7 @@ export async function POST(request) {
                 start_time: autoStartTime,       // ⬅️ Sesuai slot yang dipilih
                 end_time: autoEndTime,           // ⬅️ Sesuai slot yang dipilih
                 status: 'Menunggu',
-                medical_notes: notes || null
+                patient_complaints: complaints || null
             }])
             .select()
             .single();
