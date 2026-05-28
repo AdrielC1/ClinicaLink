@@ -204,11 +204,11 @@ export default function PatientNotificationsPage() {
   ];
 
   return (
-    <section className="min-h-screen bg-[#F4F7F9] px-6 py-6 lg:px-8">
+    <>
       {/* Header Title */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Notifikasi</h1>
-        <p className="mt-1 text-sm font-medium text-gray-800">
+        <h1 className="text-3xl font-bold text-gray-900 mb-1">Notifikasi</h1>
+        <p className="text-gray-500 text-sm">
           Lihat pengingat dan informasi terbaru terkait appointment Anda.
         </p>
       </div>
@@ -394,6 +394,6 @@ export default function PatientNotificationsPage() {
 
         </aside>
       </div>
-    </section>
+    </>
   );
 }
