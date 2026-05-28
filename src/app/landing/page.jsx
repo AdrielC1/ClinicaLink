@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 
@@ -212,17 +212,21 @@ const doctors = [
 function DokterCard({ doc }) {
   return (
     <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-      <div className="h-44 bg-gradient-to-br from-indigo-50 to-blue-50 flex items-center justify-center">
-        <div className="w-24 h-24 rounded-full bg-indigo-100 flex items-center justify-center">
-          <svg width="48" height="48" fill="none" stroke="#6366F1" strokeWidth="1.5">
-            <circle cx="24" cy="16" r="8" />
-            <path d="M8 44c0-8.837 7.163-16 16-16s16 7.163 16 16" strokeLinecap="round" />
-          </svg>
-        </div>
+      <div className="h-44 bg-gradient-to-br from-indigo-50 to-blue-50 relative flex items-center justify-center overflow-hidden">
+        {doc.img_url ? (
+          <img src={doc.img_url} alt={doc.name} className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-24 h-24 rounded-full bg-indigo-100 flex items-center justify-center z-10">
+            <svg width="48" height="48" fill="none" stroke="#6366F1" strokeWidth="1.5">
+              <circle cx="24" cy="16" r="8" />
+              <path d="M8 44c0-8.837 7.163-16 16-16s16 7.163 16 16" strokeLinecap="round" />
+            </svg>
+          </div>
+        )}
       </div>
       <div className="p-4">
-        <h3 className="font-semibold text-gray-800">{doc.name}</h3>
-        <p className="text-sm text-gray-500 mb-1">{doc.spec}</p>
+        <h3 className="font-semibold text-gray-800 truncate">{doc.name}</h3>
+        <p className="text-sm text-gray-500 mb-1 truncate">{doc.spec}</p>
         <p className="text-xs text-gray-400 mb-3">{doc.schedule}</p>
         <div className="flex items-center justify-between">
           <span className="text-xs px-3 py-1 rounded-full bg-green-50 text-green-600 font-medium">Tersedia</span>
@@ -237,6 +241,61 @@ function DokterCard({ doc }) {
 }
 
 function DoctorSection() {
+  const [dbDoctors, setDbDoctors] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const docRes = await fetch("/api/doctors?is_active=true", { cache: 'no-store' });
+        const docData = await docRes.json();
+        const schedRes = await fetch("/api/doctorSchedules", { cache: 'no-store' });
+        const schedData = await schedRes.json();
+
+        if (docRes.ok && schedRes.ok) {
+          const docs = docData.data || [];
+          const scheds = schedData.data || [];
+
+          const mapped = docs.map(doc => {
+            const docSchedules = scheds.filter(s => s.doctor_id === doc.id);
+            const days = docSchedules.map(s => s.day_of_week).sort();
+            let scheduleText = "Belum ada jadwal";
+            let timeText = "";
+            
+            if (days.length > 0) {
+              const dayNames = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
+              const firstDay = dayNames[days[0]];
+              const lastDay = dayNames[days[days.length - 1]];
+              scheduleText = days.length > 1 ? `${firstDay} - ${lastDay}` : firstDay;
+              
+              if (docSchedules[0]?.start_time && docSchedules[0]?.end_time) {
+                 const start = docSchedules[0].start_time.substring(0, 5).replace(':', '.');
+                 const end = docSchedules[0].end_time.substring(0, 5).replace(':', '.');
+                 timeText = `${start} - ${end}`;
+              }
+            }
+            
+            return {
+              name: doc.full_name,
+              spec: doc.specialization_name || "Umum",
+              schedule: timeText ? `${scheduleText} | ${timeText}` : scheduleText,
+              img_url: doc.img_url
+            };
+          });
+          
+          setDbDoctors(mapped.slice(0, 4));
+        }
+      } catch (e) {
+        console.error("Gagal load dokter", e);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const displayDoctors = dbDoctors.length > 0 ? dbDoctors : doctors;
+
   return (
     <section id="doctor" className="bg-gray-50 py-20">
       <div className="max-w-6xl mx-auto px-6">
@@ -246,9 +305,21 @@ function DoctorSection() {
             Lihat semua Dokter →
           </Link>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {doctors.map((d) => <DokterCard key={d.name} doc={d} />)}
-        </div>
+        
+        {isLoading ? (
+          <div className="flex justify-center items-center py-10">
+            <div className="animate-pulse flex space-x-4">
+              <div className="w-64 h-72 bg-gray-200 rounded-2xl"></div>
+              <div className="w-64 h-72 bg-gray-200 rounded-2xl hidden sm:block"></div>
+              <div className="w-64 h-72 bg-gray-200 rounded-2xl hidden lg:block"></div>
+              <div className="w-64 h-72 bg-gray-200 rounded-2xl hidden lg:block"></div>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {displayDoctors.map((d) => <DokterCard key={d.name} doc={d} />)}
+          </div>
+        )}
       </div>
     </section>
   );
