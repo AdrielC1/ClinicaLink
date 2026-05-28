@@ -327,7 +327,7 @@ export default function PatientDashboardPage() {
           {/* Dokter Tersedia */}
           <div>
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-xl font-extrabold text-slate-800 tracking-tight">Dokter Tersedia</h2>
+              <h2 className="text-lg font-bold text-gray-900 tracking-tight">Dokter Tersedia</h2>
               <button className="text-sm font-bold text-indigo-600 hover:underline">Lihat Semua</button>
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -366,7 +366,7 @@ export default function PatientDashboardPage() {
 
           {/* List Janji Temu Mendatang */}
           <div>
-            <h2 className="mb-5 text-xl font-extrabold text-slate-800 tracking-tight">Jadwal Anda Selanjutnya</h2>
+            <h2 className="mb-5 text-lg font-bold text-gray-900 tracking-tight">Jadwal Anda Selanjutnya</h2>
             {upcomingAppointments.length > 0 ? (
               <div className="space-y-4">
                 {upcomingAppointments.slice(0, 3).map((appt) => (

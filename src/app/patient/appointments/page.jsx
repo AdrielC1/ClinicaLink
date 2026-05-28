@@ -244,10 +244,10 @@ export default function PatientAppointmentsPage() {
         {/* ================= KOLOM KIRI (Daftar Janji Temu - 8 Kolom) ================= */}
         <div className="lg:col-span-8 space-y-6 w-full">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Appointment</h1>
-              <p className="text-sm text-slate-500 mt-1">Kelola jadwal konsultasi dan appointment anda.</p>
-            </div>
+            <div className="mb-6">
+            <h1 className="text-3xl font-bold text-gray-900 mb-1">Janji Temu</h1>
+            <p className="text-gray-500 text-sm">Kelola daftar janji temu konsultasi Anda.</p>
+          </div>
             
             <div className="relative">
               <button 

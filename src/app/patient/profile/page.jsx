@@ -186,8 +186,8 @@ const handleSaveProfile = async (e) => {
         
         {/* Header Halaman */}
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-slate-900">Profile Saya</h1>
-          <p className="text-sm text-slate-500">Kelola informasi akun dan data pribadi anda.</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-1">Profil Saya</h1>
+          <p className="text-gray-500 text-sm">Kelola informasi pribadi dan data kesehatan Anda.</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start mt-8">

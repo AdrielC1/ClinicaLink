@@ -320,8 +320,8 @@ function PatientDoctorsContent() {
       
       {/* Header Info */}
       <div className="mb-6">
-        <h1 className="text-2xl font-extrabold text-slate-900 mb-1">Daftar Dokter</h1>
-        <p className="text-sm font-semibold text-slate-600">Pilih dokter sesuai kebutuhan konsultasi anda</p>
+        <h1 className="text-3xl font-bold text-gray-900 mb-1">Daftar Dokter</h1>
+        <p className="text-gray-500 text-sm">Lihat dokter spesialis yang tersedia dan buat janji temu konsultasi Anda dengan mudah.</p>
       </div>
 
       {/* Toolbar */}

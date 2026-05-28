@@ -263,9 +263,11 @@ export default function PatientHistoryPage() {
   return (
     <div className="min-h-full bg-[#F8FAFC] px-4 py-6">
       <div className="max-w-[1320px] mx-auto">
-        <div className="flex flex-col gap-2 mb-8">
-          <h1 className="text-3xl font-extrabold text-slate-900">History Appointment</h1>
-          <p className="text-sm font-semibold text-slate-600">Lihat history konsultasi dan appointment sebelumnya.</p>
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold text-gray-900 mb-1">Riwayat Konsultasi</h1>
+          <p className="text-gray-500 text-sm">
+            Lihat seluruh riwayat konsultasi dan daftar janji temu Anda.
+          </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">

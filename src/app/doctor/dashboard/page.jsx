@@ -342,17 +342,19 @@ export default function DoctorDashboardPage() {
 
       {/* ── MAIN CONTENT ── */}
       <main className="min-w-0">
-        <h1 className="text-[23px] font-extrabold tracking-[-0.01em]">
-          Halo, Dr {doctorName || "…"}
-        </h1>
-        <p className="mt-2 text-[15px] text-gray-500 font-medium">
-          Berikut ringkasan jadwal dan pasien hari ini.
-        </p>
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold text-gray-900 mb-1">
+            Halo, Dr {doctorName || "…"}
+          </h1>
+          <p className="text-gray-500 text-sm">
+            Berikut ringkasan jadwal dan pasien hari ini.
+          </p>
+        </div>
 
         <section className="mt-8 rounded-2xl bg-white shadow-sm overflow-hidden">
           {/* Header tabel */}
           <div className="p-6 pb-4 flex items-center justify-between gap-4">
-            <h2 className="text-[16px] font-extrabold text-gray-900">{selectedDayLabel}</h2>
+            <h2 className="text-lg font-bold text-gray-900">{selectedDayLabel}</h2>
             {loadingTable && (
               <Loader2 size={16} className="animate-spin text-[#5E81CC]" />
             )}
