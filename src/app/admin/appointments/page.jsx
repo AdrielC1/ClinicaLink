@@ -244,104 +244,105 @@ export default function AdminAppointmentsPage() {
   const todayAppointments = appointments.filter((app) => app.appointment_date === todayStr);
 
   return (
-    <div className="min-h-screen bg-slate-50 p-8 font-sans">
+    <div className="font-sans text-slate-800 pb-6">
       {/* Header Area */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-slate-900">Kelola Appointment</h1>
-        <p className="text-sm text-slate-500 mt-1">Kelola data appointment yang terdaftar di sistem</p>
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-gray-900 mb-1">Kelola Janji Temu</h1>
+        <p className="text-gray-500 text-sm">Kelola data janji temu yang terdaftar di sistem</p>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 w-full max-w-2xl">
-        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 flex flex-col items-center justify-center">
-          <h3 className="text-sm font-medium text-slate-600 mb-2">Total appointment</h3>
-          <p className="text-3xl font-bold text-slate-900">{appointments.length}</p>
+      <div className="flex gap-4 mb-6 flex-wrap">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow p-5 w-40 flex-grow sm:flex-grow-0 flex flex-col items-center justify-center">
+          <span className="text-xs font-semibold text-gray-600 mb-2 text-center uppercase tracking-wider">Total Janji Temu</span>
+          <span className="text-2xl font-bold text-gray-900">{appointments.length}</span>
         </div>
-        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 flex flex-col items-center justify-center">
-          <h3 className="text-sm font-medium text-slate-600 mb-2">Appointment hari ini</h3>
-          <p className="text-3xl font-bold text-slate-900">{todayAppointments.length}</p>
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow p-5 w-40 flex-grow sm:flex-grow-0 flex flex-col items-center justify-center">
+          <span className="text-xs font-semibold text-gray-600 mb-2 text-center uppercase tracking-wider">Hari Ini</span>
+          <span className="text-2xl font-bold text-gray-900">{todayAppointments.length}</span>
         </div>
       </div>
 
-      {/* Table Section */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-visible">
-        {/* Actions Row */}
-        <div className="p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <h2 className="text-lg font-bold text-slate-900">Daftar Appointment</h2>
-          <div className="flex items-center gap-3 w-full sm:w-auto">
-            {/* Search */}
-            <div className="relative flex-grow sm:flex-grow-0">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-              <input
-                type="text"
-                placeholder="Search appointment"
-                value={searchQuery}
-                onChange={handleSearch}
-                className="w-full sm:w-64 pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            {/* Filter */}
-            <div className="relative">
-              <button
-                onClick={() => setShowStatusDropdown(!showStatusDropdown)}
-                className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors bg-white"
-              >
-                <Filter className="w-4 h-4 text-blue-500" />
-                Filter
-              </button>
-              {showStatusDropdown && (
-                <div className="absolute right-0 mt-2 w-48 bg-white border border-slate-200 rounded-lg shadow-lg py-1 z-10">
-                  {["Semua", "Dijadwalkan", "Menunggu", "Berlangsung", "Selesai", "Dibatalkan"].map((status) => (
-                    <button
-                      key={status}
-                      onClick={() => handleStatusFilter(status)}
-                      className={`block w-full text-left px-4 py-2 text-sm hover:bg-slate-50 ${statusFilter === status ? "text-blue-600 font-medium bg-blue-50/50" : "text-slate-700"
-                        }`}
-                    >
-                      {status}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Add Button */}
-            <button
-              onClick={() => setIsAddModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-[#5e81d4] hover:bg-[#4b69b3] text-white rounded-lg text-sm font-medium transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              Appointment baru
-            </button>
+      {/* Action Bar */}
+      <div className="flex flex-wrap gap-3 items-center mb-6">
+        {/* Search */}
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Search className="w-4 h-4 text-gray-400" />
           </div>
+          <input
+            type="text"
+            placeholder="Cari janji temu..."
+            value={searchQuery}
+            onChange={handleSearch}
+            className="pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm w-56 focus:outline-none focus:ring-2 focus:ring-[#5E81CC] focus:border-transparent transition-all shadow-sm"
+          />
         </div>
 
-        {/* Table */}
+        {/* Filter Dropdown */}
+        <div className="relative">
+          <button
+            onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-[#5E81CC] font-semibold rounded-lg text-sm shadow-sm hover:bg-gray-50 transition-colors"
+          >
+            <Filter className="w-4 h-4" />
+            Filter {statusFilter !== "Semua" && <span className="text-xs ml-1 bg-[#5E81CC] text-white px-1.5 py-0.5 rounded-full">{statusFilter}</span>}
+          </button>
+          
+          {showStatusDropdown && (
+            <div className="absolute top-12 left-0 bg-white border border-gray-100 rounded-xl shadow-lg z-20 w-48 p-1">
+              {["Semua", "Dijadwalkan", "Menunggu", "Berlangsung", "Selesai", "Dibatalkan"].map((status) => (
+                <button
+                  key={status}
+                  onClick={() => handleStatusFilter(status)}
+                  className={`block w-full px-4 py-2.5 text-left text-sm font-semibold transition-colors rounded-lg ${statusFilter === status ? "bg-[#E6EDFF] text-[#5E81CC]" : "text-gray-700 hover:bg-gray-50"}`}
+                >
+                  {status}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <button
+          onClick={() => setIsAddModalOpen(true)}
+          className="flex items-center gap-2 px-5 py-2.5 bg-[#5E81CC] text-white font-semibold rounded-lg text-sm shadow-md hover:bg-[#4A6BB0] transition-colors"
+        >
+          <Plus className="w-4 h-4" />
+          Janji Temu Baru
+        </button>
+      </div>
+
+      {/* Table Section */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden pb-4 mb-6">
+        <div className="p-6 pb-4">
+          <h2 className="text-lg font-bold text-gray-900">Daftar Janji Temu</h2>
+        </div>
+
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-[#f4f7f8] border-y border-slate-100 text-sm font-semibold text-slate-700">
-                <th className="py-3 px-6 text-center w-16">No</th>
-                <th className="py-3 px-6">Pasien</th>
-                <th className="py-3 px-6">Dokter</th>
-                <th className="py-3 px-6 text-center">Tanggal</th>
-                <th className="py-3 px-6 text-center">Waktu</th>
-                <th className="py-3 px-6 text-center">Status</th>
-                <th className="py-3 px-6 text-center w-24">Aksi</th>
+          <table className="w-full text-sm text-left">
+            <thead className="bg-slate-50 text-slate-500 font-bold text-xs uppercase tracking-wider border-y border-slate-200">
+              <tr>
+                <th className="px-6 py-4 text-center w-12">No</th>
+                <th className="px-6 py-4">Pasien</th>
+                <th className="px-6 py-4">Dokter</th>
+                <th className="px-6 py-4 text-center">Tanggal</th>
+                <th className="px-6 py-4 text-center">Waktu</th>
+                <th className="px-6 py-4 text-center">Status</th>
+                <th className="px-6 py-4 text-center">Aksi</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-sm text-slate-800">
+            <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan="7" className="py-8 text-center text-slate-500">
+                  <td colSpan="7" className="px-6 py-12 text-center text-gray-400">
                     Memuat data...
                   </td>
                 </tr>
               ) : paginatedAppointments.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="py-8 text-center text-slate-500">
-                    Tidak ada data appointment ditemukan.
+                  <td colSpan="7" className="px-6 py-12 text-center text-gray-400">
+                    Tidak ada data janji temu ditemukan.
                   </td>
                 </tr>
               ) : (
@@ -355,31 +356,31 @@ export default function AdminAppointmentsPage() {
                   }
 
                   return (
-                    <tr key={app.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="py-4 px-6 text-center font-medium text-slate-500">
+                    <tr key={app.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4 text-center font-medium text-gray-500">
                         {(currentPage - 1) * itemsPerPage + index + 1}
                       </td>
-                      <td className="py-4 px-6 font-medium">{app.patient_name}</td>
-                      <td className="py-4 px-6">{app.doctor_name}</td>
-                      <td className="py-4 px-6 text-center font-medium">{formatDateId(app.appointment_date)}</td>
-                      <td className="py-4 px-6 text-center">{timeDisplay}</td>
-                      <td className="py-4 px-6 text-center">
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusBadge(app.status)}`}>
+                      <td className="px-6 py-4 font-semibold text-gray-900">{app.patient_name}</td>
+                      <td className="px-6 py-4 text-gray-700">{app.doctor_name}</td>
+                      <td className="px-6 py-4 text-center text-gray-600">{formatDateId(app.appointment_date)}</td>
+                      <td className="px-6 py-4 text-center text-gray-600 font-mono">{timeDisplay}</td>
+                      <td className="px-6 py-4 text-center">
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold ${getStatusBadge(app.status)}`}>
                           {app.status || "Unknown"}
                         </span>
                       </td>
-                      <td className="py-4 px-6">
+                      <td className="px-6 py-4 text-center">
                         <div className="flex items-center justify-center gap-2">
                           <button
                             onClick={() => openEditModal(app)}
-                            className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-md transition-colors"
+                            className="p-1.5 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                             title="Edit"
                           >
                             <Edit3 className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => openDetailModal(app)}
-                            className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-md transition-colors"
+                            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                             title="Detail"
                           >
                             <Eye className="w-4 h-4" />
@@ -396,22 +397,24 @@ export default function AdminAppointmentsPage() {
 
         {/* Pagination */}
         {!loading && filteredAppointments.length > 0 && (
-          <div className="p-4 border-t border-slate-100 flex items-center justify-center gap-2">
+          <div className="flex items-center justify-center gap-2 mt-6 mb-2">
             <button
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               disabled={currentPage === 1}
-              className="p-1.5 text-slate-400 hover:text-slate-600 disabled:opacity-50"
+              className="p-1.5 text-gray-400 hover:text-[#5E81CC] disabled:opacity-50 transition-colors"
+              title="Halaman sebelumnya"
             >
-              <ChevronLeft className="w-5 h-5" />
+              <ChevronLeft className="h-5 w-5" />
             </button>
             {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
               <button
                 key={page}
                 onClick={() => setCurrentPage(page)}
-                className={`w-8 h-8 rounded-md text-sm font-medium flex items-center justify-center transition-colors ${currentPage === page
-                    ? "bg-[#5e81d4] text-white"
-                    : "text-slate-600 hover:bg-slate-100"
-                  }`}
+                className={`w-8 h-8 flex items-center justify-center rounded-full font-semibold text-sm transition-colors ${
+                  currentPage === page
+                    ? "bg-[#5E81CC] text-white"
+                    : "text-gray-600 hover:bg-gray-100"
+                }`}
               >
                 {page}
               </button>
@@ -419,9 +422,10 @@ export default function AdminAppointmentsPage() {
             <button
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
-              className="p-1.5 text-slate-400 hover:text-slate-600 disabled:opacity-50"
+              className="p-1.5 text-gray-400 hover:text-[#5E81CC] disabled:opacity-50 transition-colors"
+              title="Halaman berikutnya"
             >
-              <ChevronRight className="w-5 h-5" />
+              <ChevronRight className="h-5 w-5" />
             </button>
           </div>
         )}
