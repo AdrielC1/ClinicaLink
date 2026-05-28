@@ -292,9 +292,9 @@ export default function AppSidebarLayout({ children, role }) {
       );
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-[#2D3748] font-sans p-6 md:p-10 flex flex-col w-full">
+    <div className="min-h-screen lg:h-screen lg:overflow-hidden bg-[#F8FAFC] text-[#2D3748] font-sans p-6 md:p-10 flex flex-col w-full">
       {/* Top Navbar */}
-      <header className="w-full bg-white rounded-2xl shadow-sm px-6 md:px-8 py-4 flex items-center justify-between mb-8 z-20 relative">
+      <header className="shrink-0 w-full bg-white rounded-2xl shadow-sm px-6 md:px-8 py-4 flex items-center justify-between mb-8 z-20 relative">
         {/* Left: Logo */}
         <Link href="/landing" className="flex items-center gap-2 hover:opacity-90 transition-opacity">
           <Image src={brandIcon} alt="ClinicaLink" width={35} height={35} priority />
@@ -375,9 +375,9 @@ export default function AppSidebarLayout({ children, role }) {
       </header>
 
       {/* Main Layout Area */}
-      <div className="flex flex-col lg:flex-row gap-8 flex-1">
+      <div className="flex flex-col lg:flex-row gap-8 flex-1 min-h-0">
         {/* Transparent Left Sidebar */}
-        <aside className="w-full lg:w-64 shrink-0 flex flex-col justify-between bg-white/60 backdrop-blur-sm border border-gray-100 shadow-sm rounded-2xl p-4 self-start lg:sticky lg:top-10 lg:h-[calc(100vh-180px)]">
+        <aside className="w-full lg:w-64 shrink-0 flex flex-col justify-between bg-white/60 backdrop-blur-sm border border-gray-100 shadow-sm rounded-2xl p-4 lg:h-full lg:overflow-y-auto">
           <nav className="space-y-1.5 flex-1">
             {links.map((link) => {
               const active = pathname === link.href;
@@ -428,8 +428,8 @@ export default function AppSidebarLayout({ children, role }) {
           </div>
         </aside>
 
-        {/* Content Area */}
-        <main className="flex-1 w-full min-w-0">
+        {/* Content Area - 3rd Box */}
+        <main className="flex-1 w-full min-w-0 lg:overflow-y-auto lg:h-full bg-white border border-gray-100 shadow-sm rounded-2xl p-6 md:p-8">
           {children}
         </main>
       </div>
