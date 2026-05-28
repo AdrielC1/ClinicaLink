@@ -1,5 +1,8 @@
+import { Nunito } from "next/font/google";
 import "./globals.css";
 import Script from "next/script";
+
+const nunito = Nunito({ subsets: ["latin"], variable: "--font-nunito" });
 
 export const metadata = {
   title: "ClinicaLink",
@@ -10,9 +13,9 @@ export default function RootLayout({ children }) {
   return (
     <html
       lang="en"
-      className="h-full antialiased scroll-smooth scroll-pt-16"
+      className={`h-full antialiased scroll-smooth scroll-pt-16 ${nunito.variable}`}
     >
-      <body className="min-h-full flex flex-col">
+      <body className={`min-h-full flex flex-col ${nunito.className}`}>
         <Script id="role-guard" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: `
           (function() {
             var ROLE_PREFIXES = { admin: '/admin', doctor: '/doctor', patient: '/patient' };

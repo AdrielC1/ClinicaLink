@@ -177,7 +177,7 @@ export default function AdminReportsPage() {
         <head>
           <meta charset="utf-8" />
           <style>
-            table { border-collapse: collapse; font-family: Arial, sans-serif; font-size: 12px; }
+            table { border-collapse: collapse; font-family: 'Nunito', sans-serif; font-size: 12px; }
             th { background: #eef3fb; font-weight: bold; text-align: left; }
             th, td { border: 1px solid #d9e2f1; padding: 8px 12px; white-space: nowrap; }
             td:nth-child(6) { font-weight: bold; }

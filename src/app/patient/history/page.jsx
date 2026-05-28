@@ -12,6 +12,7 @@ import {
   Clock,
   MapPin,
   X,
+  XCircle,
   CheckCircle2,
 } from "lucide-react";
 
@@ -100,7 +101,23 @@ export default function PatientHistoryPage() {
         });
         if (res.ok) {
           const body = await res.json();
-          setAppointments(Array.isArray(body.data) ? body.data : []);
+          const list = Array.isArray(body.data) ? body.data : [];
+          
+          // Virtual Status: Dibatalkan jika Menunggu > 4 jam
+          const now = new Date().getTime();
+          const updatedList = list.map(appt => {
+            if (appt.status === "Menunggu" && appt.appointment_date && appt.start_time) {
+               const dateStr = appt.appointment_date.split('T')[0];
+               const timeStr = appt.start_time;
+               const apptTime = new Date(`${dateStr}T${timeStr}`).getTime();
+               if (now - apptTime > 4 * 60 * 60 * 1000) {
+                 return { ...appt, status: "Dibatalkan" };
+               }
+            }
+            return appt;
+          });
+          
+          setAppointments(updatedList);
         }
       } catch (err) {
         console.error("Gagal memuat history:", err);
@@ -261,155 +278,171 @@ export default function PatientHistoryPage() {
   }
 
   return (
-    <div className="min-h-full bg-[#F8FAFC] px-4 py-6">
-      <div className="max-w-[1320px] mx-auto">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-1">Riwayat Konsultasi</h1>
-          <p className="text-gray-500 text-sm">
-            Lihat seluruh riwayat konsultasi dan daftar janji temu Anda.
-          </p>
-        </div>
+    <div className="min-h-full">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-gray-900 mb-1">Riwayat Konsultasi</h1>
+        <p className="text-gray-500 text-sm">
+          Lihat seluruh riwayat konsultasi dan daftar janji temu Anda.
+        </p>
+      </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <div className="rounded-[24px] bg-white p-5 shadow-sm border border-slate-100">
-            <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-slate-400 mb-3">Total Konsultasi</p>
-            <p className="text-3xl font-extrabold text-slate-900">{stats.total}</p>
-          </div>
-          <div className="rounded-[24px] bg-white p-5 shadow-sm border border-slate-100">
-            <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-slate-400 mb-3">Appointment selesai</p>
-            <p className="text-3xl font-extrabold text-slate-900">{stats.selesai}</p>
-          </div>
-          <div className="rounded-[24px] bg-white p-5 shadow-sm border border-slate-100">
-            <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-slate-400 mb-3">Dibatalkan</p>
-            <p className="text-3xl font-extrabold text-slate-900">{stats.dibatalkan}</p>
-          </div>
-        </div>
-
-        <div className="flex flex-col xl:flex-row gap-8">
-          <div className="flex-1">
-            <div className="flex flex-col gap-4 mb-6 lg:flex-row lg:items-center lg:justify-between" />
-
-            <div className="space-y-5">
-              {filteredAppointments.length === 0 ? (
-                <div className="rounded-[24px] bg-white border border-dashed border-slate-200 p-10 text-center text-slate-500 font-bold">
-                  Belum ada riwayat appointment yang sesuai.
-                </div>
-              ) : (
-                filteredAppointments.map((appt) => (
-                  <div key={appt.id} className="rounded-[30px] border border-slate-100 bg-white p-5 shadow-sm flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-                    <div className="flex items-start gap-4">
-                      <div className="w-20 h-20 rounded-[24px] overflow-hidden bg-slate-100 flex items-center justify-center">
-                        <img
-                          src={appt.doctor_img || `https://ui-avatars.com/api/?name=${encodeURIComponent(appt.doctor_name || "Doctor")}&background=cbd5e1&color=fff&size=256`}
-                          alt={appt.doctor_name || "Doctor"}
-                          className="h-full w-full object-cover"
-                        />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h2 className="text-lg font-extrabold text-slate-900 truncate">{appt.doctor_name}</h2>
-                          <span className={`px-3 py-1 rounded-full text-[11px] font-extrabold ${getStatusClasses(appt.status)}`}>
-                            {appt.status}
-                          </span>
-                        </div>
-                        <p className="text-sm font-bold text-slate-500 mb-3">Dokter Umum</p>
-                        <div className="grid grid-cols-2 gap-3 text-sm font-bold text-slate-600">
-                          <div>
-                            <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400 mb-1">Tanggal</p>
-                            <p>{formatDateLabel(appt.appointment_date)}</p>
-                          </div>
-                          <div>
-                            <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400 mb-1">Waktu</p>
-                            <p>{`${formatTimeLabel(appt.start_time)} - ${formatTimeLabel(appt.end_time)} WIB`}</p>
-                          </div>
-                          <div className="col-span-2 sm:col-span-1">
-                            <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400 mb-1">Ruang</p>
-                            <p>{appt.room_number || "-"}</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col gap-3 sm:items-end">
-                      <button
-                        onClick={() => openDetail(appt)}
-                        className="rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm font-extrabold text-slate-700 hover:bg-slate-50 transition-colors"
-                      >
-                        Lihat Detail
-                      </button>
-                      <button
-                        onClick={() => openBookingModal(appt)}
-                        className="rounded-[18px] bg-[#5E81CC] px-4 py-3 text-sm font-extrabold text-white hover:bg-indigo-600 transition-colors"
-                      >
-                        Booking Lagi
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
+      {/* Main Layout */}
+      <div className="flex flex-col xl:flex-row gap-6">
+        {/* Left: List */}
+        <div className="flex-1 min-w-0">
+          {/* Stat Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="rounded-2xl bg-white p-5 shadow-sm border border-slate-100 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-[#5E81CC] shrink-0">
+                <CalendarDays className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-[11px] font-bold text-slate-500">Total Konsultasi</p>
+                <p className="text-2xl font-black text-slate-900">{stats.total}</p>
+              </div>
+            </div>
+            <div className="rounded-2xl bg-white p-5 shadow-sm border border-slate-100 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-500 shrink-0">
+                <CheckCircle2 className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-[11px] font-bold text-slate-500">Janji Temu Selesai</p>
+                <p className="text-2xl font-black text-slate-900">{stats.selesai}</p>
+              </div>
+            </div>
+            <div className="rounded-2xl bg-white p-5 shadow-sm border border-slate-100 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-rose-50 flex items-center justify-center text-rose-500 shrink-0">
+                <XCircle className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-[11px] font-bold text-slate-500">Dibatalkan</p>
+                <p className="text-2xl font-black text-slate-900">{stats.dibatalkan}</p>
+              </div>
             </div>
           </div>
-
-          <div className="w-full xl:w-[360px] flex flex-col gap-5">
-            <div className="rounded-[30px] w-[288px] h-[406px] bg-[#EFF3FF] border border-slate-100 p-6 shadow-sm">
-              <h3 className="text-base font-extrabold text-slate-900 mb-5">Konsultasi Terakhir</h3>
-              {latestConsultation ? (
-                <div className="space-y-5 h-full">
-                  <div className="flex items-center gap-4">
-                    <div className="w-20 h-20 rounded-[24px] overflow-hidden bg-slate-100">
+          <div className="space-y-4">
+            {filteredAppointments.length === 0 ? (
+              <div className="rounded-2xl bg-white border border-dashed border-slate-200 p-10 text-center text-slate-500 font-bold">
+                Belum ada riwayat janji temu.
+              </div>
+            ) : (
+              filteredAppointments.map((appt) => {
+                const isCancelled = appt.status === "Dibatalkan";
+                return (
+                  <div key={appt.id} className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm flex items-center gap-5">
+                    {/* Foto dokter */}
+                    <div className="w-[72px] h-[72px] rounded-xl overflow-hidden bg-slate-100 shrink-0">
                       <img
-                        src={latestConsultation.doctor_img || `https://ui-avatars.com/api/?name=${encodeURIComponent(latestConsultation.doctor_name || "Doctor")}&background=cbd5e1&color=fff&size=256`}
-                        alt={latestConsultation.doctor_name || "Doctor"}
+                        src={appt.doctor_img || `https://ui-avatars.com/api/?name=${encodeURIComponent(appt.doctor_name || "Doctor")}&background=cbd5e1&color=fff&size=256`}
+                        alt={appt.doctor_name || "Doctor"}
                         className="h-full w-full object-cover"
                       />
                     </div>
-                    <div>
-                      <p className="text-lg font-extrabold text-slate-900">{latestConsultation.doctor_name}</p>
-                      <p className="text-sm font-bold text-slate-500">Dokter Umum</p>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 gap-3 text-sm font-bold text-slate-700">
-                    <div className="rounded-[20px] bg-white p-3">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Image src={calendarCheckIcon} alt="Tanggal" width={16} height={16} />
-                        <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Tanggal</p>
-                      </div>
-                      <p>{formatDateLabel(latestConsultation.appointment_date)}</p>
-                    </div>
-                    <div className="rounded-[20px] bg-white p-3">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Image src={clockIcon} alt="Waktu" width={16} height={16} />
-                        <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Waktu</p>
-                      </div>
-                      <p>{`${formatTimeLabel(latestConsultation.start_time)} - ${formatTimeLabel(latestConsultation.end_time)} WIB`}</p>
-                    </div>
-                  </div>
-                  <div className="inline-flex items-center rounded-full px-3 py-2 text-sm font-extrabold text-slate-700 bg-emerald-50">
-                    <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 mr-2" />
-                    {latestConsultation.status}
-                  </div>
-                </div>
-              ) : (
-                <div className="rounded-[24px] bg-slate-50 p-6 text-center text-sm font-bold text-slate-500">
-                  Belum ada konsultasi terakhir untuk ditampilkan.
-                </div>
-              )}
-            </div>
 
-            <div className="rounded-[30px] bg-[#FEF3C7] border border-[#FDE68A] p-6 shadow-sm">
-              <div className="flex items-center justify-between gap-4 mb-4">
-                <div className="w-11 h-11 rounded-2xl bg-[#FDE68A] flex items-center justify-center text-[#B45309]">
-                  <span className="text-xl">?</span>
+                    {/* Info dokter */}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[14px] font-extrabold text-slate-900 truncate">{appt.doctor_name}</p>
+                      <p className="text-[12px] font-bold text-[#5E81CC] mb-1.5">{appt.specialization_name || "Spesialis Umum"}</p>
+                      <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-400">
+                        <MapPin className="w-3 h-3 shrink-0" />
+                        <span>ClinicaLink</span>
+                      </div>
+                    </div>
+
+                    {/* Info jadwal */}
+                    <div className="hidden md:flex flex-col gap-1.5 min-w-[180px] shrink-0">
+                      <div className="flex items-center gap-2 text-[12px] font-bold text-slate-700">
+                        <CalendarDays className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span>{formatDateLabel(appt.appointment_date)}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-[12px] font-bold text-slate-700">
+                        <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span>{`${formatTimeLabel(appt.start_time)} - ${formatTimeLabel(appt.end_time)} WIB`}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-[12px] font-bold text-slate-500">
+                        <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span>{appt.room_number || "-"}</span>
+                      </div>
+                    </div>
+
+                    {/* Status + Aksi */}
+                    <div className="flex flex-col items-end gap-2 shrink-0 ml-auto">
+                      <span className={`px-3 py-1 rounded-full text-[11px] font-extrabold ${getStatusClasses(appt.status)}`}>
+                        {appt.status}
+                      </span>
+                      <div className="flex items-center gap-2 mt-1">
+                        <button
+                          onClick={() => openDetail(appt)}
+                          className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-[12px] font-extrabold text-slate-700 hover:bg-slate-50 transition-colors"
+                        >
+                          Lihat Detail
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        {/* Right Sidebar */}
+        <div className="w-full xl:w-[300px] flex flex-col gap-5 shrink-0">
+          {/* Konsultasi Terakhir */}
+          <div className="rounded-2xl bg-[#EFF3FF] border border-indigo-100 p-5 shadow-sm">
+            <h3 className="text-[13px] font-extrabold text-slate-800 mb-4">Konsultasi Terakhir</h3>
+            {latestConsultation ? (
+              <div className="space-y-4">
+                {/* Foto dokter */}
+                <div className="flex justify-center">
+                  <div className="w-[90px] h-[90px] rounded-full overflow-hidden border-4 border-white shadow-md">
+                    <img
+                      src={latestConsultation.doctor_img || `https://ui-avatars.com/api/?name=${encodeURIComponent(latestConsultation.doctor_name || "Doctor")}&background=cbd5e1&color=fff&size=256`}
+                      alt={latestConsultation.doctor_name || "Doctor"}
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm font-extrabold text-slate-900">Butuh Bantuan?</p>
-                  <p className="text-xs font-semibold text-slate-600">Hubungi kami jika ada pertanyaan atau kendala</p>
+                <div className="text-center">
+                  <p className="text-[14px] font-extrabold text-slate-900">{latestConsultation.doctor_name}</p>
+                  <p className="text-[12px] font-bold text-slate-500">{latestConsultation.specialization_name || "Dokter Umum"}</p>
+                </div>
+                {/* Info */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3 bg-white rounded-xl px-4 py-2.5">
+                    <CalendarDays className="w-4 h-4 text-[#5E81CC] shrink-0" />
+                    <span className="text-[12px] font-bold text-slate-700">{formatDateLabel(latestConsultation.appointment_date)}</span>
+                  </div>
+                  <div className="flex items-center gap-3 bg-white rounded-xl px-4 py-2.5">
+                    <Clock className="w-4 h-4 text-[#5E81CC] shrink-0" />
+                    <span className="text-[12px] font-bold text-slate-700">{`${formatTimeLabel(latestConsultation.start_time)} - ${formatTimeLabel(latestConsultation.end_time)} WIB`}</span>
+                  </div>
+                </div>
+                {/* Status */}
+                <div>
+                  <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-extrabold ${getStatusClasses(latestConsultation.status)}`}>
+                    <span className="w-2 h-2 rounded-full bg-current" />
+                    {latestConsultation.status}
+                  </span>
                 </div>
               </div>
-              <button className="w-full rounded-[18px] bg-white px-4 py-3 text-sm font-extrabold text-[#B45309] hover:bg-slate-50 transition-colors border border-[#FDE68A]">
-                Hubungi Support
-              </button>
+            ) : (
+              <p className="text-[12px] font-bold text-slate-400 text-center py-4">Belum ada konsultasi.</p>
+            )}
+          </div>
+
+          {/* Butuh Bantuan */}
+          <div className="rounded-2xl bg-[#FEF3C7] border border-[#FDE68A] p-5 shadow-sm">
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <div className="w-10 h-10 rounded-xl bg-[#FDE68A] flex items-center justify-center text-[#B45309] text-lg shrink-0">?</div>
+              <div className="text-right">
+                <p className="text-[13px] font-extrabold text-slate-900">Butuh Bantuan?</p>
+                <p className="text-[11px] font-semibold text-slate-600">Hubungi kami jika ada pertanyaan atau kendala</p>
+              </div>
             </div>
+            <button className="w-full rounded-xl bg-white px-4 py-2.5 text-[12px] font-extrabold text-[#B45309] hover:bg-amber-50 transition-colors border border-[#FDE68A]">
+              Hubungi Support
+            </button>
           </div>
         </div>
       </div>
