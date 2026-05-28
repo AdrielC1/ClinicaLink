@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { supabase, waitForSupabaseUser } from "@/lib/supabase";
 import { 
   Search, 
   ChevronDown, 
@@ -104,7 +104,7 @@ function PatientDoctorsContent() {
     const initData = async () => {
       setLoading(true);
       // Get User
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      const { data: { user }, error: authError } = await waitForSupabaseUser();
       if (authError || !user) {
         router.push("/login");
         return;
@@ -275,7 +275,7 @@ function PatientDoctorsContent() {
           patient_id: currentUser.id,
           schedule_id: selectedSchedule.id,
           appointment_date: selectedDate,
-          notes: medicalNotes,
+          complaints: medicalNotes,
           start_time: selectedSchedule.start_time,
           end_time: selectedSchedule.end_time
         })
@@ -398,7 +398,7 @@ function PatientDoctorsContent() {
                 {/* Image Placeholder */}
                 <div className="h-44 bg-slate-100 relative">
                   <div className="absolute inset-0 flex items-end justify-center overflow-hidden">
-                     <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(doc.full_name)}&background=random&size=256`} alt={doc.full_name} className="w-full h-full object-cover opacity-80 mix-blend-multiply" />
+                     <img src={doc.img_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(doc.full_name)}&background=random&size=256`} alt={doc.full_name} className="w-full h-full object-cover opacity-80 mix-blend-multiply" />
                   </div>
                   {/* Heart Icon Top Right */}
                   <button onClick={() => toggleFavorite(doc.id)} className="absolute top-4 right-4 p-2 bg-white/40 backdrop-blur-md rounded-full hover:bg-white text-slate-500 hover:text-rose-500 transition-colors shadow-sm">
@@ -549,7 +549,7 @@ function PatientDoctorsContent() {
                 {/* Doctor Info */}
                 <div className="flex items-center gap-4 mb-8">
                   <div className="w-[60px] h-[60px] rounded-full bg-slate-100 overflow-hidden border border-slate-200 flex-shrink-0">
-                     <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(selectedDoctor.full_name)}&background=random`} alt={selectedDoctor.full_name} className="w-full h-full object-cover" />
+                     <img src={selectedDoctor.img_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedDoctor.full_name)}&background=random`} alt={selectedDoctor.full_name} className="w-full h-full object-cover" />
                   </div>
                   <div>
                     <h3 className="text-[15px] font-extrabold text-slate-900">{selectedDoctor.full_name}</h3>

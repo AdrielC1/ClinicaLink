@@ -1,4 +1,5 @@
 import "./globals.css";
+import Script from "next/script";
 
 export const metadata = {
   title: "ClinicaLink",
@@ -12,7 +13,7 @@ export default function RootLayout({ children }) {
       className="h-full antialiased scroll-smooth scroll-pt-16"
     >
       <body className="min-h-full flex flex-col">
-        <script dangerouslySetInnerHTML={{ __html: `
+        <Script id="role-guard" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: `
           (function() {
             var ROLE_PREFIXES = { admin: '/admin', doctor: '/doctor', patient: '/patient' };
             function checkRole() {

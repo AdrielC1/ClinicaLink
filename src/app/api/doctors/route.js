@@ -21,7 +21,8 @@ export async function GET(request) {
                 deleted_at,
                 user:users (
                     full_name,
-                    email
+                    email,
+                    img_url
                 ),
                 specialization:specializations (
                     id,
@@ -51,7 +52,7 @@ export async function GET(request) {
             // Fallback jika kolom created_at tidak ada di users
             const { data: data2, error: error2 } = await supabase
                 .from('doctors')
-                .select(`id, is_active, phone_number, deleted_at, user:users(full_name, email), specialization:specializations(id, name)`)
+                .select(`id, is_active, phone_number, deleted_at, user:users(full_name, email, img_url), specialization:specializations(id, name)`)
                 .is('deleted_at', !includeDeleted ? null : undefined);
             if (error2) return NextResponse.json({ message: error2.message }, { status: 500 });
             let result = data2.map(formatDoctor);
@@ -191,6 +192,7 @@ function formatDoctor(doc) {
         id: doc.id,
         full_name: doc.user?.full_name || "Tanpa Nama",
         email: doc.user?.email || "",
+        img_url: doc.user?.img_url || null,
         phone_number: doc.phone_number || "-",
         specialization_id: doc.specialization?.id || null,
         specialization_name: doc.specialization?.name || "Belum ada spesialisasi",

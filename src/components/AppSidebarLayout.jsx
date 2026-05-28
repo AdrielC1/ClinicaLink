@@ -15,7 +15,7 @@ import profileIcon from "@/app/icons/Profile.svg";
 
 // SVG Icons for Sidebar (Admin & Doctor)
 const icons = {
-  Dashboard: (
+  Beranda: (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
     </svg>
@@ -30,7 +30,7 @@ const icons = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
   ),
-  "Pasien List": (
+  "Riwayat Konsultasi": (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
     </svg>
@@ -59,7 +59,7 @@ const icons = {
 };
 
 const adminLinks = [
-  { href: "/admin/dashboard", label: "Dashboard" },
+  { href: "/admin/dashboard", label: "Beranda" },
   { href: "/admin/doctors", label: "Kelola Dokter" },
   { href: "/admin/patients", label: "Kelola Pasien" },
   { href: "/admin/appointments", label: "Kelola Appointment" },
@@ -69,17 +69,17 @@ const adminLinks = [
 ];
 
 const patientLinks = [
-  { href: "/patient/dashboard", label: "Dashboard", customIcon: dashboardIcon },
-  { href: "/patient/doctors", label: "Doctor", customIcon: doctorIcon },
-  { href: "/patient/appointments", label: "Appointment", customIcon: appointmentIcon },
-  { href: "/patient/history", label: "History", customIcon: historyIcon },
-  { href: "/patient/notifications", label: "Notification", customIcon: notificationIcon },
-  { href: "/patient/profile", label: "Profile", customIcon: profileIcon },
+  { href: "/patient/dashboard", label: "Beranda", customIcon: dashboardIcon },
+  { href: "/patient/doctors", label: "Dokter", customIcon: doctorIcon },
+  { href: "/patient/appointments", label: "Janji Temu", customIcon: appointmentIcon },
+  { href: "/patient/history", label: "Riwayat", customIcon: historyIcon },
+  { href: "/patient/notifications", label: "Notifikasi", customIcon: notificationIcon },
+  { href: "/patient/profile", label: "Profil", customIcon: profileIcon },
 ];
 
 const doctorLinks = [
-  { href: "/doctor/dashboard", label: "Dashboard" },
-  { href: "/doctor/patients", label: "Pasien List" },
+  { href: "/doctor/dashboard", label: "Beranda" },
+  { href: "/doctor/patients", label: "Riwayat Konsultasi" },
 ];
 
 const ROLE_ROUTES = {
@@ -304,30 +304,10 @@ export default function AppSidebarLayout({ children, role }) {
           </span>
         </Link>
 
-        {/* Center: Search */}
-        <div className="hidden md:flex relative flex-1 max-w-lg mx-8">
-          {role !== 'admin' && (
-            <label className="relative w-full">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
-                <svg aria-hidden="true" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.3-4.3m1.3-5.2a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z" />
-                </svg>
-              </span>
-              <input 
-                type="search" 
-                placeholder="Search..." 
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && e.target.value) {
-                     router.push(`/${role}/doctors?search=${encodeURIComponent(e.target.value)}`);
-                  }
-                }}
-                className="h-11 w-full rounded-lg border-0 bg-gray-50 pl-12 pr-4 text-[13px] font-medium outline-none focus:ring-2 focus:ring-indigo-100 transition-shadow placeholder:text-gray-400" 
-              />
-            </label>
-          )}
-        </div>
+        {/* Center: Search (dihapus per permintaan) */}
+        <div className="hidden md:flex relative flex-1 max-w-lg mx-8"></div>
 
-        {/* Right: Bell & Profile */}
+        {/* Right: Profile */}
         <div className="flex items-center gap-6 shrink-0">
           <div className="relative">
             <button 
@@ -397,7 +377,7 @@ export default function AppSidebarLayout({ children, role }) {
       {/* Main Layout Area */}
       <div className="flex flex-col lg:flex-row gap-8 flex-1">
         {/* Transparent Left Sidebar */}
-        <aside className="w-full lg:w-64 shrink-0 flex flex-col justify-between bg-white/60 backdrop-blur-sm border border-gray-100 shadow-sm rounded-2xl p-4">
+        <aside className="w-full lg:w-64 shrink-0 flex flex-col justify-between bg-white/60 backdrop-blur-sm border border-gray-100 shadow-sm rounded-2xl p-4 self-start lg:sticky lg:top-10 lg:h-[calc(100vh-180px)]">
           <nav className="space-y-1.5 flex-1">
             {links.map((link) => {
               const active = pathname === link.href;
@@ -420,7 +400,7 @@ export default function AppSidebarLayout({ children, role }) {
                     />
                   ) : (
                     <span className={`${active ? "text-[#5E81CC]" : "text-gray-600"}`}>
-                      {icons[link.label] || icons["Dashboard"]}
+                      {icons[link.label] || icons["Beranda"]}
                     </span>
                   )}
                   {link.label}
@@ -443,7 +423,7 @@ export default function AppSidebarLayout({ children, role }) {
               <svg className="w-5 h-5 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
               </svg>
-              Log out
+              Keluar
             </a>
           </div>
         </aside>

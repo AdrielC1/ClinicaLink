@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { supabase, waitForSupabaseUser } from "@/lib/supabase";
 // HAPUS import AppSidebarLayout dari sini jika masih ada
 import {
   CalendarCheck,
@@ -181,7 +181,7 @@ export default function PatientDashboardPage() {
           patient_id: currentUser.id,
           schedule_id: selectedSchedule.id,
           appointment_date: selectedDate,
-          notes: medicalNotes,
+          complaints: medicalNotes,
           start_time: selectedSchedule.start_time,
           end_time: selectedSchedule.end_time
         })
@@ -255,7 +255,7 @@ export default function PatientDashboardPage() {
 
   // --- Daily Schedule & Reminder Logic ---
   const appointmentsOnSelectedDate = appointments.filter(a => {
-    if (!a.appointment_date) return false;
+    if (!a.appointment_date || a.status === 'Dibatalkan') return false;
     const aDate = a.appointment_date.split('T')[0];
     return aDate === selectedCalendarDate;
   });
@@ -333,8 +333,12 @@ export default function PatientDashboardPage() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {doctors.map((doc) => (
                 <div key={doc.id} className="group flex flex-col items-center rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm hover:shadow-lg transition-all duration-300">
-                  <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-indigo-50 border-4 border-white shadow-sm text-3xl group-hover:scale-110 transition-transform">
-                    👨‍⚕️
+                  <div className="mb-4 flex h-20 w-20 overflow-hidden items-center justify-center rounded-full bg-indigo-50 border-4 border-white shadow-sm text-3xl group-hover:scale-110 transition-transform">
+                    {doc.img_url ? (
+                      <img src={doc.img_url} alt={doc.full_name} className="w-full h-full object-cover" />
+                    ) : (
+                      "👨‍⚕️"
+                    )}
                   </div>
                   <h3 className="font-bold text-slate-900 text-[15px]">{doc.full_name}</h3>
                   <p className="mb-4 text-xs font-semibold text-slate-400 uppercase tracking-wide mt-1">{doc.specialization_name || "Poli Umum"}</p>
@@ -368,7 +372,13 @@ export default function PatientDashboardPage() {
                 {upcomingAppointments.slice(0, 3).map((appt) => (
                   <div key={appt.id} className="flex flex-col justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center hover:border-indigo-200 transition-colors">
                     <div className="flex items-center gap-4">
-                      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-xl border border-indigo-100">👨‍⚕️</div>
+                      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-xl border border-indigo-100 overflow-hidden">
+                        {appt.doctor_img ? (
+                          <img src={appt.doctor_img} alt={appt.doctor_name} className="w-full h-full object-cover" />
+                        ) : (
+                          "👨‍⚕️"
+                        )}
+                      </div>
                       <div>
                         <h3 className="font-bold text-slate-900">{appt.doctor_name}</h3>
                         <p className="text-xs font-medium text-slate-500 mt-0.5">{appt.room_number || "ClinicaLink Center"}</p>
@@ -415,7 +425,7 @@ export default function PatientDashboardPage() {
               {calendarDays.map((c, i) => {
                 const dateStr = new Date(c.date.getTime() - c.date.getTimezoneOffset() * 60000).toISOString().split('T')[0];
                 const isSelected = selectedCalendarDate === dateStr;
-                const hasAppt = appointments.some(a => a.appointment_date?.split('T')[0] === dateStr);
+                const hasAppt = appointments.some(a => a.status !== 'Dibatalkan' && a.appointment_date?.split('T')[0] === dateStr);
                 
                 return (
                   <div 
@@ -525,7 +535,13 @@ export default function PatientDashboardPage() {
             {bookingStep === 1 && (
               <div className="space-y-6">
                 <div className="flex items-center gap-4 rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-2xl shadow-sm border border-slate-200">👨‍⚕️</div>
+                  <div className="flex h-12 w-12 overflow-hidden items-center justify-center rounded-full bg-white text-2xl shadow-sm border border-slate-200">
+                    {selectedDoctor.img_url ? (
+                      <img src={selectedDoctor.img_url} alt={selectedDoctor.full_name} className="w-full h-full object-cover" />
+                    ) : (
+                      "👨‍⚕️"
+                    )}
+                  </div>
                   <div>
                     <h3 className="font-bold text-slate-900">{selectedDoctor.full_name}</h3>
                     <p className="text-xs font-medium text-slate-500">{selectedDoctor.specialization_name || "Klinik Umum"}</p>

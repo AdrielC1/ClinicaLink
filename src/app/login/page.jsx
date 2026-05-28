@@ -1,5 +1,5 @@
 "use client";
-import { supabase } from "@/lib/supabase";
+import { supabase, waitForSupabaseUser } from "@/lib/supabase";
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -92,6 +92,13 @@ export default function LoginPage() {
                 return;
             }
 
+            const { data: readyData, error: readyError } = await waitForSupabaseUser();
+            if (readyError || !readyData?.user) {
+                setError("Gagal menginisialisasi sesi login. Silakan coba lagi.");
+                setLoading(false);
+                return;
+            }
+
             // 2. Ambil Role User dari tabel public.users untuk menentukan rute dashboard
             const { data: userData, error: userError } = await supabase
                 .from("users")
@@ -107,6 +114,11 @@ export default function LoginPage() {
 
             // Simpan role di localStorage DAN cookie agar proxy server bisa membaca role tanpa query DB
             localStorage.setItem("clinicalink:role", userData.role);
+            
+            // Simpan juga nama untuk ditampilkan di dashboard
+            const fullName = authData.user?.user_metadata?.full_name || userData?.full_name || "Doctor";
+            localStorage.setItem("clinicalink:name", fullName);
+
             // Cookie ini dibaca oleh proxy.js untuk validasi role di sisi server
             document.cookie = `clinicalink_role=${userData.role}; path=/; max-age=86400; SameSite=Lax`;
 

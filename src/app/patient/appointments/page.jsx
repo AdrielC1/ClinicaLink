@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { supabase, waitForSupabaseUser } from "@/lib/supabase";
 import {
   Calendar as CalendarIcon,
   Clock,
@@ -57,7 +57,7 @@ export default function PatientAppointmentsPage() {
   useEffect(() => {
     const initData = async () => {
       setLoading(true);
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      const { data: { user }, error: authError } = await waitForSupabaseUser();
       if (authError || !user) {
         router.push("/login");
         return;
@@ -142,6 +142,7 @@ export default function PatientAppointmentsPage() {
   // Derived Data: Selected Date Appointments
   const selectedDateAppointments = useMemo(() => {
     return appointments.filter(appt => {
+      if (appt.status === 'Dibatalkan') return false;
       const apptDate = new Date(appt.appointment_date);
       return isSameDate(apptDate, selectedDate);
     });
@@ -342,7 +343,7 @@ export default function PatientAppointmentsPage() {
               {calendarCells.map((cell, idx) => {
                 const isSelected = isSameDate(cell.date, selectedDate);
                 const isToday = isSameDate(cell.date, today);
-                const hasAppt = appointments.some(a => isSameDate(new Date(a.appointment_date), cell.date));
+                const hasAppt = appointments.some(a => a.status !== 'Dibatalkan' && isSameDate(new Date(a.appointment_date), cell.date));
 
                 let btnClass = "rounded-lg p-1 transition cursor-pointer relative ";
                 if (!cell.isCurrentMonth) {
@@ -420,7 +421,13 @@ export default function PatientAppointmentsPage() {
 
           <div className="flex items-center justify-between mb-6 bg-slate-50/50 p-3 rounded-xl border border-slate-100">
             <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-xl border border-slate-200 shadow-sm">👨‍⚕️</div>
+              <div className="flex h-11 w-11 shrink-0 overflow-hidden items-center justify-center rounded-full bg-white text-xl border border-slate-200 shadow-sm">
+                {selectedAppt.doctor_img ? (
+                  <img src={selectedAppt.doctor_img} alt={selectedAppt.doctor_name} className="h-full w-full object-cover" />
+                ) : (
+                  "👨‍⚕️"
+                )}
+              </div>
               <div>
                 <h3 className="font-bold text-sm text-slate-900">{selectedAppt.doctor_name}</h3>
                 <p className="text-xs text-slate-500 font-medium">Spesialis Umum</p>
@@ -553,7 +560,13 @@ function AppointmentCard({ appt, onDetail, onReschedule, onCancel }) {
 
       {/* Profil Dokter (4 Kolom) */}
       <div className="md:col-span-4 flex items-center gap-4">
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-slate-50 text-2xl border border-slate-100 shadow-sm">👨‍⚕️</div>
+        <div className="flex h-14 w-14 shrink-0 overflow-hidden items-center justify-center rounded-2xl bg-slate-50 text-2xl border border-slate-100 shadow-sm">
+          {appt.doctor_img ? (
+            <img src={appt.doctor_img} alt={appt.doctor_name} className="h-full w-full object-cover" />
+          ) : (
+            "👨‍⚕️"
+          )}
+        </div>
         <div className="space-y-0.5">
           <h3 className="font-bold text-slate-900 text-base leading-tight">{appt.doctor_name}</h3>
           <p className="text-xs font-semibold text-indigo-600">Klinik Umum</p>
