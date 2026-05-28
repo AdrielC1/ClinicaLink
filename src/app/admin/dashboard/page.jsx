@@ -77,7 +77,7 @@ export default function AdminDashboardPage() {
             key={item.label}
             className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow p-5 w-40 flex-grow sm:flex-grow-0 flex flex-col items-center justify-center"
           >
-            <span className="text-xs font-semibold text-gray-600 mb-2 text-center">{item.label}</span>
+            <span className="text-sm font-bold text-gray-600 mb-2 text-center">{item.label}</span>
             <span className="text-2xl font-bold text-gray-900">{item.value}</span>
           </div>
         ))}

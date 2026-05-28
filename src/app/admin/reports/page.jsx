@@ -257,7 +257,7 @@ export default function AdminReportsPage() {
             onClick={() => setSelectedReport(card.key)}
             className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow p-5 flex-grow sm:flex-grow-0 flex flex-col items-center justify-center min-w-[180px]"
           >
-            <span className="text-xs font-semibold text-gray-600 mb-2 text-center">{card.title}</span>
+            <span className="text-sm font-bold text-gray-600 mb-2 text-center">{card.title}</span>
             <span className="text-2xl font-bold text-gray-900">{card.value}</span>
           </button>
         ))}
