@@ -88,6 +88,24 @@ const ROLE_ROUTES = {
   patient: "/patient",
 };
 
+const adminAlerts = [
+  { title: "Appointment baru masuk", description: "Kimmy membuat appointment pukul 10.00 WIB.", href: "/admin/appointments", tone: "blue" },
+  { title: "Appointment dibatalkan", description: "Sila membatalkan jadwal konsultasi hari ini.", href: "/admin/appointments", tone: "red" },
+  { title: "Jadwal dokter berubah", description: "Jadwal Dr. Mike diperbarui oleh admin.", href: "/admin/schedules", tone: "amber" },
+  { title: "Pasien baru terdaftar", description: "Nina baru bergabung sebagai pasien.", href: "/admin/patients", tone: "green" },
+  { title: "Dokter baru ditambahkan", description: "Dr. Riri ditambahkan sebagai dokter baru.", href: "/admin/doctors", tone: "blue" },
+  { title: "Konflik jadwal terdeteksi", description: "Ada potensi slot bentrok pada 12 Mei 2030.", href: "/admin/schedules", tone: "red" },
+  { title: "Reminder laporan", description: "Laporan mingguan siap ditinjau.", href: "/admin/reports", tone: "amber" },
+  { title: "Data perlu verifikasi", description: "Ada dokter yang belum aktif.", href: "/admin/doctors", tone: "green" },
+];
+
+const alertToneClass = {
+  blue: "bg-[#E6EDFF] text-[#5E81CC]",
+  red: "bg-[#FFEDED] text-[#F15959]",
+  amber: "bg-[#FFF0CF] text-[#D99000]",
+  green: "bg-[#E5FFE6] text-[#05A805]",
+};
+
 function readStoredUser() {
   if (typeof window === "undefined") return null;
   const rawUser = localStorage.getItem("clinicalink:user") ?? sessionStorage.getItem("clinicalink:user");
@@ -106,6 +124,7 @@ export default function AppSidebarLayout({ children, role }) {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState(null);
   const [hasUnread, setHasUnread] = useState(true);
+  const [showAdminAlerts, setShowAdminAlerts] = useState(false);
 
   const [isRoleValid] = useState(() => {
     if (typeof window === "undefined") return true;
@@ -244,6 +263,22 @@ export default function AppSidebarLayout({ children, role }) {
     }
   };
 
+  const handleBellClick = () => {
+    if (role === 'patient') {
+      router.push('/patient/notifications');
+      return;
+    }
+
+    if (role === 'admin') {
+      setShowAdminAlerts((open) => !open);
+    }
+  };
+
+  const openAdminAlertTarget = (href) => {
+    setShowAdminAlerts(false);
+    router.push(href);
+  };
+
   if (!isRoleValid) return null;
 
   const displayUserName = getUserName(currentUser, role);
@@ -274,6 +309,52 @@ export default function AppSidebarLayout({ children, role }) {
 
         {/* Right: Profile */}
         <div className="flex items-center gap-6 shrink-0">
+          <div className="relative">
+            <button 
+              onClick={handleBellClick}
+              className="text-gray-600 hover:text-[#5E81CC] transition-colors relative p-1"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
+              {(hasUnread || role === 'admin') && <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>}
+            </button>
+
+            {role === 'admin' && showAdminAlerts && (
+              <div className="absolute right-0 top-10 z-50 w-[min(88vw,360px)] overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-2xl">
+                <div className="border-b border-slate-100 px-5 py-4">
+                  <h2 className="text-sm font-extrabold text-slate-900">Admin Alerts</h2>
+                  <p className="mt-1 text-xs font-semibold text-slate-500">Pusat aktivitas yang perlu perhatian cepat.</p>
+                </div>
+                <div className="max-h-[360px] overflow-y-auto p-2">
+                  {adminAlerts.map((alert) => (
+                    <button
+                      key={alert.title}
+                      onClick={() => openAdminAlertTarget(alert.href)}
+                      className="grid w-full grid-cols-[34px_1fr] gap-3 rounded-xl px-3 py-3 text-left transition-colors hover:bg-slate-50"
+                    >
+                      <span className={`mt-0.5 flex h-8 w-8 items-center justify-center rounded-full text-[11px] font-extrabold ${alertToneClass[alert.tone]}`}>
+                        !
+                      </span>
+                      <span>
+                        <span className="block text-[13px] font-extrabold leading-tight text-slate-900">{alert.title}</span>
+                        <span className="mt-1 block text-[11px] font-semibold leading-snug text-slate-500">{alert.description}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                <div className="border-t border-slate-100 p-3">
+                  <button
+                    onClick={() => openAdminAlertTarget('/admin/notifications')}
+                    className="w-full rounded-xl bg-[#5E81CC] px-4 py-2.5 text-[12px] font-extrabold text-white transition-colors hover:bg-[#4D6FB5]"
+                  >
+                    Lihat Pusat Aktivitas
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+          
           <div 
             onClick={() => {
               if (role === 'patient') router.push('/patient/profile');
