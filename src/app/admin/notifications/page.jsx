@@ -14,21 +14,21 @@ import {
 const summaryCards = [
   {
     value: "8",
-    title: "Alert aktif",
+    title: "Peringatan aktif",
     description: "perlu ditinjau",
     icon: AlertTriangle,
     iconClass: "bg-[#FFF0CF] text-[#D99000]",
   },
   {
     value: "2",
-    title: "Urgent",
+    title: "Mendesak",
     description: "butuh tindakan cepat",
     icon: CalendarClock,
     iconClass: "bg-[#FFEDED] text-[#F15959]",
   },
   {
     value: "3",
-    title: "Update hari ini",
+    title: "Pembaruan hari ini",
     description: "aktivitas terbaru",
     icon: ClipboardList,
     iconClass: "bg-[#E6EDFF] text-[#5E81CC]",
@@ -37,8 +37,8 @@ const summaryCards = [
 
 const adminAlerts = [
   {
-    title: "Appointment baru masuk",
-    message: "Kimmy membuat appointment dengan Dr. Emily pukul 10.00 WIB.",
+    title: "Janji temu baru masuk",
+    message: "Kimmy membuat janji temu dengan Dr. Emily pukul 10.00 WIB.",
     time: "09.10",
     badge: "Baru",
     icon: CalendarCheck,
@@ -46,10 +46,10 @@ const adminAlerts = [
     badgeClass: "bg-[#DDE8FF] text-[#5E81CC]",
   },
   {
-    title: "Appointment dibatalkan",
+    title: "Janji temu dibatalkan",
     message: "Sila membatalkan jadwal konsultasi karena berhalangan hadir.",
     time: "09.30",
-    badge: "Urgent",
+    badge: "Mendesak",
     icon: AlertTriangle,
     iconClass: "bg-[#FFEDED] text-[#F15959]",
     badgeClass: "bg-[#FFD7D7] text-[#E85656]",
@@ -58,7 +58,7 @@ const adminAlerts = [
     title: "Jadwal dokter berubah",
     message: "Jadwal Dr. Mike diperbarui untuk slot praktik minggu ini.",
     time: "10.15",
-    badge: "Update",
+    badge: "Pembaruan",
     icon: CalendarClock,
     iconClass: "bg-[#FFF0CF] text-[#D99000]",
     badgeClass: "bg-[#FFF0CF] text-[#D99000]",
@@ -91,7 +91,7 @@ const adminAlerts = [
     badgeClass: "bg-[#FFD7D7] text-[#E85656]",
   },
   {
-    title: "Reminder laporan mingguan",
+    title: "Pengingat laporan mingguan",
     message: "Laporan operasional mingguan sudah siap ditinjau.",
     time: "14.00",
     badge: "Laporan",
@@ -112,64 +112,56 @@ const adminAlerts = [
 
 export default function AdminNotificationsPage() {
   return (
-    <section className="min-h-full border border-[#D8EDF4] bg-[#F0FBFF] px-4 py-6 sm:px-6 lg:px-10 xl:px-[48px]">
-      <div className="mx-auto w-full max-w-[980px]">
-        <header className="mb-6">
-          <h1 className="text-[24px] font-extrabold leading-tight text-black sm:text-[26px]">
-            Admin Alerts
-          </h1>
-          <p className="mt-2 text-[15px] font-bold leading-snug text-[#646464] sm:text-[16px]">
-            Pusat aktivitas yang perlu perhatian cepat dari admin.
-          </p>
-        </header>
+    <div className="font-sans text-slate-800 pb-6">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-gray-900 mb-1">Notifikasi Admin</h1>
+        <p className="text-gray-500 text-sm">Pusat aktivitas yang memerlukan perhatian cepat dari admin.</p>
+      </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {summaryCards.map((card) => {
-            const Icon = card.icon;
-            return (
-              <div
-                key={card.title}
-                className="grid min-h-[96px] grid-cols-[52px_1fr] items-center gap-4 rounded-[10px] bg-white px-4 shadow-sm"
-              >
-                <div className={`flex h-11 w-11 items-center justify-center rounded-[8px] ${card.iconClass}`}>
-                  <Icon className="h-6 w-6" strokeWidth={2.3} />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[24px] font-extrabold leading-none text-black">{card.value}</p>
-                  <p className="mt-3 text-[12px] font-extrabold leading-tight text-black">{card.title}</p>
-                  <p className="text-[11px] font-semibold leading-tight text-[#8B8B8B]">{card.description}</p>
-                </div>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-6">
+        {summaryCards.map((card) => {
+          const Icon = card.icon;
+          return (
+            <div
+              key={card.title}
+              className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow p-5 flex items-center gap-4"
+            >
+              <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-lg ${card.iconClass}`}>
+                <Icon className="h-6 w-6" strokeWidth={2.3} />
               </div>
-            );
-          })}
-        </div>
+              <div>
+                <p className="text-2xl font-bold text-gray-900 leading-none">{card.value}</p>
+                <p className="text-sm font-bold text-gray-800 mt-2">{card.title}</p>
+                <p className="text-xs font-medium text-gray-500">{card.description}</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
-        <div className="mt-5 rounded-[10px] bg-white px-4 py-4 shadow-sm sm:px-5">
-          <h2 className="mb-2 text-[14px] font-extrabold text-black">Pusat Aktivitas</h2>
-          <div>
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden pb-4">
+        <div className="p-6 pb-2">
+          <h2 className="text-lg font-bold text-gray-900">Pusat Aktivitas</h2>
+        </div>
+        <div className="px-6">
+          <div className="divide-y divide-slate-100">
             {adminAlerts.map((alert) => {
               const Icon = alert.icon;
               return (
                 <div
                   key={alert.title}
-                  className="grid gap-3 border-b border-[#E3E3E3] py-3 last:border-b-0 sm:grid-cols-[52px_minmax(0,1fr)_112px]"
+                  className="flex flex-col sm:flex-row sm:items-center gap-4 py-4"
                 >
-                  <div className="flex sm:justify-center">
-                    <div className={`flex h-11 w-11 items-center justify-center rounded-full ${alert.iconClass}`}>
-                      <Icon className="h-5 w-5" strokeWidth={2.3} />
-                    </div>
+                  <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${alert.iconClass}`}>
+                    <Icon className="h-5 w-5" strokeWidth={2.3} />
                   </div>
-                  <div className="min-w-0">
-                    <h3 className="text-[13px] font-extrabold leading-tight text-black">{alert.title}</h3>
-                    <p className="mt-1 text-[11px] font-semibold leading-snug text-[#7A7A7A]">
-                      {alert.message}
-                    </p>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm font-bold text-gray-900">{alert.title}</h3>
+                    <p className="text-sm text-gray-500 mt-0.5 truncate">{alert.message}</p>
                   </div>
-                  <div className="flex items-center justify-between gap-3 sm:flex-col sm:items-end sm:justify-center">
-                    <p className="whitespace-nowrap text-[11px] font-bold text-[#969696]">
-                      Hari ini · {alert.time}
-                    </p>
-                    <span className={`rounded-[5px] px-2 py-1 text-[11px] font-extrabold leading-none ${alert.badgeClass}`}>
+                  <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between gap-2 shrink-0">
+                    <p className="text-xs font-semibold text-gray-500">Hari ini · {alert.time}</p>
+                    <span className={`rounded-md px-2.5 py-1 text-xs font-bold ${alert.badgeClass}`}>
                       {alert.badge}
                     </span>
                   </div>
@@ -179,6 +171,6 @@ export default function AdminNotificationsPage() {
           </div>
         </div>
       </div>
-    </section>
+    </div>
   );
 }
