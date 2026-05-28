@@ -240,9 +240,9 @@ export default function PatientAppointmentsPage() {
 
   return (
     <>
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-12 items-start w-full">
-        {/* ================= KOLOM KIRI (Daftar Janji Temu - 8 Kolom) ================= */}
-        <div className="lg:col-span-8 space-y-6 w-full">
+      <div className="grid grid-cols-1 gap-8 xl:grid-cols-[minmax(0,1fr)_320px] items-start w-full">
+        {/* ================= KOLOM KIRI (Daftar Janji Temu) ================= */}
+        <div className="space-y-6 w-full">
           <div className="flex items-center justify-between">
             <div className="mb-6">
             <h1 className="text-3xl font-bold text-gray-900 mb-1">Janji Temu</h1>
@@ -324,69 +324,95 @@ export default function PatientAppointmentsPage() {
           )}
         </div>
 
-        {/* ================= KOLOM KANAN (Widget Kalender - 4 Kolom) ================= */}
-        <div className="lg:col-span-4 space-y-6 w-full">
+        {/* ================= KOLOM KANAN (Widget Kalender) ================= */}
+        <div className="space-y-6 w-full">
 
-          {/* Widget Kalender */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="mb-4 flex items-center justify-between">
-              <button onClick={handlePrevMonth} className="rounded-lg p-1.5 hover:bg-slate-50 text-slate-600 transition"><ChevronLeft size={16} /></button>
-              <span className="text-sm font-bold text-slate-800">
-                {currentMonthView.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
-              </span>
-              <button onClick={handleNextMonth} className="rounded-lg p-1.5 hover:bg-slate-50 text-slate-600 transition"><ChevronRight size={16} /></button>
+          {/* Widget Kalender (Standar Admin/Dokter) */}
+          <div className="overflow-hidden rounded-3xl shadow-sm bg-white border border-gray-100">
+            {/* Header Kalender */}
+            <div className="bg-[#5E81CC] px-5 pt-3 pb-1">
+              <div className="flex items-center justify-between mb-3">
+                <button onClick={handlePrevMonth} className="w-8 h-8 flex items-center justify-center rounded-xl text-white hover:bg-white/20 transition-all active:scale-90">
+                  <ChevronLeft size={18} />
+                </button>
+                <p className="text-[14px] font-extrabold text-white tracking-wide">
+                  {currentMonthView.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
+                </p>
+                <button onClick={handleNextMonth} className="w-8 h-8 flex items-center justify-center rounded-xl text-white hover:bg-white/20 transition-all active:scale-90">
+                  <ChevronRight size={18} />
+                </button>
+              </div>
+              
+              <div className="grid grid-cols-7 text-center">
+                {['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'].map((d) => (
+                  <span key={d} className="text-[11px] font-bold text-blue-100 tracking-wider py-1">
+                    {d}
+                  </span>
+                ))}
+              </div>
             </div>
-            <div className="mb-2 grid grid-cols-7 gap-1 text-center text-xs font-bold text-slate-400">
-              <div>Sen</div><div>Sel</div><div>Rab</div><div>Kam</div><div>Jum</div><div>Sab</div><div>Min</div>
-            </div>
-            <div className="grid grid-cols-7 gap-1 text-center text-sm font-semibold text-slate-700">
-              {calendarCells.map((cell, idx) => {
-                const isSelected = isSameDate(cell.date, selectedDate);
-                const isToday = isSameDate(cell.date, today);
-                const hasAppt = appointments.some(a => a.status !== 'Dibatalkan' && isSameDate(new Date(a.appointment_date), cell.date));
+            
+            {/* Body kalender */}
+            <div className="bg-white px-4 pb-4 pt-3">
+              <div className="grid grid-cols-7 gap-y-1">
+                {calendarCells.map((cell, idx) => {
+                  const isSelected = isSameDate(cell.date, selectedDate);
+                  const isToday = isSameDate(cell.date, today);
+                  const hasAppt = appointments.some(a => a.status !== 'Dibatalkan' && isSameDate(new Date(a.appointment_date), cell.date));
 
-                let btnClass = "rounded-lg p-1 transition cursor-pointer relative ";
-                if (!cell.isCurrentMonth) {
-                  btnClass += "text-slate-300 ";
-                } else if (isSelected) {
-                  btnClass += "bg-indigo-600 text-white shadow-md font-bold ";
-                } else {
-                  btnClass += "hover:bg-indigo-50 hover:text-indigo-600 ";
-                  if (isToday) btnClass += "bg-slate-100 text-slate-900 font-bold ";
-                }
-
-                return (
-                  <div 
-                    key={idx} 
-                    className={btnClass}
-                    onClick={() => setSelectedDate(cell.date)}
-                  >
-                    {cell.day}
-                    {hasAppt && !isSelected && (
-                      <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1 h-1 bg-indigo-400 rounded-full"></span>
-                    )}
-                  </div>
-                );
-              })}
+                  return (
+                    <div key={idx} className="flex flex-col items-center py-[2px]">
+                      <button
+                        type="button"
+                        onClick={() => cell.isCurrentMonth && setSelectedDate(cell.date)}
+                        disabled={!cell.isCurrentMonth}
+                        className={[
+                          "relative w-8 h-8 flex items-center justify-center rounded-xl text-[12px] font-bold transition-all duration-150 select-none",
+                          !cell.isCurrentMonth ? "text-gray-300 cursor-default" : "cursor-pointer",
+                          isSelected ? "bg-[#5E81CC] text-white shadow-md shadow-[#5E81CC]/30 scale-105 font-extrabold" : 
+                          isToday ? "bg-[#EEF3FF] text-[#5E81CC] font-extrabold ring-2 ring-[#5E81CC] ring-offset-1" :
+                          cell.isCurrentMonth ? "text-gray-700 hover:bg-indigo-50 hover:text-[#5E81CC]" : ""
+                        ].join(" ")}
+                      >
+                        {cell.day}
+                        {/* Titik appointment */}
+                        {hasAppt && !isSelected && (
+                          <span className="absolute top-[5px] right-[5px] w-[5px] h-[5px] rounded-full bg-[#5E81CC] shadow-sm" />
+                        )}
+                        {hasAppt && isSelected && (
+                          <span className="absolute top-[5px] right-[5px] w-[5px] h-[5px] rounded-full bg-white/80" />
+                        )}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
           
           {/* Jadwal pada Tanggal yang Dipilih */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h3 className="text-sm font-bold text-slate-800 mb-3">
-              Jadwal {isSameDate(selectedDate, today) ? "Hari Ini" : selectedDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long' })}
+          <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+            <h3 className="text-[12px] font-extrabold text-gray-700 uppercase tracking-wide mb-3">
+              Jadwal {isSameDate(selectedDate, today) ? "Hari Ini" : selectedDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
             </h3>
             {selectedDateAppointments.length > 0 ? (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {selectedDateAppointments.map(appt => (
-                  <div key={appt.id} className="flex items-center gap-3 text-sm">
-                    <span className="font-semibold text-slate-800 w-24 shrink-0">{appt.schedule_time.split(' - ')[0]}</span>
-                    <span className="text-slate-600 truncate">{appt.doctor_name}</span>
+                  <div key={appt.id} className="flex items-center gap-3 rounded-xl bg-white border border-gray-100 px-3 py-2 shadow-sm hover:border-[#5E81CC]/30 hover:shadow-md transition-all">
+                    <div className={`w-[3px] self-stretch rounded-full shrink-0 ${appt.status === 'Selesai' || appt.status === 'Completed' ? 'bg-green-400' : 'bg-[#5E81CC]'}`} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] font-extrabold text-gray-800 truncate">{appt.doctor_name}</p>
+                      <p className="text-[10px] text-[#5E81CC] font-bold mt-0.5">
+                        {appt.schedule_time} WIB
+                      </p>
+                    </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-slate-400 italic">Tidak ada jadwal.</p>
+              <div className="flex items-center gap-2 py-2">
+                <span className="text-[11px] text-gray-400 font-medium italic">Tidak ada jadwal.</span>
+              </div>
             )}
           </div>
 

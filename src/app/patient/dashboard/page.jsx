@@ -409,81 +409,101 @@ export default function PatientDashboardPage() {
         {/* ================= KOLOM KANAN ================= */}
         <div className="w-full lg:w-[360px] shrink-0 space-y-8">
 
-          {/* Widget Kalender */}
-          <div className="rounded-3xl border border-slate-200 bg-white p-7 shadow-[0_2px_12px_rgba(0,0,0,0.02)] relative overflow-hidden">
-            <div className="mb-6 flex items-center justify-between relative z-10">
-              <button onClick={handlePrevMonth} className="rounded-xl p-2 bg-slate-50 hover:bg-slate-100 transition shadow-sm"><ChevronLeft size={16} className="text-slate-600" /></button>
-              <span className="text-[13px] font-extrabold text-slate-900">{currentMonthYearStr}</span>
-              <button onClick={handleNextMonth} className="rounded-xl p-2 bg-slate-50 hover:bg-slate-100 transition shadow-sm"><ChevronRight size={16} className="text-slate-600" /></button>
+          {/* Widget Kalender (Standar Admin/Dokter) */}
+          <div className="overflow-hidden rounded-3xl shadow-sm bg-white border border-gray-100">
+            {/* Header Kalender */}
+            <div className="bg-[#5E81CC] px-5 pt-3 pb-1">
+              <div className="flex items-center justify-between mb-3">
+                <button onClick={handlePrevMonth} className="w-8 h-8 flex items-center justify-center rounded-xl text-white hover:bg-white/20 transition-all active:scale-90">
+                  <ChevronLeft size={18} />
+                </button>
+                <p className="text-[14px] font-extrabold text-white tracking-wide">
+                  {currentMonthYearStr}
+                </p>
+                <button onClick={handleNextMonth} className="w-8 h-8 flex items-center justify-center rounded-xl text-white hover:bg-white/20 transition-all active:scale-90">
+                  <ChevronRight size={18} />
+                </button>
+              </div>
+              
+              <div className="grid grid-cols-7 text-center">
+                {['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'].map((d) => (
+                  <span key={d} className="text-[11px] font-bold text-blue-100 tracking-wider py-1">
+                    {d}
+                  </span>
+                ))}
+              </div>
             </div>
             
-            <div className="mb-3 grid grid-cols-7 gap-1 text-center text-[10px] uppercase tracking-wider font-extrabold text-slate-400 relative z-10">
-              <div>Min</div><div>Sen</div><div>Sel</div><div>Rab</div><div>Kam</div><div>Jum</div><div>Sab</div>
-            </div>
-            
-            <div className="grid grid-cols-7 gap-y-2 gap-x-1 text-center text-[13px] font-bold text-slate-700 relative z-10">
-              {calendarDays.map((c, i) => {
-                const dateStr = new Date(c.date.getTime() - c.date.getTimezoneOffset() * 60000).toISOString().split('T')[0];
-                const isSelected = selectedCalendarDate === dateStr;
-                const hasAppt = appointments.some(a => a.status !== 'Dibatalkan' && a.appointment_date?.split('T')[0] === dateStr);
-                
-                return (
-                  <div 
-                    key={i}
-                    onClick={() => setSelectedCalendarDate(dateStr)}
-                    className={`relative flex items-center justify-center rounded-[10px] w-full aspect-square cursor-pointer transition-all active:scale-95 ${
-                      !c.isCurrentMonth ? "text-slate-300" : ""
-                    } ${
-                      isSelected 
-                        ? "bg-[#5E81CC] text-white shadow-md font-extrabold scale-105" 
-                        : "hover:bg-indigo-50 hover:text-[#5E81CC]"
-                    }`}
-                  >
-                    <span>{c.date.getDate()}</span>
-                    {hasAppt && !isSelected && (
-                      <span className="absolute bottom-1 w-[4px] h-[4px] rounded-full bg-[#5E81CC]"></span>
-                    )}
-                    {hasAppt && isSelected && (
-                      <span className="absolute bottom-1 w-[4px] h-[4px] rounded-full bg-white"></span>
-                    )}
-                  </div>
-                );
-              })}
+            {/* Body kalender */}
+            <div className="bg-white px-4 pb-4 pt-3">
+              <div className="grid grid-cols-7 gap-y-1">
+                {calendarDays.map((c, i) => {
+                  const dateStr = new Date(c.date.getTime() - c.date.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+                  const isSelected = selectedCalendarDate === dateStr;
+                  const isToday = todayStr === dateStr;
+                  const hasAppt = appointments.some(a => a.status !== 'Dibatalkan' && a.appointment_date?.split('T')[0] === dateStr);
+                  
+                  return (
+                    <div key={i} className="flex flex-col items-center py-[2px]">
+                      <button
+                        type="button"
+                        onClick={() => c.isCurrentMonth && setSelectedCalendarDate(dateStr)}
+                        disabled={!c.isCurrentMonth}
+                        className={[
+                          "relative w-8 h-8 flex items-center justify-center rounded-xl text-[12px] font-bold transition-all duration-150 select-none",
+                          !c.isCurrentMonth ? "text-gray-300 cursor-default" : "cursor-pointer",
+                          isSelected ? "bg-[#5E81CC] text-white shadow-md shadow-[#5E81CC]/30 scale-105 font-extrabold" : 
+                          isToday ? "bg-[#EEF3FF] text-[#5E81CC] font-extrabold ring-2 ring-[#5E81CC] ring-offset-1" :
+                          c.isCurrentMonth ? "text-gray-700 hover:bg-indigo-50 hover:text-[#5E81CC]" : ""
+                        ].join(" ")}
+                      >
+                        {c.date.getDate()}
+                        {/* Titik appointment */}
+                        {hasAppt && !isSelected && (
+                          <span className="absolute top-[5px] right-[5px] w-[5px] h-[5px] rounded-full bg-[#5E81CC] shadow-sm" />
+                        )}
+                        {hasAppt && isSelected && (
+                          <span className="absolute top-[5px] right-[5px] w-[5px] h-[5px] rounded-full bg-white/80" />
+                        )}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
-            <div className="mt-7 border-t border-slate-100 pt-6 relative z-10">
-              <h3 className="mb-4 text-[13px] font-extrabold text-slate-900 tracking-tight">
-                {selectedCalendarDate === todayStr ? "Jadwal Hari ini" : `Jadwal ${new Date(selectedCalendarDate).toLocaleDateString('id-ID', {day:'numeric', month:'short'})}`}
-              </h3>
+            {/* Schedule strip di bawah */}
+            <div className="bg-gray-50 border-t border-gray-100 px-5 py-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-[12px] font-extrabold text-gray-700 uppercase tracking-wide">
+                  {selectedCalendarDate === todayStr ? "Hari ini" : `Jadwal ${new Date(selectedCalendarDate).toLocaleDateString('id-ID', {day:'numeric', month:'short'})}`}
+                </h3>
+              </div>
               
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {appointmentsOnSelectedDate.length > 0 ? (
                   appointmentsOnSelectedDate.map(appt => (
-                    <div key={appt.id} className="flex items-start gap-4 rounded-[16px] border border-slate-100 bg-slate-50 p-3 hover:border-indigo-100 hover:bg-white transition-all hover:shadow-sm">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-[12px] bg-white text-[#5E81CC] shrink-0 shadow-sm border border-slate-100">
-                         <Clock size={16} />
-                      </div>
+                    <div key={appt.id} className="flex items-center gap-3 rounded-xl bg-white border border-gray-100 px-3 py-2 shadow-sm hover:border-[#5E81CC]/30 hover:shadow-md transition-all">
+                      <div className={`w-[3px] self-stretch rounded-full shrink-0 ${appt.status === 'Selesai' || appt.status === 'Completed' ? 'bg-green-400' : 'bg-[#5E81CC]'}`} />
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                           <p className="text-[13px] font-extrabold text-slate-900">{appt.schedule_time} WIB</p>
-                           <span className={`text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md ${appt.status === 'Selesai' || appt.status === 'Completed' ? 'bg-emerald-100 text-emerald-600' : 'bg-indigo-100 text-[#5E81CC]'}`}>{appt.status}</span>
-                        </div>
-                        <p className="text-[11px] font-bold text-slate-500 mt-1 truncate">{appt.doctor_name}</p>
+                        <p className="text-[11px] font-extrabold text-gray-800 truncate">{appt.doctor_name}</p>
+                        <p className="text-[10px] text-[#5E81CC] font-bold mt-0.5">
+                          {appt.schedule_time} WIB
+                        </p>
                       </div>
                     </div>
                   ))
                 ) : (
-                  <p className="text-[11px] text-slate-400 font-bold py-4 text-center border border-dashed border-slate-200 rounded-[16px] bg-slate-50/50">Tidak ada jadwal.</p>
+                  <div className="flex items-center gap-2 py-2">
+                    <span className="text-[11px] text-gray-400 font-medium italic">Tidak ada jadwal.</span>
+                  </div>
                 )}
               </div>
               
-              <div className="mt-5 text-center">
+              <div className="mt-4 text-center">
                  <button onClick={() => router.push('/patient/appointments')} className="text-[11px] font-extrabold text-[#5E81CC] hover:underline hover:text-indigo-700 transition-colors">Lihat Semua</button>
               </div>
             </div>
-            
-            {/* Dekorasi blur background */}
-            <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-indigo-50/50 rounded-full blur-3xl pointer-events-none"></div>
           </div>
           
           {/* Widget Reminder */}
