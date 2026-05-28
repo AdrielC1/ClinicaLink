@@ -3,6 +3,32 @@
 import React, { useState, useEffect } from "react";
 import { Search, Filter, Plus, Edit3, Eye, ChevronLeft, ChevronRight, X } from "lucide-react";
 
+function computeVirtualStatus(appt) {
+  const now = new Date();
+  const apptDate = (appt.appointment_date || "").split("T")[0];
+  const endTime = appt.end_time;
+  
+  if (!apptDate || !endTime) return appt.status;
+
+  const endDateTime = new Date(`${apptDate}T${endTime}`);
+  const endPlus4h = new Date(endDateTime.getTime() + 4 * 60 * 60 * 1000);
+
+  if (appt.status === "Sedang Berlangsung" && now > endPlus4h) {
+    return "Selesai";
+  }
+  if (appt.status === "Sedang Berlangsung" && now > endDateTime && !appt.notes) {
+    return "Berlangsung"; // Admin page expects Berlangsung instead of Menunggu Catatan Dokter
+  }
+  if (appt.status === "Sedang Berlangsung") {
+    return "Berlangsung";
+  }
+  if (appt.status === "Menunggu" && now > endDateTime) {
+    return "Dibatalkan";
+  }
+
+  return appt.status;
+}
+
 export default function AdminAppointmentsPage() {
   const [appointments, setAppointments] = useState([]);
   const [patients, setPatients] = useState([]);
@@ -59,7 +85,14 @@ export default function AdminAppointmentsPage() {
       const docData = await docRes.json();
       const schData = await schRes.json();
 
-      if (appRes.ok) setAppointments(Array.isArray(appData.data) ? appData.data : [appData.data]);
+      if (appRes.ok) {
+        const apps = Array.isArray(appData.data) ? appData.data : [appData.data];
+        const enrichedApps = apps.map(app => ({
+          ...app,
+          status: computeVirtualStatus(app)
+        }));
+        setAppointments(enrichedApps);
+      }
       if (patRes.ok) setPatients(patData.data || []);
       if (docRes.ok) setDoctors(docData.data || []);
       if (schRes.ok) setAllSchedules(schData.data || []);
