@@ -316,7 +316,7 @@ function PatientDoctorsContent() {
   }
 
   return (
-    <div className="flex flex-col h-full bg-[#F8FAFC]">
+    <div className="flex flex-col h-full">
       
       {/* Header Info */}
       <div className="mb-6">
@@ -358,7 +358,7 @@ function PatientDoctorsContent() {
         </div>
 
         {/* Sort Button */}
-        <div className="relative ml-auto">
+        <div className="relative">
           <button 
             onClick={() => setShowSortDropdown(!showSortDropdown)}
             className="flex items-center gap-2 bg-white border border-slate-100 text-slate-700 text-[13px] font-bold rounded-xl px-4 py-2.5 hover:bg-slate-50 transition-colors shadow-sm"
@@ -396,42 +396,42 @@ function PatientDoctorsContent() {
               <div key={doc.id} className="bg-white rounded-[24px] overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.04)] border border-slate-100 flex flex-col relative group transition-all duration-300 hover:shadow-[0_8px_24px_rgba(94,129,204,0.12)]">
                 
                 {/* Image Placeholder */}
-                <div className="h-44 bg-slate-100 relative">
+                <div className="h-44 bg-slate-50 relative border-b border-slate-100">
                   <div className="absolute inset-0 flex items-end justify-center overflow-hidden">
-                     <img src={doc.img_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(doc.full_name)}&background=random&size=256`} alt={doc.full_name} className="w-full h-full object-cover opacity-80 mix-blend-multiply" />
+                     <img src={doc.img_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(doc.full_name)}&background=random&size=256`} alt={doc.full_name} className="w-full h-full object-cover" />
                   </div>
-                  {/* Heart Icon Top Right */}
-                  <button onClick={() => toggleFavorite(doc.id)} className="absolute top-4 right-4 p-2 bg-white/40 backdrop-blur-md rounded-full hover:bg-white text-slate-500 hover:text-rose-500 transition-colors shadow-sm">
-                    <Heart className={`h-4 w-4 ${favoriteDoctors[doc.id] ? "fill-rose-500 text-rose-500" : ""}`} />
-                  </button>
                 </div>
 
                 <div className="p-5 flex flex-col flex-1 items-center text-center">
                   <h3 className="text-base font-extrabold text-slate-900 mb-0.5">{doc.full_name}</h3>
-                  <p className="text-[11px] font-bold text-slate-400 mb-4">{doc.specialization_name || "Spesialis Umum"}</p>
+                  <p className="text-[12px] font-bold text-slate-400 mb-6">{doc.specialization_name || "Spesialis Umum"}</p>
                   
-                  <div className="flex items-center gap-1.5 text-[11px] font-extrabold text-slate-700 mb-2">
-                    <CalendarDays className="h-3.5 w-3.5 text-slate-400" />
-                    <span>{doc.scheduleText}</span>
-                    <span className="text-slate-300 mx-1">|</span>
-                    <span>{doc.timeText || "-"}</span>
-                  </div>
-                  
-                  <div className="mb-5">
-                    <span className="text-[9px] font-extrabold uppercase tracking-widest text-emerald-500 bg-emerald-50 px-2.5 py-1 rounded-md">
-                      Tersedia
-                    </span>
+                  {/* Jadwal */}
+                  <div className="flex items-center justify-center gap-3 text-[13px] font-extrabold text-slate-700 mb-6 w-full border border-slate-100 rounded-xl py-2.5 bg-slate-50">
+                    <div className="flex items-center gap-1.5">
+                      <CalendarDays className="h-4 w-4 text-slate-500" />
+                      <span>{doc.scheduleText}</span>
+                    </div>
+                    <div className="w-[2px] h-[14px] bg-slate-200"></div>
+                    <div className="flex items-center gap-1.5">
+                      <Clock className="h-4 w-4 text-slate-500" />
+                      <span>{doc.timeText || "-"}</span>
+                    </div>
                   </div>
 
-                  <div className="flex items-center justify-between w-full mt-auto">
+                  <div className="flex items-center justify-between w-full mt-auto border-t border-slate-100 pt-5">
+                    {/* Tersedia Kiri */}
+                    <span className="text-[11px] font-extrabold uppercase tracking-widest text-emerald-500 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100">
+                      Tersedia
+                    </span>
+
+                    {/* Booking Kanan */}
                     <button 
                       onClick={() => openBookingModal(doc)}
-                      className="bg-[#5E81CC] hover:bg-indigo-600 text-white text-[13px] font-extrabold py-2 px-6 rounded-xl transition-colors shadow-sm"
+                      className="bg-[#5E81CC] hover:bg-indigo-600 text-white text-[13px] font-extrabold py-2 px-6 rounded-xl transition-colors shadow-[0_2px_10px_rgba(94,129,204,0.3)] active:scale-95"
                     >
                       Booking
                     </button>
-                    <div className="flex items-center gap-1.5">
-                    </div>
                   </div>
                 </div>
               </div>
@@ -479,16 +479,7 @@ function PatientDoctorsContent() {
             </div>
           )}
 
-          {/* Bottom Banner */}
-          <div className="mt-10 bg-[#E6EDFF] rounded-[20px] p-4 flex items-center justify-center gap-3">
-             <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 text-[#5E81CC]">
-                <ShieldCheck className="w-4 h-4" />
-             </div>
-             <div>
-                <h4 className="text-[13px] font-extrabold text-slate-900 leading-none mb-1">Semua Dokter sudah terverifikasi</h4>
-                <p className="text-[11px] font-bold text-slate-500 leading-none">Kami memastikan semua dokter memiliki izin praktik yang resmi.</p>
-             </div>
-          </div>
+          {/* Bottom Banner Dihapus */}
 
         </div>
 
@@ -521,12 +512,7 @@ function PatientDoctorsContent() {
 
             </div>
             
-            <button 
-              onClick={() => { setSelectedSpecialization("Semua Spesialis"); setCurrentPage(1); }}
-              className="text-[11px] font-extrabold text-[#5E81CC] mt-4 px-3 hover:underline"
-            >
-              Lihat semua
-            </button>
+            {/* Tombol lihat semua dihapus */}
           </div>
         </div>
       </div>
