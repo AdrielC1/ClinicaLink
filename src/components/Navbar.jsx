@@ -5,9 +5,9 @@ import Link from "next/link";
 const navLinks = [
   { label: "Beranda", href: "#beranda" },
   { label: "Fitur", href: "#fitur" },
-  { label: "Cara kerja", href: "#cara-kerja" },
-  { label: "Doctor", href: "#doctor" },
-  { label: "About", href: "#about" },
+  { label: "Cara Kerja", href: "#cara-kerja" },
+  { label: "Dokter", href: "#doctor" },
+  { label: "Tentang", href: "#about" },
 ];
 
 import Image from "next/image";
@@ -74,11 +74,11 @@ export default function Navbar() {
         <div className="hidden md:flex items-center gap-3 shrink-0">
           <Link href="/login"
             className="px-5 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:border-indigo-400 hover:text-indigo-600 transition-colors whitespace-nowrap"
-          >Sign In</Link>
+          >Masuk</Link>
           <Link href="/register"
             className="px-5 py-2 text-sm font-medium text-white rounded-lg whitespace-nowrap hover:opacity-90 transition-opacity"
             style={{ background: "linear-gradient(135deg,#6366F1,#3B82F6)" }}
-          >Sign Up</Link>
+          >Daftar</Link>
         </div>
         <button className="md:hidden p-1" onClick={() => setMenuOpen(!menuOpen)}>
           <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -96,11 +96,11 @@ export default function Navbar() {
                 l.label === activeSection ? "text-indigo-600" : "text-gray-700 hover:text-indigo-600"
               }`}>{l.label}</a>
           ))}
-          <Link href="/login" className="text-sm text-indigo-600 font-medium">Sign In</Link>
+          <Link href="/login" className="text-sm text-indigo-600 font-medium">Masuk</Link>
           <Link href="/register"
             className="text-sm text-white font-medium px-4 py-2 rounded-lg text-center"
             style={{ background: "linear-gradient(135deg,#6366F1,#3B82F6)" }}
-          >Sign Up</Link>
+          >Daftar</Link>
         </div>
       )}
     </nav>

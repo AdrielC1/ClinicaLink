@@ -28,18 +28,18 @@ function DashboardMockup() {
           <div className="w-20 h-5 bg-gray-100 rounded-full" />
           <div className="w-5 h-5 rounded-full bg-gray-100" />
           <div className="w-5 h-5 rounded-full bg-gray-200" />
-          <span className="text-xs text-gray-500">Account</span>
+          <span className="text-xs text-gray-500">Akun</span>
         </div>
       </div>
       <div className="flex">
         <div className="w-28 border-r border-gray-100 py-3 px-2 flex flex-col gap-1">
           {[
             { icon: "⊞", label: "Dashboard", active: true },
-            { icon: "👤", label: "Profile" },
-            { icon: "📅", label: "Appointment" },
-            { icon: "🩺", label: "Doctor" },
-            { icon: "🔔", label: "Notification" },
-            { icon: "📋", label: "History" },
+            { icon: "👤", label: "Profil" },
+            { icon: "📅", label: "Janji Temu" },
+            { icon: "🩺", label: "Dokter" },
+            { icon: "🔔", label: "Notifikasi" },
+            { icon: "📋", label: "Riwayat" },
           ].map((item) => (
             <div key={item.label}
               className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg ${item.active ? "bg-indigo-50 text-indigo-600" : "text-gray-500"
@@ -51,7 +51,7 @@ function DashboardMockup() {
           ))}
           <div className="mt-4 flex items-center gap-1.5 px-2 py-1.5 text-gray-400">
             <span className="text-xs">↩</span>
-            <span className="text-xs">Log out</span>
+            <span className="text-xs">Keluar</span>
           </div>
         </div>
         <div className="flex-1 p-3">
@@ -107,10 +107,10 @@ function Hero() {
           <Link href="/register"
             className="px-6 py-3 rounded-xl text-white font-semibold text-sm shadow-lg hover:opacity-90 transition-opacity"
             style={{ background: "linear-gradient(135deg,#6366F1,#3B82F6)" }}
-          >Get Started</Link>
+          >Mulai Sekarang</Link>
           <a href="#fitur"
             className="px-6 py-3 rounded-xl text-gray-700 font-semibold text-sm border border-gray-300 hover:border-indigo-400 hover:text-indigo-600 transition-colors"
-          >Learn More</a>
+          >Pelajari Lebih Lanjut</a>
         </div>
       </div>
       <div className="flex-1 flex justify-center">
@@ -177,22 +177,22 @@ function CaraKerja() {
     <section id="cara-kerja" className="py-20">
       <div className="max-w-6xl mx-auto px-6">
         <h2 className="text-3xl font-bold text-center text-gray-900 mb-14">Cara Kerja ClinicaLink</h2>
-        <div className="flex flex-col md:flex-row items-start justify-center">
+        <div className="flex flex-col md:flex-row items-start justify-center md:gap-4">
           {steps.map((s, i) => (
             <div key={s.num} className="flex items-center">
-              <div className="flex flex-col items-center text-center w-40">
-                <div className="w-14 h-14 rounded-full flex items-center justify-center text-2xl mb-3 shadow-sm"
+              <div className="flex flex-col items-center text-center w-56">
+                <div className="w-20 h-20 rounded-full flex items-center justify-center text-4xl mb-4 shadow-sm"
                   style={{ background: "linear-gradient(135deg,#EEF2FF,#DBEAFE)" }}>
                   <span>{s.icon}</span>
                 </div>
-                <div className="w-8 h-8 rounded-full bg-indigo-600 text-white text-sm font-bold flex items-center justify-center mb-2">
+                <div className="w-10 h-10 rounded-full bg-indigo-600 text-white text-base font-bold flex items-center justify-center mb-3">
                   {s.num}
                 </div>
-                <h3 className="font-semibold text-gray-800 mb-1">{s.title}</h3>
-                <p className="text-xs text-gray-500 leading-relaxed">{s.desc}</p>
+                <h3 className="font-bold text-gray-800 text-lg mb-2">{s.title}</h3>
+                <p className="text-sm text-gray-500 leading-relaxed px-2">{s.desc}</p>
               </div>
               {i < steps.length - 1 && (
-                <div className="hidden md:block mx-2 text-gray-300 text-2xl mb-10">→</div>
+                <div className="hidden md:block mx-4 text-gray-300 text-4xl mb-16">→</div>
               )}
             </div>
           ))}
@@ -233,7 +233,7 @@ function DokterCard({ doc }) {
           <Link href="/login"
             className="text-xs px-4 py-1.5 rounded-lg text-white font-medium hover:opacity-90"
             style={{ background: "linear-gradient(135deg,#6366F1,#3B82F6)" }}
-          >Booking Now</Link>
+          >Pesan Sekarang</Link>
         </div>
       </div>
     </div>
@@ -380,9 +380,9 @@ function Footer() {
               {[
                 { label: "Beranda", href: "#beranda" },
                 { label: "Fitur", href: "#fitur" },
-                { label: "Doctor", href: "#doctor" },
+                { label: "Dokter", href: "#doctor" },
                 { label: "Cara Kerja", href: "#cara-kerja" },
-                { label: "About", href: "#about" },
+                { label: "Tentang", href: "#about" },
               ].map((m) => (
                 <li key={m.label}><a href={m.href} className="text-sm text-gray-500 hover:text-indigo-600">{m.label}</a></li>
               ))}
@@ -391,7 +391,7 @@ function Footer() {
           <div>
             <h4 className="font-semibold text-gray-800 mb-4">Layanan</h4>
             <ul className="flex flex-col gap-2">
-              {["Booking Doctor", "Jadwal", "Reminder", "Riwayat", "Dashboard"].map((l) => (
+              {["Pesan Dokter", "Jadwal", "Reminder", "Riwayat", "Dashboard"].map((l) => (
                 <li key={l}><a href="#" className="text-sm text-gray-500 hover:text-indigo-600">{l}</a></li>
               ))}
             </ul>
