@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { supabase, waitForSupabaseUser } from "@/lib/supabase";
 import {
   Bell,
   CalendarCheck,
@@ -104,13 +104,13 @@ export default function PatientNotificationsPage() {
       setError("");
 
       try {
-        const { data: authData, error: authError } = await supabase.auth.getUser();
-        if (authError || !authData?.user) {
+        const { data, error: authError } = await waitForSupabaseUser();
+        if (authError || !data?.user) {
           setError("Session tidak ditemukan. Silakan login ulang.");
           return;
         }
 
-        const currentUserId = authData.user.id;
+        const currentUserId = data.user.id;
         setUserId(currentUserId);
 
         const [notificationsRes, appointmentsRes] = await Promise.all([

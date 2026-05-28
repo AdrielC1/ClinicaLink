@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { supabase, waitForSupabaseUser } from "@/lib/supabase";
 import { 
   Search, 
   ChevronDown, 
@@ -104,7 +104,7 @@ function PatientDoctorsContent() {
     const initData = async () => {
       setLoading(true);
       // Get User
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      const { data: { user }, error: authError } = await waitForSupabaseUser();
       if (authError || !user) {
         router.push("/login");
         return;

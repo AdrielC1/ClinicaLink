@@ -1,10 +1,12 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { supabase, waitForSupabaseUser } from "@/lib/supabase";
+import calendarCheckIcon from "@/app/icons/calenderCheck.svg";
+import clockIcon from "@/app/icons/clock.svg";
 import {
-  Search,
   CalendarDays,
   ChevronDown,
   Clock,
@@ -85,8 +87,8 @@ export default function PatientHistoryPage() {
   useEffect(() => {
     const init = async () => {
       setLoading(true);
-      const { data, error } = await supabase.auth.getUser();
-      if (error || !data.user) {
+      const { data, error } = await waitForSupabaseUser();
+      if (error || !data?.user) {
         router.push("/login");
         return;
       }
@@ -283,20 +285,7 @@ export default function PatientHistoryPage() {
 
         <div className="flex flex-col xl:flex-row gap-8">
           <div className="flex-1">
-            <div className="flex flex-col gap-4 mb-6 lg:flex-row lg:items-center lg:justify-between">
-              <div className="relative max-w-md w-full bg-white rounded-[24px] border border-slate-100 shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Search className="w-4 h-4 text-slate-400" />
-                </div>
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Cari history, dokter, atau status"
-                  className="w-full rounded-[24px] border border-transparent bg-transparent py-3 pl-11 pr-4 text-sm font-semibold text-slate-700 outline-none focus:border-indigo-100 focus:ring-2 focus:ring-indigo-100"
-                />
-              </div>
-            </div>
+            <div className="flex flex-col gap-4 mb-6 lg:flex-row lg:items-center lg:justify-between" />
 
             <div className="space-y-5">
               {filteredAppointments.length === 0 ? (
@@ -360,10 +349,10 @@ export default function PatientHistoryPage() {
           </div>
 
           <div className="w-full xl:w-[360px] flex flex-col gap-5">
-            <div className="rounded-[30px] bg-white border border-slate-100 p-6 shadow-sm">
+            <div className="rounded-[30px] w-[288px] h-[406px] bg-[#EFF3FF] border border-slate-100 p-6 shadow-sm">
               <h3 className="text-base font-extrabold text-slate-900 mb-5">Konsultasi Terakhir</h3>
               {latestConsultation ? (
-                <div className="space-y-5">
+                <div className="space-y-5 h-full">
                   <div className="flex items-center gap-4">
                     <div className="w-20 h-20 rounded-[24px] overflow-hidden bg-slate-100">
                       <img
@@ -377,13 +366,19 @@ export default function PatientHistoryPage() {
                       <p className="text-sm font-bold text-slate-500">Dokter Umum</p>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-3 text-sm font-bold text-slate-700">
-                    <div className="rounded-[20px] bg-slate-50 p-3">
-                      <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400 mb-1">Tanggal</p>
+                  <div className="grid grid-cols-1 gap-3 text-sm font-bold text-slate-700">
+                    <div className="rounded-[20px] bg-white p-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Image src={calendarCheckIcon} alt="Tanggal" width={16} height={16} />
+                        <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Tanggal</p>
+                      </div>
                       <p>{formatDateLabel(latestConsultation.appointment_date)}</p>
                     </div>
-                    <div className="rounded-[20px] bg-slate-50 p-3">
-                      <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400 mb-1">Waktu</p>
+                    <div className="rounded-[20px] bg-white p-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Image src={clockIcon} alt="Waktu" width={16} height={16} />
+                        <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Waktu</p>
+                      </div>
                       <p>{`${formatTimeLabel(latestConsultation.start_time)} - ${formatTimeLabel(latestConsultation.end_time)} WIB`}</p>
                     </div>
                   </div>

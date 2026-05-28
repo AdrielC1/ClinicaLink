@@ -18,3 +18,14 @@ export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseKey);
 export const supabase = isSupabaseConfigured
   ? createBrowserClient(supabaseUrl, supabaseKey)
   : null;
+
+export async function waitForSupabaseUser(maxRetries = 6, delayMs = 120) {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const result = await supabase.auth.getUser();
+    if (result.error || result.data?.user) {
+      return result;
+    }
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+  }
+  return supabase.auth.getUser();
+}

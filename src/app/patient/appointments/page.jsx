@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { supabase, waitForSupabaseUser } from "@/lib/supabase";
 import {
   Calendar as CalendarIcon,
   Clock,
@@ -57,7 +57,7 @@ export default function PatientAppointmentsPage() {
   useEffect(() => {
     const initData = async () => {
       setLoading(true);
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      const { data: { user }, error: authError } = await waitForSupabaseUser();
       if (authError || !user) {
         router.push("/login");
         return;

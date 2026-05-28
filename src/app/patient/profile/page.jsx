@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
-import { supabase } from "@/lib/supabase";
+import { supabase, waitForSupabaseUser } from "@/lib/supabase";
 
 export default function PatientProfilePage() {
   const [userId, setUserId] = useState(null);
@@ -35,13 +35,13 @@ export default function PatientProfilePage() {
 
   useEffect(() => {
     async function initPage() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setUserId(user.id);
-        await fetchProfileData(user.id, user.last_sign_in_at);
-      } else {
+      const { data, error } = await waitForSupabaseUser();
+      if (error || !data?.user) {
         setLoading(false);
+        return;
       }
+      setUserId(data.user.id);
+      await fetchProfileData(data.user.id, data.user.last_sign_in_at);
     }
     initPage();
   }, []);

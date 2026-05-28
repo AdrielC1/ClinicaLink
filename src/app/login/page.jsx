@@ -1,5 +1,5 @@
 "use client";
-import { supabase } from "@/lib/supabase";
+import { supabase, waitForSupabaseUser } from "@/lib/supabase";
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -88,6 +88,13 @@ export default function LoginPage() {
 
             if (authError) {
                 setError("Login gagal. Periksa email dan password Anda.");
+                setLoading(false);
+                return;
+            }
+
+            const { data: readyData, error: readyError } = await waitForSupabaseUser();
+            if (readyError || !readyData?.user) {
+                setError("Gagal menginisialisasi sesi login. Silakan coba lagi.");
                 setLoading(false);
                 return;
             }
