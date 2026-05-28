@@ -94,9 +94,9 @@ const modalConfig = {
 };
 
 const appointmentStatusClass = {
-  Selesai: "bg-green-100 text-green-700",
-  Berlangsung: "bg-blue-100 text-blue-700",
-  Menunggu: "bg-yellow-100 text-yellow-700",
+  Selesai: "bg-green-100 text-green-600 border-green-200",
+  Berlangsung: "bg-blue-100 text-blue-600 border-blue-200",
+  Menunggu: "bg-yellow-100 text-yellow-600 border-yellow-200",
 };
 
 const dateRanges = [
@@ -257,7 +257,7 @@ export default function AdminReportsPage() {
             onClick={() => setSelectedReport(card.key)}
             className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow p-5 flex-grow sm:flex-grow-0 flex flex-col items-center justify-center min-w-[180px]"
           >
-            <span className="text-xs font-semibold text-gray-600 mb-2 text-center uppercase tracking-wider">{card.title}</span>
+            <span className="text-xs font-semibold text-gray-600 mb-2 text-center">{card.title}</span>
             <span className="text-2xl font-bold text-gray-900">{card.value}</span>
           </button>
         ))}
@@ -271,7 +271,7 @@ export default function AdminReportsPage() {
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
-            <thead className="bg-slate-50 text-slate-500 font-bold text-xs uppercase tracking-wider border-y border-slate-200">
+            <thead className="bg-[#F3F6FB] text-gray-700 font-semibold text-xs border-y border-gray-100">
               <tr>
                 <th className="px-6 py-4 text-center w-12">No</th>
                 <th className="px-6 py-4">Jenis Laporan</th>
@@ -283,7 +283,7 @@ export default function AdminReportsPage() {
               {paginatedRows.map((row, index) => (
                 <tr key={`${row.key}-${row.title}`} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4 text-center font-medium text-gray-500">{(currentPage - 1) * itemsPerPage + index + 1}</td>
-                  <td className="px-6 py-4 font-semibold text-gray-900">{row.title}</td>
+                  <td className="px-6 py-4 font-bold text-gray-900">{row.title}</td>
                   <td className="px-6 py-4 text-center text-gray-700">{row.value}</td>
                   <td className="px-6 py-4 text-center">
                     <div className="flex items-center justify-center">
@@ -385,7 +385,7 @@ function ReportDetailModal({ config, onClose }) {
 function AppointmentDetailTable({ rows }) {
   return (
     <table className="w-full text-sm text-left">
-      <thead className="bg-slate-50 text-slate-500 font-bold text-xs uppercase tracking-wider border-b border-slate-200">
+      <thead className="bg-[#F3F6FB] text-gray-700 font-semibold text-xs border-b border-gray-100">
         <tr>
           <th className="px-6 py-4 text-center w-12">No</th>
           <th className="px-6 py-4">Pasien</th>
@@ -399,17 +399,17 @@ function AppointmentDetailTable({ rows }) {
         {rows.map((row, index) => (
           <tr key={`${row.patient}-${row.time}-${index}`} className="hover:bg-gray-50 transition-colors">
             <td className="px-6 py-4 text-center font-medium text-gray-500">{row.no}</td>
-            <td className="px-6 py-4 font-semibold text-gray-900">{row.patient}</td>
-            <td className="px-6 py-4 text-gray-700">{row.doctor}</td>
+            <td className="px-6 py-4 font-bold text-gray-900">{row.patient}</td>
+            <td className="px-6 py-4 font-semibold text-gray-700">{row.doctor}</td>
             <td className="px-6 py-4 text-center text-gray-600">{row.date}</td>
-            <td className="px-6 py-4 text-center text-gray-600 font-mono">{row.time}</td>
+            <td className="px-6 py-4 text-center text-[#5E81CC] font-bold">{row.time}</td>
             <td className="px-6 py-4 text-center">
               {appointmentStatusClass[row.status] ? (
-                <span className={`inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold ${appointmentStatusClass[row.status]}`}>
+                <span className={`inline-flex items-center justify-center px-4 py-1 rounded-full text-xs font-bold border ${appointmentStatusClass[row.status]}`}>
                   {row.status}
                 </span>
               ) : (
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold bg-gray-100 text-gray-700">
+                <span className="inline-flex items-center justify-center px-4 py-1 rounded-full text-xs font-bold border bg-gray-100 text-gray-600 border-gray-200">
                   {row.status}
                 </span>
               )}
@@ -424,7 +424,7 @@ function AppointmentDetailTable({ rows }) {
 function PatientDetailTable({ rows }) {
   return (
     <table className="w-full text-sm text-left">
-      <thead className="bg-slate-50 text-slate-500 font-bold text-xs uppercase tracking-wider border-b border-slate-200">
+      <thead className="bg-[#F3F6FB] text-gray-700 font-semibold text-xs border-b border-gray-100">
         <tr>
           <th className="px-6 py-4 text-center w-12">No</th>
           <th className="px-6 py-4">Nama Pasien</th>
@@ -437,11 +437,11 @@ function PatientDetailTable({ rows }) {
         {rows.map((row, index) => (
           <tr key={`${row.patient}-${index}`} className="hover:bg-gray-50 transition-colors">
             <td className="px-6 py-4 text-center font-medium text-gray-500">{row.no}</td>
-            <td className="px-6 py-4 font-semibold text-gray-900">{row.patient}</td>
+            <td className="px-6 py-4 font-bold text-gray-900">{row.patient}</td>
             <td className="px-6 py-4 text-center text-gray-600">{row.date}</td>
             <td className="px-6 py-4 text-center text-gray-600">{row.phone}</td>
             <td className="px-6 py-4 text-center">
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold bg-green-100 text-green-700">
+              <span className="inline-flex items-center justify-center px-4 py-1 rounded-full text-xs font-bold border bg-green-100 text-green-600 border-green-200">
                 {row.status}
               </span>
             </td>

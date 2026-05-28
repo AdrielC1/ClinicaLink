@@ -254,14 +254,14 @@ export default function AdminSchedulesPage() {
     });
 
     return (
-        <div className="font-sans text-slate-800 pb-10">
+        <div className="font-sans text-slate-800 pb-6">
             {/* Header Section */}
-            <div className="flex flex-col xl:flex-row justify-between items-stretch mb-4 gap-6">
+            <div className="flex flex-col xl:flex-row justify-between items-stretch mb-6 gap-6">
                 
                 {/* Kiri: Title di atas */}
-                <div className="flex-1 flex flex-col justify-between mt-2">
+                <div className="flex-1 flex flex-col justify-between">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-900 mb-2">Kelola Jadwal</h1>
+                        <h1 className="text-3xl font-bold text-gray-900 mb-1">Kelola Jadwal</h1>
                         <p className="text-gray-500 text-sm mb-4">
                             Menampilkan seluruh jadwal praktik dokter.
                         </p>

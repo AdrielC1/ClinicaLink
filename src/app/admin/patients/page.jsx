@@ -225,7 +225,7 @@ export default function AdminPatientsPage() {
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
-            <thead className="bg-slate-50 text-slate-500 font-bold text-xs uppercase tracking-wider border-y border-slate-200">
+            <thead className="bg-[#F3F6FB] text-gray-700 font-semibold text-xs border-y border-gray-100">
               <tr>
                 <th className="px-6 py-4 text-center w-12">No</th>
                 <th className="px-6 py-4">Nama Pasien</th>
@@ -243,15 +243,15 @@ export default function AdminPatientsPage() {
                   className="hover:bg-gray-50 transition-colors"
                 >
                   <td className="px-6 py-4 text-center font-medium text-gray-500">{index + 1}</td>
-                  <td className="px-6 py-4 font-semibold text-gray-900">{patient.name}</td>
-                  <td className="px-6 py-4 text-gray-700">{patient.lastConsultation}</td>
+                  <td className="px-6 py-4 font-bold text-gray-900">{patient.name}</td>
+                  <td className="px-6 py-4 font-semibold text-gray-700">{patient.lastConsultation}</td>
                   <td className="px-6 py-4 text-gray-600">{patient.email}</td>
-                  <td className="px-6 py-4 text-gray-600 font-mono">{patient.phone}</td>
+                  <td className="px-6 py-4 text-gray-600">{patient.phone}</td>
                   <td className="px-6 py-4 text-center">
                     {patient.status.toLowerCase() === "aktif" ? (
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold bg-green-100 text-green-600">Aktif</span>
+                      <span className="inline-flex items-center justify-center px-4 py-1 rounded-full text-xs font-bold bg-green-100 text-green-600 border border-green-200">Aktif</span>
                     ) : (
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold bg-red-100 text-red-500">Non aktif</span>
+                      <span className="inline-flex items-center justify-center px-4 py-1 rounded-full text-xs font-bold bg-red-100 text-red-500 border border-red-200">Non aktif</span>
                     )}
                   </td>
                   <td className="px-6 py-4 text-center">

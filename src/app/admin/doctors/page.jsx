@@ -111,7 +111,7 @@ export default function AdminDoctorsPage() {
     };
 
     return (
-        <div className="font-sans text-slate-800 pb-10 p-6 md:p-0">
+        <div className="font-sans text-slate-800 pb-6">
             {/* Toast */}
             {toast && (
                 <div className={`fixed top-6 right-6 z-50 px-5 py-3 rounded-xl shadow-lg text-white font-semibold text-sm transition-all ${toast.type === "error" ? "bg-red-500" : "bg-green-500"}`}>
@@ -268,14 +268,14 @@ export default function AdminDoctorsPage() {
                             ) : paginated.map((doc, idx) => (
                                 <tr key={doc.id} className="hover:bg-gray-50 transition-colors">
                                     <td className="px-6 py-4 text-center font-medium text-gray-500">{(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}</td>
-                                    <td className="px-6 py-4 font-semibold text-gray-900">{doc.full_name}</td>
-                                    <td className="px-6 py-4 text-gray-700">{doc.specialization_name}</td>
+                                    <td className="px-6 py-4 font-bold text-gray-900">{doc.full_name}</td>
+                                    <td className="px-6 py-4 font-semibold text-gray-700">{doc.specialization_name}</td>
                                     <td className="px-6 py-4 text-gray-600">{doc.email}</td>
-                                    <td className="px-6 py-4 text-gray-600 font-mono">{doc.phone_number}</td>
+                                    <td className="px-6 py-4 text-gray-600">{doc.phone_number}</td>
                                     <td className="px-6 py-4 text-center">
                                         {doc.is_active
-                                            ? <span className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold bg-green-100 text-green-600">Aktif</span>
-                                            : <span className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold bg-red-100 text-red-500">Non aktif</span>
+                                            ? <span className="inline-flex items-center justify-center px-4 py-1 rounded-full text-xs font-bold bg-green-100 text-green-600 border border-green-200">Aktif</span>
+                                            : <span className="inline-flex items-center justify-center px-4 py-1 rounded-full text-xs font-bold bg-red-100 text-red-500 border border-red-200">Non aktif</span>
                                         }
                                     </td>
                                     <td className="px-6 py-4 text-center">

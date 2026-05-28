@@ -103,17 +103,17 @@ export default function AdminAppointmentsPage() {
   const getStatusBadge = (status) => {
     switch (status?.toLowerCase()) {
       case "selesai":
-        return "bg-green-100 text-green-700";
+        return "bg-green-100 text-green-600 border-green-200";
       case "berlangsung":
-        return "bg-blue-100 text-blue-700";
+        return "bg-blue-100 text-blue-600 border-blue-200";
       case "menunggu":
-        return "bg-yellow-100 text-yellow-700";
+        return "bg-yellow-100 text-yellow-600 border-yellow-200";
       case "dijadwalkan":
-        return "bg-pink-100 text-pink-700";
+        return "bg-pink-100 text-pink-600 border-pink-200";
       case "dibatalkan":
-        return "bg-red-100 text-red-700";
+        return "bg-red-100 text-red-500 border-red-200";
       default:
-        return "bg-gray-100 text-gray-700";
+        return "bg-gray-100 text-gray-600 border-gray-200";
     }
   };
 
@@ -254,11 +254,11 @@ export default function AdminAppointmentsPage() {
       {/* Summary Cards */}
       <div className="flex gap-4 mb-6 flex-wrap">
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow p-5 w-40 flex-grow sm:flex-grow-0 flex flex-col items-center justify-center">
-          <span className="text-xs font-semibold text-gray-600 mb-2 text-center uppercase tracking-wider">Total Janji Temu</span>
+          <span className="text-xs font-semibold text-gray-600 mb-2 text-center">Total Janji Temu</span>
           <span className="text-2xl font-bold text-gray-900">{appointments.length}</span>
         </div>
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow p-5 w-40 flex-grow sm:flex-grow-0 flex flex-col items-center justify-center">
-          <span className="text-xs font-semibold text-gray-600 mb-2 text-center uppercase tracking-wider">Hari Ini</span>
+          <span className="text-xs font-semibold text-gray-600 mb-2 text-center">Hari Ini</span>
           <span className="text-2xl font-bold text-gray-900">{todayAppointments.length}</span>
         </div>
       </div>
@@ -321,7 +321,7 @@ export default function AdminAppointmentsPage() {
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
-            <thead className="bg-slate-50 text-slate-500 font-bold text-xs uppercase tracking-wider border-y border-slate-200">
+            <thead className="bg-[#F3F6FB] text-gray-700 font-semibold text-xs border-y border-gray-100">
               <tr>
                 <th className="px-6 py-4 text-center w-12">No</th>
                 <th className="px-6 py-4">Pasien</th>
@@ -360,12 +360,12 @@ export default function AdminAppointmentsPage() {
                       <td className="px-6 py-4 text-center font-medium text-gray-500">
                         {(currentPage - 1) * itemsPerPage + index + 1}
                       </td>
-                      <td className="px-6 py-4 font-semibold text-gray-900">{app.patient_name}</td>
-                      <td className="px-6 py-4 text-gray-700">{app.doctor_name}</td>
+                      <td className="px-6 py-4 font-bold text-gray-900">{app.patient_name}</td>
+                      <td className="px-6 py-4 font-semibold text-gray-700">{app.doctor_name}</td>
                       <td className="px-6 py-4 text-center text-gray-600">{formatDateId(app.appointment_date)}</td>
-                      <td className="px-6 py-4 text-center text-gray-600 font-mono">{timeDisplay}</td>
+                      <td className="px-6 py-4 text-center text-[#5E81CC] font-bold">{timeDisplay}</td>
                       <td className="px-6 py-4 text-center">
-                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold ${getStatusBadge(app.status)}`}>
+                        <span className={`inline-flex items-center justify-center px-4 py-1 rounded-full text-xs font-bold border ${getStatusBadge(app.status)}`}>
                           {app.status || "Unknown"}
                         </span>
                       </td>

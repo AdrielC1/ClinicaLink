@@ -11,8 +11,8 @@ import {
 const stats = [
   { label: "Total dokter", value: "4" },
   { label: "Total pasien", value: "3" },
-  { label: "Total appointment", value: "4" },
-  { label: "Appointment hari ini", value: "3" },
+  { label: "Total janji temu", value: "4" },
+  { label: "Janji temu hari ini", value: "3" },
 ];
 
 const todaySchedules = [
@@ -23,7 +23,7 @@ const todaySchedules = [
     date: "12 Mei 2030",
     time: "09.00 WIB",
     status: "Selesai",
-    statusClass: "bg-green-100 text-green-600",
+    statusClass: "bg-green-100 text-green-600 border border-green-200",
   },
   {
     no: 2,
@@ -32,7 +32,7 @@ const todaySchedules = [
     date: "12 Mei 2030",
     time: "10.00 WIB",
     status: "Berlangsung",
-    statusClass: "bg-blue-100 text-blue-600",
+    statusClass: "bg-blue-100 text-blue-600 border border-blue-200",
   },
   {
     no: 3,
@@ -41,7 +41,7 @@ const todaySchedules = [
     date: "12 Mei 2030",
     time: "11.00 WIB",
     status: "Menunggu",
-    statusClass: "bg-yellow-100 text-yellow-600",
+    statusClass: "bg-yellow-100 text-yellow-600 border border-yellow-200",
   },
 ];
 
@@ -90,7 +90,7 @@ export default function AdminDashboardPage() {
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
-            <thead className="bg-slate-50 text-slate-500 font-bold text-xs uppercase tracking-wider border-y border-slate-200">
+            <thead className="bg-[#F3F6FB] text-gray-700 font-semibold text-xs border-y border-gray-100">
               <tr>
                 <th className="px-6 py-4 text-center w-12">No</th>
                 <th className="px-6 py-4">Pasien</th>
@@ -108,12 +108,12 @@ export default function AdminDashboardPage() {
                   className="hover:bg-gray-50 transition-colors"
                 >
                   <td className="px-6 py-4 text-center font-medium text-gray-500">{schedule.no}</td>
-                  <td className="px-6 py-4 font-semibold text-gray-900">{schedule.patient}</td>
-                  <td className="px-6 py-4 text-gray-700">{schedule.doctor}</td>
+                  <td className="px-6 py-4 font-bold text-gray-900">{schedule.patient}</td>
+                  <td className="px-6 py-4 font-semibold text-gray-700">{schedule.doctor}</td>
                   <td className="px-6 py-4 text-gray-600">{schedule.date}</td>
-                  <td className="px-6 py-4 text-gray-600 font-mono">{schedule.time}</td>
+                  <td className="px-6 py-4 text-[#5E81CC] font-bold">{schedule.time}</td>
                   <td className="px-6 py-4 text-center">
-                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold ${schedule.statusClass}`}>
+                    <span className={`inline-flex items-center justify-center px-4 py-1 rounded-full text-xs font-bold ${schedule.statusClass}`}>
                       {schedule.status}
                     </span>
                   </td>
