@@ -13,8 +13,41 @@ import {
   Bell,
   X,
   CheckCircle2,
-  ListFilter
+  ListFilter,
+  Trash2,
+  CalendarCheck
 } from "lucide-react";
+
+// ── Virtual State Logic (from .antigravityrules) ─────────
+function computeVirtualStatus(appt) {
+  const now = new Date();
+  const apptDate = (appt.appointment_date || "").split("T")[0];
+  const endTime = appt.end_time;
+
+  if (!apptDate || !endTime) return appt.status;
+
+  const endDateTime = new Date(`${apptDate}T${endTime}`);
+  const endPlus4h = new Date(endDateTime.getTime() + 4 * 60 * 60 * 1000);
+
+  // Rule 4: Forced Selesai after 4 hours past end_time
+  if (appt.status === "Sedang Berlangsung" && now > endPlus4h) {
+    return "Selesai";
+  }
+  // Rule 3: Awaiting notes
+  if (appt.status === "Sedang Berlangsung" && now > endDateTime && !appt.notes) {
+    return "Menunggu Catatan Dokter";
+  }
+  // Rule 2: Normal Sedang Berlangsung
+  if (appt.status === "Sedang Berlangsung") {
+    return "Sedang Berlangsung";
+  }
+  // Rule 1: Auto-cancelled — Menunggu but time has fully passed
+  if (appt.status === "Menunggu" && now > endDateTime) {
+    return "Dibatalkan (Otomatis)";
+  }
+
+  return appt.status;
+}
 
 export default function PatientAppointmentsPage() {
   const router = useRouter();
@@ -31,7 +64,7 @@ export default function PatientAppointmentsPage() {
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
 
   // State Calendar
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(null);
   const [currentMonthView, setCurrentMonthView] = useState(new Date());
 
   // State Modal
@@ -47,7 +80,13 @@ export default function PatientAppointmentsPage() {
       const res = await fetch(`/api/appointments?patient_id=${userId}`);
       if (res.ok) {
         const data = await res.json();
-        setAppointments(Array.isArray(data.data) ? data.data : []);
+        const list = Array.isArray(data.data) ? data.data : [];
+        // Enrich with virtual status
+        const enriched = list.map(appt => ({
+          ...appt,
+          virtualStatus: computeVirtualStatus(appt),
+        }));
+        setAppointments(enriched);
       }
     } catch (error) {
       console.error("Gagal memuat janji temu:", error);
@@ -69,9 +108,35 @@ export default function PatientAppointmentsPage() {
     initData();
   }, [router]);
 
+  const isSameDate = (date1, date2) => {
+    return date1.getFullYear() === date2.getFullYear() &&
+           date1.getMonth() === date2.getMonth() &&
+           date1.getDate() === date2.getDate();
+  };
+  
+  const isSameDateStr = (dateStr, dateObj) => {
+    if (!dateStr) return false;
+    const [y, m, d] = dateStr.split('T')[0].split('-').map(Number);
+    return y === dateObj.getFullYear() && (m - 1) === dateObj.getMonth() && d === dateObj.getDate();
+  };
+
+  const today = new Date();
+
   // Derived Data: Sorted & Paginated Appointments
   const sortedAppointments = useMemo(() => {
-    return [...appointments].sort((a, b) => {
+    let result = [...appointments];
+    if (selectedDate) {
+      const y = selectedDate.getFullYear();
+      const m = String(selectedDate.getMonth() + 1).padStart(2, '0');
+      const d = String(selectedDate.getDate()).padStart(2, '0');
+      const selectedStr = `${y}-${m}-${d}`;
+      result = result.filter(appt => {
+        const apptDateStr = (appt.appointment_date || '').split('T')[0];
+        return apptDateStr === selectedStr;
+      });
+    }
+    
+    return result.sort((a, b) => {
       const dateA = new Date(`${a.appointment_date}T${a.schedule_time.split(' - ')[0] || '00:00'}:00`);
       const dateB = new Date(`${b.appointment_date}T${b.schedule_time.split(' - ')[0] || '00:00'}:00`);
       
@@ -88,7 +153,7 @@ export default function PatientAppointmentsPage() {
           return 0;
       }
     });
-  }, [appointments, sortOption]);
+  }, [appointments, sortOption, selectedDate]);
 
   const totalPages = Math.ceil(sortedAppointments.length / itemsPerPage);
   const paginatedAppointments = sortedAppointments.slice(
@@ -132,26 +197,18 @@ export default function PatientAppointmentsPage() {
     setCurrentMonthView(new Date(currentYear, currentMonthIdx + 1, 1));
   };
 
-  const isSameDate = (date1, date2) => {
-    return date1.getFullYear() === date2.getFullYear() &&
-           date1.getMonth() === date2.getMonth() &&
-           date1.getDate() === date2.getDate();
-  };
-  const today = new Date();
-  
-  // Derived Data: Selected Date Appointments
+
   const selectedDateAppointments = useMemo(() => {
+    const filterObj = selectedDate || today;
     return appointments.filter(appt => {
-      if (appt.status === 'Dibatalkan') return false;
-      const apptDate = new Date(appt.appointment_date);
-      return isSameDate(apptDate, selectedDate);
+      return isSameDateStr(appt.appointment_date, filterObj);
     });
-  }, [appointments, selectedDate]);
+  }, [appointments, selectedDate, today]);
 
   // Derived Data: Next Reminder
   const nextReminder = useMemo(() => {
     const upcoming = appointments
-      .filter(appt => (appt.status === 'Menunggu' || appt.status === 'Scheduled' || appt.status === 'Confirmed' || appt.status === 'Akan Datang'))
+      .filter(appt => appt.virtualStatus === 'Menunggu')
       .filter(appt => {
         const apptDate = new Date(`${appt.appointment_date}T${appt.schedule_time.split(' - ')[0] || '00:00'}:00`);
         return apptDate >= new Date();
@@ -356,15 +413,18 @@ export default function PatientAppointmentsPage() {
             <div className="bg-white px-4 pb-4 pt-3">
               <div className="grid grid-cols-7 gap-y-1">
                 {calendarCells.map((cell, idx) => {
-                  const isSelected = isSameDate(cell.date, selectedDate);
+                  const isSelected = selectedDate && isSameDate(cell.date, selectedDate);
                   const isToday = isSameDate(cell.date, today);
-                  const hasAppt = appointments.some(a => a.status !== 'Dibatalkan' && isSameDate(new Date(a.appointment_date), cell.date));
+                  const hasAppt = appointments.some(a => {
+                    const vs = a.virtualStatus;
+                    return vs !== 'Dibatalkan' && vs !== 'Dibatalkan (Otomatis)' && isSameDateStr(a.appointment_date, cell.date);
+                  });
 
                   return (
                     <div key={idx} className="flex flex-col items-center py-[2px]">
                       <button
                         type="button"
-                        onClick={() => cell.isCurrentMonth && setSelectedDate(cell.date)}
+                        onClick={() => cell.isCurrentMonth && setSelectedDate(prev => prev && isSameDate(prev, cell.date) ? null : cell.date)}
                         disabled={!cell.isCurrentMonth}
                         className={[
                           "relative w-8 h-8 flex items-center justify-center rounded-xl text-[12px] font-bold transition-all duration-150 select-none",
@@ -393,21 +453,26 @@ export default function PatientAppointmentsPage() {
           {/* Jadwal pada Tanggal yang Dipilih */}
           <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
             <h3 className="text-[12px] font-extrabold text-gray-700 uppercase tracking-wide mb-3">
-              Jadwal {isSameDate(selectedDate, today) ? "Hari Ini" : selectedDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+              Jadwal {(selectedDate || today).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
             </h3>
             {selectedDateAppointments.length > 0 ? (
               <div className="space-y-2">
-                {selectedDateAppointments.map(appt => (
-                  <div key={appt.id} className="flex items-center gap-3 rounded-xl bg-white border border-gray-100 px-3 py-2 shadow-sm hover:border-[#5E81CC]/30 hover:shadow-md transition-all">
-                    <div className={`w-[3px] self-stretch rounded-full shrink-0 ${appt.status === 'Selesai' || appt.status === 'Completed' ? 'bg-green-400' : 'bg-[#5E81CC]'}`} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[11px] font-extrabold text-gray-800 truncate">{appt.doctor_name}</p>
-                      <p className="text-[10px] text-[#5E81CC] font-bold mt-0.5">
-                        {appt.schedule_time} WIB
-                      </p>
+                {selectedDateAppointments.map(appt => {
+                  const isCancelled = appt.virtualStatus === 'Dibatalkan' || appt.virtualStatus === 'Dibatalkan (Otomatis)';
+                  const isDone = appt.virtualStatus === 'Selesai' || appt.virtualStatus === 'Completed';
+                  const lineColor = isCancelled ? 'bg-red-300' : isDone ? 'bg-green-400' : 'bg-[#5E81CC]';
+                  return (
+                    <div key={appt.id} className={`flex items-center gap-3 rounded-xl border border-gray-100 px-3 py-2 shadow-sm transition-all ${isCancelled ? 'bg-slate-50 opacity-60' : 'bg-white hover:border-[#5E81CC]/30 hover:shadow-md'}`}>
+                      <div className={`w-[3px] self-stretch rounded-full shrink-0 ${lineColor}`} />
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-[11px] font-extrabold truncate ${isCancelled ? 'text-slate-500 line-through' : 'text-gray-800'}`}>{appt.doctor_name}</p>
+                        <p className={`text-[10px] font-bold mt-0.5 ${isCancelled ? 'text-slate-400' : 'text-[#5E81CC]'}`}>
+                          {appt.schedule_time} WIB
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="flex items-center gap-2 py-2">
@@ -459,7 +524,7 @@ export default function PatientAppointmentsPage() {
                 <p className="text-xs text-slate-500 font-medium">Spesialis Umum</p>
               </div>
             </div>
-            <StatusBadge status={selectedAppt.status} />
+            <StatusBadge status={selectedAppt.virtualStatus} />
           </div>
 
           <div className="space-y-3.5 text-sm mb-6 px-1">
@@ -487,7 +552,7 @@ export default function PatientAppointmentsPage() {
             </div>
           </div>
 
-          {(selectedAppt.status === 'Menunggu' || selectedAppt.status === 'Scheduled' || selectedAppt.status === 'Akan Datang') && (
+          {selectedAppt.virtualStatus === 'Menunggu' && (
             <div className="flex gap-3 pt-4 border-t border-slate-100">
               <button onClick={() => openModal('reschedule', selectedAppt)} className="flex-1 rounded-xl border border-indigo-600 py-2.5 text-sm font-bold text-indigo-600 hover:bg-indigo-50/60 transition active:scale-95">
                 Reschedule
@@ -579,7 +644,7 @@ export default function PatientAppointmentsPage() {
 // ================= LAYOUT SUB-COMPONENTS =================
 
 function AppointmentCard({ appt, onDetail, onReschedule, onCancel }) {
-  const isWaiting = appt.status === 'Menunggu' || appt.status === 'Scheduled' || appt.status === 'Akan Datang';
+  const isWaiting = appt.virtualStatus === 'Menunggu';
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-12 gap-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md transition duration-200 items-center w-full">
@@ -599,9 +664,6 @@ function AppointmentCard({ appt, onDetail, onReschedule, onCancel }) {
           <div className="flex items-center gap-2 mt-1">
             <span className="flex items-center gap-0.5 text-[11px] text-slate-500">
               <MapPin size={11} className="text-slate-400" /> ClinicaLink
-            </span>
-            <span className="flex items-center gap-0.5 text-[11px] text-slate-500 font-medium">
-              <Star size={11} className="text-yellow-400 fill-yellow-400" /> 4.9
             </span>
           </div>
         </div>
@@ -625,23 +687,23 @@ function AppointmentCard({ appt, onDetail, onReschedule, onCancel }) {
 
       {/* Status & Tombol Aksi (4 Kolom) */}
       <div className="md:col-span-4 flex flex-col sm:flex-row md:flex-col gap-2.5 border-t border-slate-100 pt-3 md:border-t-0 md:pt-0 items-start md:items-end w-full justify-end">
-        <StatusBadge status={appt.status} />
+        <StatusBadge status={appt.virtualStatus} />
 
-        <div className="grid grid-cols-3 gap-1.5 w-full md:max-w-[210px]">
-          <button onClick={onDetail} className="rounded-lg border border-indigo-200 px-2 py-1.5 text-xs font-bold text-indigo-600 hover:bg-indigo-50/50 transition">
-            Detail
+        <div className="flex flex-col gap-2 w-full sm:w-auto md:w-full md:max-w-[130px]">
+          <button onClick={onDetail} className="flex items-center justify-center rounded-lg border border-indigo-200 px-3 py-1.5 text-xs font-bold text-indigo-600 hover:bg-indigo-50/50 transition">
+            Lihat Detail
           </button>
-          {isWaiting ? (
+          {isWaiting && (
             <>
-              <button onClick={onReschedule} className="rounded-lg border border-indigo-200 px-2 py-1.5 text-xs font-bold text-indigo-600 hover:bg-indigo-50/50 transition">
-                Resched
+              <button onClick={onReschedule} className="flex items-center justify-center gap-1.5 rounded-lg border border-indigo-200 px-3 py-1.5 text-xs font-bold text-indigo-600 hover:bg-indigo-50/50 transition">
+                <CalendarCheck size={12} />
+                Reschedule
               </button>
-              <button onClick={onCancel} className="rounded-lg border border-red-200 px-2 py-1.5 text-xs font-bold text-red-500 hover:bg-red-50 transition">
-                Batal
+              <button onClick={onCancel} className="flex items-center justify-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-bold text-red-500 hover:bg-red-50 transition">
+                <Trash2 size={12} />
+                Batalkan
               </button>
             </>
-          ) : (
-            <div className="col-span-2"></div>
           )}
         </div>
       </div>
@@ -664,8 +726,17 @@ function StatusBadge({ status }) {
   if (status === 'Menunggu' || status === 'Scheduled' || status === 'Akan Datang') {
     return <span className="inline-flex rounded-full bg-green-50 border border-green-200 px-2.5 py-0.5 text-xs font-bold text-green-600">Dijadwalkan</span>;
   }
-  if (status === 'Dibatalkan' || status === 'Cancelled') {
-    return <span className="inline-flex rounded-full bg-red-50 border border-red-200 px-2.5 py-0.5 text-xs font-bold text-red-500">Dibatalkan</span>;
+  if (status === 'Dibatalkan' || status === 'Cancelled' || status === 'Dibatalkan (Otomatis)') {
+    return <span className="inline-flex rounded-full bg-red-50 border border-red-200 px-2.5 py-0.5 text-xs font-bold text-red-500">{status === 'Dibatalkan (Otomatis)' ? 'Dibatalkan' : 'Dibatalkan'}</span>;
+  }
+  if (status === 'Sedang Berlangsung') {
+    return <span className="inline-flex rounded-full bg-blue-50 border border-blue-200 px-2.5 py-0.5 text-xs font-bold text-blue-600">Sedang Berlangsung</span>;
+  }
+  if (status === 'Menunggu Catatan Dokter') {
+    return <span className="inline-flex rounded-full bg-amber-50 border border-amber-200 px-2.5 py-0.5 text-xs font-bold text-amber-600">Menunggu Catatan</span>;
+  }
+  if (status === 'Selesai' || status === 'Completed') {
+    return <span className="inline-flex rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-xs font-bold text-emerald-600">Selesai</span>;
   }
   return <span className="inline-flex rounded-full bg-slate-50 border border-slate-200 px-2.5 py-0.5 text-xs font-bold text-slate-500">{status}</span>;
 }
