@@ -84,8 +84,8 @@ export async function POST(request) {
         const body = await request.json();
         const { full_name, email, password, specialization_id, phone_number } = body;
 
-        if (!full_name || !email || !password || !specialization_id) {
-            return NextResponse.json({ message: "Nama, email, password, dan spesialisasi wajib diisi." }, { status: 400 });
+        if (!full_name || !email || !password || !specialization_id || !phone_number) {
+            return NextResponse.json({ message: "Semua kolom utama (termasuk No Telepon) wajib diisi." }, { status: 400 });
         }
 
         // Gunakan endpoint /api/register yang sudah menangani trigger dengan benar
@@ -129,9 +129,16 @@ export async function POST(request) {
 export async function PATCH(request) {
     try {
         const body = await request.json();
-        const { id, specialization_id, phone_number, inactive_from, full_name, cancellation_reason } = body;
+        const { id, specialization_id, phone_number, inactive_from, full_name, cancellation_reason, action } = body;
 
         if (!id) return NextResponse.json({ message: "ID dokter wajib ada." }, { status: 400 });
+
+        if (action === 'restore') {
+            const { error: dErr } = await supabase.from('doctors').update({ deleted_at: null }).eq('id', id);
+            const { error: uErr } = await supabase.from('users').update({ deleted_at: null }).eq('id', id);
+            if (dErr || uErr) return NextResponse.json({ message: dErr?.message || uErr?.message }, { status: 500 });
+            return NextResponse.json({ message: "Dokter berhasil dipulihkan." }, { status: 200 });
+        }
 
         // Build update object for doctors table
         const doctorUpdate = {};
@@ -222,17 +229,26 @@ export async function DELETE(request) {
     try {
         const { searchParams } = new URL(request.url);
         const id = searchParams.get('id');
+        const isHardDelete = searchParams.get('hard') === 'true';
 
         if (!id) return NextResponse.json({ message: "ID dokter wajib ada." }, { status: 400 });
 
-        const { error } = await supabase
-            .from('doctors')
-            .update({ deleted_at: new Date().toISOString() })
-            .eq('id', id);
+        if (isHardDelete) {
+            await supabase.from('doctors').delete().eq('id', id);
+            const { error } = await supabase.from('users').delete().eq('id', id);
+            
+            if (error) return NextResponse.json({ message: error.message }, { status: 500 });
+            return NextResponse.json({ message: "Dokter berhasil dihapus permanen." }, { status: 200 });
+        } else {
+            const now = new Date().toISOString();
+            const { error: dErr } = await supabase.from('doctors').update({ deleted_at: now }).eq('id', id);
+            if (dErr) return NextResponse.json({ message: dErr.message }, { status: 500 });
 
-        if (error) return NextResponse.json({ message: error.message }, { status: 500 });
+            const { error: uErr } = await supabase.from('users').update({ deleted_at: now }).eq('id', id);
+            if (uErr) return NextResponse.json({ message: uErr.message }, { status: 500 });
 
-        return NextResponse.json({ message: "Dokter berhasil dihapus (soft delete)." }, { status: 200 });
+            return NextResponse.json({ message: "Dokter berhasil dihapus (soft delete)." }, { status: 200 });
+        }
 
     } catch (error) {
         return NextResponse.json({ message: "Kesalahan server: " + error.message }, { status: 500 });

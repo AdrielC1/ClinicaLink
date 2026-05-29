@@ -24,6 +24,14 @@ export default function AdminDoctorsPage() {
     const [formLoading, setFormLoading] = useState(false);
     const [filterOpen, setFilterOpen] = useState(false);
     const [toast, setToast] = useState(null);
+    const [formErrors, setFormErrors] = useState({});
+    
+    // ── Delete Confirmation State ──
+    const [doctorToDelete, setDoctorToDelete] = useState(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    const [newSpecializationName, setNewSpecializationName] = useState("");
+    const [newSpecializationDesc, setNewSpecializationDesc] = useState("");
 
     // ── Inactivation States ──
     const [inactiveFromDate, setInactiveFromDate] = useState("");
@@ -112,6 +120,9 @@ export default function AdminDoctorsPage() {
         setInactiveFromDate("");
         setCancellationReason("");
         setAffectedAppointments([]);
+        setNewSpecializationName("");
+        setNewSpecializationDesc("");
+        setFormErrors({});
         setShowModal(true);
     };
 
@@ -121,20 +132,57 @@ export default function AdminDoctorsPage() {
         setInactiveFromDate(doc.inactive_from || "");
         setCancellationReason("");
         setAffectedAppointments([]);
+        setNewSpecializationName("");
+        setNewSpecializationDesc("");
+        setFormErrors({});
         setShowModal(true);
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        // Validasi: jika ada appointment terdampak, alasan wajib diisi
+        // Custom Validation
+        const errors = {};
+        if (!formData.full_name.trim()) errors.full_name = "Mohon isi nama lengkap dokter.";
+        if (!formData.email.trim()) errors.email = "Mohon isi email dokter.";
+        if (!editDoctor && !formData.password) errors.password = "Mohon isi password.";
+        if (!formData.specialization_id) errors.specialization_id = "Mohon pilih spesialisasi.";
+        if (!formData.phone_number.trim()) errors.phone_number = "Mohon isi nomor telepon.";
+        
+        if (formData.specialization_id === "NEW" && !newSpecializationName.trim()) {
+            errors.newSpecializationName = "Mohon isi nama spesialisasi baru.";
+        }
+
         if (affectedAppointments.length > 0 && !cancellationReason.trim()) {
+            errors.cancellationReason = "Mohon isi alasan pembatalan.";
             showToast("Alasan pembatalan wajib diisi jika ada janji temu terdampak!", "error");
+        }
+
+        if (Object.keys(errors).length > 0) {
+            setFormErrors(errors);
             return;
         }
 
+        setFormErrors({});
         setFormLoading(true);
         try {
+            let finalSpecializationId = formData.specialization_id;
+            
+            if (finalSpecializationId === "NEW") {
+                const specRes = await fetch("/api/specializations", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ name: newSpecializationName, description: newSpecializationDesc }),
+                });
+                const specData = await specRes.json();
+                if (!specRes.ok) {
+                    showToast(specData.message || "Gagal membuat spesialisasi baru.", "error");
+                    setFormLoading(false);
+                    return;
+                }
+                finalSpecializationId = specData.data.id;
+            }
+
             if (editDoctor) {
                 const res = await fetch("/api/doctors", {
                     method: "PATCH",
@@ -142,6 +190,7 @@ export default function AdminDoctorsPage() {
                     body: JSON.stringify({
                         id: editDoctor.id,
                         ...formData,
+                        specialization_id: finalSpecializationId,
                         inactive_from: inactiveFromDate || null,
                         cancellation_reason: cancellationReason || null,
                     }),
@@ -153,7 +202,10 @@ export default function AdminDoctorsPage() {
                 const res = await fetch("/api/doctors", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(formData),
+                    body: JSON.stringify({
+                        ...formData,
+                        specialization_id: finalSpecializationId
+                    }),
                 });
                 const d = await res.json();
                 if (!res.ok) { showToast(d.message, "error"); return; }
@@ -168,12 +220,28 @@ export default function AdminDoctorsPage() {
         }
     };
 
-    const handleDelete = async (id) => {
-        if (!confirm("Yakin ingin menghapus dokter ini?")) return;
-        const res = await fetch(`/api/doctors?id=${id}`, { method: "DELETE" });
-        const d = await res.json();
-        if (res.ok) { showToast("Dokter dihapus."); fetchDoctors(); }
-        else showToast(d.message, "error");
+    const handleDeleteClick = (doc) => {
+        setDoctorToDelete(doc);
+    };
+
+    const confirmDelete = async () => {
+        if (!doctorToDelete) return;
+        setIsDeleting(true);
+        try {
+            const res = await fetch(`/api/doctors?id=${doctorToDelete.id}`, { method: "DELETE" });
+            const d = await res.json();
+            if (res.ok) { 
+                showToast("Dokter dipindahkan ke Recycle Bin."); 
+                fetchDoctors(); 
+            } else {
+                showToast(d.message, "error");
+            }
+        } catch (error) {
+            showToast("Gagal menghapus dokter.", "error");
+        } finally {
+            setIsDeleting(false);
+            setDoctorToDelete(null);
+        }
     };
 
     // ── Format date helper ──
@@ -358,7 +426,7 @@ export default function AdminDoctorsPage() {
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                                                     </svg>
                                                 </button>
-                                                <button onClick={() => handleDelete(doc.id)} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Hapus">
+                                                <button onClick={() => handleDeleteClick(doc)} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Hapus">
                                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                                     </svg>
@@ -385,38 +453,59 @@ export default function AdminDoctorsPage() {
                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>
                         </div>
-                        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                        <form onSubmit={handleSubmit} className="p-6 space-y-4" noValidate>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="col-span-2 space-y-1.5">
                                     <label className="text-sm font-semibold text-gray-700">Nama Lengkap *</label>
-                                    <input required type="text" value={formData.full_name} onChange={e => setFormData(f => ({ ...f, full_name: e.target.value }))}
-                                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#5E81CC] focus:bg-white transition-all" placeholder="Dr. Nama Lengkap" />
+                                    <input required type="text" value={formData.full_name} onChange={e => { setFormData(f => ({ ...f, full_name: e.target.value })); setFormErrors(err => ({...err, full_name: null})); }}
+                                        className={`w-full px-4 py-2.5 bg-gray-50 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#5E81CC] focus:bg-white transition-all ${formErrors.full_name ? 'border-red-500 focus:ring-red-500' : 'border-gray-200'}`} placeholder="Dr. Nama Lengkap" />
+                                    {formErrors.full_name && <p className="text-xs text-red-500 font-medium">{formErrors.full_name}</p>}
                                 </div>
                                 <div className="space-y-1.5">
                                     <label className="text-sm font-semibold text-gray-700">Email *</label>
-                                    <input required type="email" value={formData.email} disabled={!!editDoctor} onChange={e => setFormData(f => ({ ...f, email: e.target.value }))}
-                                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#5E81CC] focus:bg-white transition-all disabled:opacity-60" placeholder="dokter@email.com" />
+                                    <input required type="email" value={formData.email} disabled={!!editDoctor} onChange={e => { setFormData(f => ({ ...f, email: e.target.value })); setFormErrors(err => ({...err, email: null})); }}
+                                        className={`w-full px-4 py-2.5 bg-gray-50 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#5E81CC] focus:bg-white transition-all disabled:opacity-60 ${formErrors.email ? 'border-red-500 focus:ring-red-500' : 'border-gray-200'}`} placeholder="dokter@email.com" />
+                                    {formErrors.email && <p className="text-xs text-red-500 font-medium">{formErrors.email}</p>}
                                 </div>
                                 {!editDoctor && (
                                     <div className="space-y-1.5">
                                         <label className="text-sm font-semibold text-gray-700">Password *</label>
-                                        <input required type="password" value={formData.password} onChange={e => setFormData(f => ({ ...f, password: e.target.value }))}
-                                            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#5E81CC] focus:bg-white transition-all" placeholder="Min. 6 karakter" />
+                                        <input required type="password" value={formData.password} onChange={e => { setFormData(f => ({ ...f, password: e.target.value })); setFormErrors(err => ({...err, password: null})); }}
+                                            className={`w-full px-4 py-2.5 bg-gray-50 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#5E81CC] focus:bg-white transition-all ${formErrors.password ? 'border-red-500 focus:ring-red-500' : 'border-gray-200'}`} placeholder="Min. 6 karakter" />
+                                        {formErrors.password && <p className="text-xs text-red-500 font-medium">{formErrors.password}</p>}
                                     </div>
                                 )}
                                 <div className="space-y-1.5">
                                     <label className="text-sm font-semibold text-gray-700">Spesialisasi *</label>
-                                    <select required value={formData.specialization_id} onChange={e => setFormData(f => ({ ...f, specialization_id: e.target.value }))}
-                                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#5E81CC] focus:bg-white transition-all">
+                                    <select required value={formData.specialization_id} onChange={e => { setFormData(f => ({ ...f, specialization_id: e.target.value })); setFormErrors(err => ({...err, specialization_id: null})); }}
+                                        className={`w-full px-4 py-2.5 bg-gray-50 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#5E81CC] focus:bg-white transition-all ${formErrors.specialization_id ? 'border-red-500 focus:ring-red-500' : 'border-gray-200'}`}>
                                         <option value="">Pilih spesialisasi</option>
+                                        <option value="NEW" className="font-bold text-[#5E81CC]">➕ Tambah Spesialisasi Baru...</option>
                                         {specializations.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                                     </select>
+                                    {formErrors.specialization_id && <p className="text-xs text-red-500 font-medium">{formErrors.specialization_id}</p>}
                                 </div>
                                 <div className="space-y-1.5">
-                                    <label className="text-sm font-semibold text-gray-700">No Telepon</label>
-                                    <input type="text" value={formData.phone_number} onChange={e => setFormData(f => ({ ...f, phone_number: e.target.value }))}
-                                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#5E81CC] focus:bg-white transition-all" placeholder="08xxxxxxxxxx" />
+                                    <label className="text-sm font-semibold text-gray-700">No Telepon *</label>
+                                    <input required type="text" value={formData.phone_number} onChange={e => { setFormData(f => ({ ...f, phone_number: e.target.value })); setFormErrors(err => ({...err, phone_number: null})); }}
+                                        className={`w-full px-4 py-2.5 bg-gray-50 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#5E81CC] focus:bg-white transition-all ${formErrors.phone_number ? 'border-red-500 focus:ring-red-500' : 'border-gray-200'}`} placeholder="08xxxxxxxxxx" />
+                                    {formErrors.phone_number && <p className="text-xs text-red-500 font-medium">{formErrors.phone_number}</p>}
                                 </div>
+                                {formData.specialization_id === "NEW" && (
+                                    <>
+                                        <div className="space-y-1.5">
+                                            <label className="text-sm font-semibold text-gray-700">Nama Spesialisasi Baru *</label>
+                                            <input required type="text" value={newSpecializationName} onChange={e => { setNewSpecializationName(e.target.value); setFormErrors(err => ({...err, newSpecializationName: null})); }}
+                                                className={`w-full px-4 py-2.5 bg-indigo-50 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#5E81CC] focus:bg-white transition-all ${formErrors.newSpecializationName ? 'border-red-500 focus:ring-red-500' : 'border-indigo-200'}`} placeholder="Misal: Spesialis Anak" />
+                                            {formErrors.newSpecializationName && <p className="text-xs text-red-500 font-medium">{formErrors.newSpecializationName}</p>}
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <label className="text-sm font-semibold text-gray-700">Deskripsi Spesialisasi</label>
+                                            <input type="text" value={newSpecializationDesc} onChange={e => setNewSpecializationDesc(e.target.value)}
+                                                className="w-full px-4 py-2.5 bg-indigo-50 border border-indigo-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#5E81CC] focus:bg-white transition-all" placeholder="Singkat (Opsional)" />
+                                        </div>
+                                    </>
+                                )}
                             </div>
 
                             {/* ── Scheduled Inactivation Section (Edit Only) ── */}
@@ -520,6 +609,45 @@ export default function AdminDoctorsPage() {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+            {/* =========================================================== */}
+            {/* Modal Konfirmasi Hapus Dokter (Soft Delete)                  */}
+            {/* =========================================================== */}
+            {doctorToDelete && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-md rounded-2xl bg-white px-8 py-9 text-center shadow-xl border border-red-100">
+                        <h2 className="text-xl font-bold text-red-600">Hapus Dokter?</h2>
+                        <div className="mx-auto mt-6 h-16 w-16 bg-red-50 rounded-full flex items-center justify-center text-red-500">
+                            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </div>
+                        <p className="mt-4 text-sm font-medium text-gray-600">
+                            Apakah Anda yakin ingin menghapus <b>{doctorToDelete.full_name}</b>? Data dokter ini akan dipindahkan ke daftar terhapus dan dapat dipulihkan kembali nanti.
+                        </p>
+                        <div className="mt-8 flex gap-3">
+                            <button
+                                onClick={() => setDoctorToDelete(null)}
+                                disabled={isDeleting}
+                                className="flex-1 rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
+                            >
+                                Batal
+                            </button>
+                            <button
+                                onClick={confirmDelete}
+                                disabled={isDeleting}
+                                className="flex-1 rounded-xl bg-red-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-red-700 flex items-center justify-center gap-2 disabled:opacity-50"
+                            >
+                                {isDeleting ? (
+                                    <>
+                                        <svg className="w-4 h-4 animate-spin text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                        Menghapus...
+                                    </>
+                                ) : "Ya, Hapus"}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
