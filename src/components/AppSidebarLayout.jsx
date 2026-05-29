@@ -65,8 +65,7 @@ const adminLinks = [
   { href: "/admin/appointments", label: "Kelola Janji Temu" },
   { href: "/admin/schedules", label: "Kelola Jadwal" },
   { href: "/admin/reports", label: "Laporan" },
-  { href: "/admin/profile", label: "Profil", customIcon: profileIcon },
-  { href: "/admin/settings", label: "Pengaturan" },
+  { href: "/admin/profile", label: "Pengaturan" },
 ];
 
 const patientLinks = [
@@ -151,7 +150,7 @@ export default function AppSidebarLayout({ children, role }) {
       let user = readStoredUser();
 
       const { data: { user: authUser }, error } = await supabase.auth.getUser();
-      
+
       if (!authUser || error) {
         window.location.replace("/login");
         return;
@@ -236,7 +235,7 @@ export default function AppSidebarLayout({ children, role }) {
       if (u) setCurrentUser(prev => ({ ...prev, ...u }));
     };
     window.addEventListener("storage", handleStorage);
-    
+
     // Fetch unread count via API route (respects RLS correctly)
     const fetchUnread = async (uid) => {
       try {
@@ -285,7 +284,7 @@ export default function AppSidebarLayout({ children, role }) {
       }
     };
     window.addEventListener('notifications_updated', updateListener);
-    
+
     return () => {
       mounted = false;
       window.removeEventListener("pageshow", handleHistoryNavigation);
@@ -356,8 +355,8 @@ export default function AppSidebarLayout({ children, role }) {
         {/* Right: Profile */}
         <div className="flex items-center gap-6 shrink-0">
           {/* Bell button removed per user request */}
-          
-          <div 
+
+          <div
             onClick={() => {
               if (role === 'patient') router.push('/patient/profile');
               else if (role === 'admin') router.push('/admin/profile');
@@ -366,10 +365,10 @@ export default function AppSidebarLayout({ children, role }) {
             className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
           >
             {/* Tag img sekarang secara dinamis memuat avatarUrl dari database */}
-            <img 
-              src={avatarUrl} 
-              alt="Profile" 
-              className="w-10 h-10 rounded-full border border-gray-100 object-cover" 
+            <img
+              src={avatarUrl}
+              alt="Profile"
+              className="w-10 h-10 rounded-full border border-gray-100 object-cover"
             />
             <span className="font-bold text-[#2D3748] hidden sm:block">{displayUserName}</span>
           </div>
