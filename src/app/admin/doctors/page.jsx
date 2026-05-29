@@ -2,8 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { CalendarDays } from "lucide-react";
 import CalendarWidget from "@/components/CalendarWidget";
-
-const ITEMS_PER_PAGE = 10;
+import Link from "next/link";
 
 // Helper: compute status from inactive_from
 function getDoctorStatus(doc) {
@@ -19,8 +18,6 @@ export default function AdminDoctorsPage() {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
     const [filterStatus, setFilterStatus] = useState("all");
-    const [showDeleted, setShowDeleted] = useState(false);
-    const [currentPage, setCurrentPage] = useState(1);
     const [showModal, setShowModal] = useState(false);
     const [editDoctor, setEditDoctor] = useState(null);
     const [formData, setFormData] = useState({ full_name: "", email: "", password: "", specialization_id: "", phone_number: "" });
@@ -104,8 +101,6 @@ export default function AdminDoctorsPage() {
         return matchSearch && matchStatus;
     });
 
-    const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
-    const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
     const activeCount = allDoctors.filter(d => getDoctorStatus(d) !== "inactive").length;
 
     // ── Dokter yang dijadwalkan nonaktif (untuk info panel) ──
@@ -259,7 +254,7 @@ export default function AdminDoctorsPage() {
                         type="text"
                         placeholder="Cari dokter..."
                         value={searchTerm}
-                        onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                        onChange={e => setSearchTerm(e.target.value)}
                         className="pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm w-56 focus:outline-none focus:ring-2 focus:ring-[#5E81CC] focus:border-transparent transition-all shadow-sm"
                     />
                 </div>
@@ -280,7 +275,7 @@ export default function AdminDoctorsPage() {
                             {[{ val: "all", label: "Semua" }, { val: "active", label: "Aktif" }, { val: "inactive", label: "Non aktif" }].map(opt => (
                                 <button
                                     key={opt.val}
-                                    onClick={() => { setFilterStatus(opt.val); setFilterOpen(false); setCurrentPage(1); }}
+                                    onClick={() => { setFilterStatus(opt.val); setFilterOpen(false); }}
                                     className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors ${filterStatus === opt.val ? "bg-[#E6EDFF] text-[#5E81CC]" : "text-gray-700 hover:bg-gray-50"}`}
                                 >
                                     {opt.label}
@@ -301,53 +296,17 @@ export default function AdminDoctorsPage() {
                     Tambah Dokter
                 </button>
 
-                {/* Lihat Terhapus Toggle */}
-                <button
-                    onClick={() => setShowDeleted(!showDeleted)}
-                    className={`flex items-center gap-2 px-4 py-2.5 border rounded-lg text-sm font-semibold transition-colors shadow-sm ${showDeleted ? "bg-orange-50 border-orange-200 text-orange-600" : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"}`}
+                {/* Lihat Terhapus Link */}
+                <Link
+                    href="/admin/doctors/deleted"
+                    className="flex items-center gap-2 px-4 py-2.5 border rounded-lg text-sm font-semibold transition-colors shadow-sm bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
                 >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
                     Daftar Terhapus {deletedDoctors.length > 0 && <span className="bg-orange-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">{deletedDoctors.length}</span>}
-                </button>
+                </Link>
             </div>
-
-            {/* Deleted Doctors Panel */}
-            {showDeleted && (
-                <div className="bg-orange-50 border border-orange-100 rounded-2xl p-5 mb-6">
-                    <h3 className="font-bold text-orange-700 mb-4 flex items-center gap-2">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                        </svg>
-                        Daftar Dokter Terhapus ({deletedDoctors.length})
-                    </h3>
-                    {deletedDoctors.length === 0 ? (
-                        <p className="text-orange-600 text-sm">Tidak ada dokter yang dihapus.</p>
-                    ) : (
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm text-left">
-                                <thead className="text-xs font-semibold text-orange-600">
-                                    <tr>
-                                        <th className="px-4 py-2">Nama</th>
-                                        <th className="px-4 py-2">Spesialisasi</th>
-                                        <th className="px-4 py-2">Email</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-orange-100">
-                                    {deletedDoctors.map(doc => (
-                                        <tr key={doc.id}>
-                                            <td className="px-4 py-3 font-semibold text-gray-800">{doc.full_name}</td>
-                                            <td className="px-4 py-3 text-gray-600">{doc.specialization_name}</td>
-                                            <td className="px-4 py-3 text-gray-600">{doc.email}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-                </div>
-            )}
 
             {/* Main Table */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden pb-4">
@@ -370,13 +329,13 @@ export default function AdminDoctorsPage() {
                         <tbody className="divide-y divide-gray-100">
                             {loading ? (
                                 <tr><td colSpan="7" className="px-6 py-12 text-center text-gray-400">Memuat data...</td></tr>
-                            ) : paginated.length === 0 ? (
+                            ) : filtered.length === 0 ? (
                                 <tr><td colSpan="7" className="px-6 py-12 text-center text-gray-400">Tidak ada dokter ditemukan</td></tr>
-                            ) : paginated.map((doc, idx) => {
+                            ) : filtered.map((doc, idx) => {
                                 const status = getDoctorStatus(doc);
                                 return (
                                     <tr key={doc.id} className="hover:bg-gray-50 transition-colors">
-                                        <td className="px-6 py-4 text-center font-medium text-gray-500">{(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}</td>
+                                        <td className="px-6 py-4 text-center font-medium text-gray-500">{idx + 1}</td>
                                         <td className="px-6 py-4 font-bold text-gray-900">{doc.full_name}</td>
                                         <td className="px-6 py-4 font-semibold text-gray-700">{doc.specialization_name}</td>
                                         <td className="px-6 py-4 text-gray-600">{doc.email}</td>
@@ -411,22 +370,6 @@ export default function AdminDoctorsPage() {
                             })}
                         </tbody>
                     </table>
-                </div>
-
-                {/* Pagination */}
-                <div className="flex items-center justify-center gap-2 mt-6 mb-2">
-                    <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="p-1.5 text-gray-400 hover:text-[#5E81CC] disabled:opacity-30 transition-colors">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
-                    </button>
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-                        <button key={p} onClick={() => setCurrentPage(p)}
-                            className={`w-8 h-8 flex items-center justify-center rounded-full font-semibold text-sm transition-colors ${currentPage === p ? "bg-[#5E81CC] text-white" : "text-gray-600 hover:bg-gray-100"}`}>
-                            {p}
-                        </button>
-                    ))}
-                    <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} className="p-1.5 text-gray-400 hover:text-[#5E81CC] disabled:opacity-30 transition-colors">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
-                    </button>
                 </div>
             </div>
 
