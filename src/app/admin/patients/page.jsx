@@ -4,100 +4,63 @@ import { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
-  ChevronDown,
-  Funnel,
   Pencil,
   Plus,
   Search,
   Trash2,
+  Loader2
 } from "lucide-react";
-
-const initialPatients = [
-  {
-    id: 1,
-    name: "Mila",
-    lastConsultation: "12 Mei 2030",
-    email: "Mila@gmail.com",
-    phone: "0xxxxxxxxxx",
-    status: "Non aktif",
-  },
-  {
-    id: 2,
-    name: "Kimmy",
-    lastConsultation: "12 Mei 2030",
-    email: "Kimmy@gmail.com",
-    phone: "0xxxxxxxxxx",
-    status: "aktif",
-  },
-  {
-    id: 3,
-    name: "Sila",
-    lastConsultation: "12 Mei 2030",
-    email: "Sila@gmail.com",
-    phone: "0xxxxxxxxxx",
-    status: "aktif",
-  },
-  {
-    id: 4,
-    name: "Nina",
-    lastConsultation: "14 Mei 2030",
-    email: "Nina@gmail.com",
-    phone: "0xxxxxxxxxx",
-    status: "aktif",
-  },
-];
 
 const emptyForm = {
   name: "",
   email: "",
   phone: "",
-  lastConsultation: "",
-  status: "Aktif",
 };
 
 export default function AdminPatientsPage() {
   const [patients, setPatients] = useState([]);
   const [deletedCount, setDeletedCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch("/api/patients");
+      if (res.ok) {
+        const { data } = await res.json();
+        setPatients(data);
+      }
+      
+      const resDel = await fetch("/api/patients?include_deleted=only");
+      if (resDel.ok) {
+        const { data: delData } = await resDel.json();
+        setDeletedCount(delData.length);
+      }
+    } catch (error) {
+      console.error("Failed to fetch patients:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("clinicalink:patients");
-      if (stored) {
-        try { setPatients(JSON.parse(stored)); } catch (e) { setPatients(initialPatients); }
-      } else {
-        setPatients(initialPatients);
-        localStorage.setItem("clinicalink:patients", JSON.stringify(initialPatients));
-      }
-
-      const storedDeleted = localStorage.getItem("clinicalink:deleted_patients");
-      if (storedDeleted) {
-        try { setDeletedCount(JSON.parse(storedDeleted).length); } catch (e) {}
-      }
-    }
+    fetchData();
   }, []);
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterOpen, setFilterOpen] = useState(false);
-  const [statusFilter, setStatusFilter] = useState("Semua");
   const [modal, setModal] = useState(null);
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [formData, setFormData] = useState(emptyForm);
+  const [isSaving, setIsSaving] = useState(false);
 
   const filteredPatients = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     return patients.filter((patient) => {
-      const matchesSearch =
-        !query ||
+      return !query ||
         patient.name.toLowerCase().includes(query) ||
         patient.email.toLowerCase().includes(query);
-      const matchesStatus =
-        statusFilter === "Semua" ||
-        patient.status.toLowerCase() === statusFilter.toLowerCase();
-      return matchesSearch && matchesStatus;
     });
-  }, [patients, searchQuery, statusFilter]);
-
-  const activePatients = patients.filter((patient) => patient.status.toLowerCase() === "aktif").length;
+  }, [patients, searchQuery]);
 
   const openAddModal = () => {
     setFormData(emptyForm);
@@ -110,8 +73,6 @@ export default function AdminPatientsPage() {
       name: patient.name,
       email: patient.email,
       phone: patient.phone,
-      lastConsultation: patient.lastConsultation,
-      status: patient.status.toLowerCase() === "aktif" ? "Aktif" : "Nonaktif",
     });
     setModal("edit");
   };
@@ -127,65 +88,63 @@ export default function AdminPatientsPage() {
     setFormData(emptyForm);
   };
 
-  const handleSave = () => {
-    const normalizedStatus = formData.status === "Aktif" ? "aktif" : "Non aktif";
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      if (modal === "edit" && selectedPatient) {
+        const res = await fetch("/api/patients", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: selectedPatient.id,
+            name: formData.name,
+            phone: formData.phone,
+          }),
+        });
+        if (res.ok) await fetchData();
+        else alert("Gagal memperbarui data pasien.");
+      }
 
-    if (modal === "edit" && selectedPatient) {
-      const updated = patients.map((patient) =>
-        patient.id === selectedPatient.id
-          ? {
-              ...patient,
-              name: formData.name || patient.name,
-              email: formData.email || patient.email,
-              phone: formData.phone || patient.phone,
-              lastConsultation: formData.lastConsultation || patient.lastConsultation,
-              status: normalizedStatus,
-            }
-          : patient
-      );
-      setPatients(updated);
-      localStorage.setItem("clinicalink:patients", JSON.stringify(updated));
+      if (modal === "add") {
+        const res = await fetch("/api/patients", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: formData.name,
+            email: formData.email,
+            phone: formData.phone,
+          }),
+        });
+        if (res.ok) await fetchData();
+        else {
+          const err = await res.json();
+          alert(err.message || "Gagal menambah pasien.");
+        }
+      }
+    } catch (error) {
+      alert("Terjadi kesalahan.");
+    } finally {
+      setIsSaving(false);
+      closeModal();
     }
-
-    if (modal === "add") {
-      const updated = [
-        ...patients,
-        {
-          id: patients.length > 0 ? Math.max(...patients.map(p => p.id)) + 1 : 1,
-          name: formData.name || "Pasien Baru",
-          email: formData.email || "pasien@email.com",
-          phone: formData.phone || "0xxxxxxxxxx",
-          lastConsultation: formData.lastConsultation || "-",
-          status: normalizedStatus,
-        },
-      ];
-      setPatients(updated);
-      localStorage.setItem("clinicalink:patients", JSON.stringify(updated));
-    }
-
-    closeModal();
   };
 
-  const handleDelete = () => {
-    if (selectedPatient) {
-      const updated = patients.filter((patient) => patient.id !== selectedPatient.id);
-      setPatients(updated);
-      localStorage.setItem("clinicalink:patients", JSON.stringify(updated));
-
-      // Simpan ke daftar terhapus di localStorage
-      const storedDeleted = localStorage.getItem("clinicalink:deleted_patients");
-      let deletedList = [];
-      if (storedDeleted) {
-        try { deletedList = JSON.parse(storedDeleted); } catch (e) {}
+  const handleDelete = async () => {
+    setIsSaving(true);
+    try {
+      if (selectedPatient) {
+        const res = await fetch(`/api/patients?id=${selectedPatient.id}`, {
+          method: "DELETE",
+        });
+        if (res.ok) await fetchData();
+        else alert("Gagal menghapus pasien.");
       }
-      deletedList.push({
-        ...selectedPatient,
-        deleted_at: new Date().toISOString(),
-      });
-      localStorage.setItem("clinicalink:deleted_patients", JSON.stringify(deletedList));
-      setDeletedCount(deletedList.length);
+    } catch (error) {
+      alert("Terjadi kesalahan.");
+    } finally {
+      setIsSaving(false);
+      closeModal();
     }
-    closeModal();
   };
 
   return (
@@ -196,9 +155,10 @@ export default function AdminPatientsPage() {
       </div>
 
       <div className="flex gap-4 mb-6 flex-wrap">
-        <SummaryCard label="Total pasien" value={patients.length} />
-        <SummaryCard label="Pasien aktif" value={activePatients} />
-        <SummaryCard label="Pasien baru" value={1} />
+        <SummaryCard label="Total Pasien" value={patients.length} />
+        {/* Placeholder for future features if needed */}
+        <SummaryCard label="Menunggu" value="-" />
+        <SummaryCard label="Selesai" value="-" />
       </div>
 
       <div className="flex flex-wrap gap-3 items-center mb-6">
@@ -214,34 +174,6 @@ export default function AdminPatientsPage() {
             onChange={(event) => setSearchQuery(event.target.value)}
             className="pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm w-56 focus:outline-none focus:ring-2 focus:ring-[#5E81CC] focus:border-transparent transition-all shadow-sm"
           />
-        </div>
-
-        {/* Filter Dropdown */}
-        <div className="relative">
-          <button
-            onClick={() => setFilterOpen((open) => !open)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-[#5E81CC] font-semibold rounded-lg text-sm shadow-sm hover:bg-gray-50 transition-colors"
-          >
-            <Funnel className="w-4 h-4" />
-            Filter {statusFilter !== "Semua" && <span className="text-xs ml-1 bg-[#5E81CC] text-white px-1.5 py-0.5 rounded-full">{statusFilter}</span>}
-          </button>
-          
-          {filterOpen && (
-            <div className="absolute top-12 left-0 bg-white border border-gray-100 rounded-xl shadow-lg z-20 w-40 p-1">
-              {["Semua", "Aktif", "Nonaktif"].map((option) => (
-                <button
-                  key={option}
-                  onClick={() => {
-                    setStatusFilter(option);
-                    setFilterOpen(false);
-                  }}
-                  className={`block w-full px-4 py-2.5 text-left text-sm font-semibold transition-colors rounded-lg ${statusFilter === option ? "bg-[#E6EDFF] text-[#5E81CC]" : "text-gray-700 hover:bg-gray-50"}`}
-                >
-                  {option}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
 
         <button
@@ -265,7 +197,7 @@ export default function AdminPatientsPage() {
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden pb-4 mb-6">
-        <div className="p-6 pb-4">
+        <div className="p-6 pb-4 border-b border-slate-100 flex justify-between items-center">
           <h2 className="text-lg font-bold text-gray-900">Daftar Pasien</h2>
         </div>
 
@@ -275,31 +207,30 @@ export default function AdminPatientsPage() {
               <tr>
                 <th className="px-6 py-4 text-center w-12">No</th>
                 <th className="px-6 py-4">Nama Pasien</th>
-                <th className="px-6 py-4">Konsultasi Terakhir</th>
                 <th className="px-6 py-4">Email</th>
                 <th className="px-6 py-4">No Telepon</th>
-                <th className="px-6 py-4 text-center">Status</th>
+                <th className="px-6 py-4">Konsultasi Terakhir</th>
                 <th className="px-6 py-4 text-center">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredPatients.map((patient, index) => (
+              {isLoading ? (
+                <tr>
+                  <td colSpan="6" className="px-6 py-12 text-center text-slate-500">
+                    <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-[#5E81CC]" />
+                    Memuat data pasien...
+                  </td>
+                </tr>
+              ) : filteredPatients.map((patient, index) => (
                 <tr
                   key={patient.id}
                   className="hover:bg-gray-50 transition-colors"
                 >
                   <td className="px-6 py-4 text-center font-medium text-gray-500">{index + 1}</td>
                   <td className="px-6 py-4 font-bold text-gray-900">{patient.name}</td>
-                  <td className="px-6 py-4 font-semibold text-gray-700">{patient.lastConsultation}</td>
                   <td className="px-6 py-4 text-gray-600">{patient.email}</td>
                   <td className="px-6 py-4 text-gray-600">{patient.phone}</td>
-                  <td className="px-6 py-4 text-center">
-                    {patient.status.toLowerCase() === "aktif" ? (
-                      <span className="inline-flex items-center justify-center px-4 py-1 rounded-full text-xs font-bold bg-green-100 text-green-600 border border-green-200">Aktif</span>
-                    ) : (
-                      <span className="inline-flex items-center justify-center px-4 py-1 rounded-full text-xs font-bold bg-red-100 text-red-500 border border-red-200">Non aktif</span>
-                    )}
-                  </td>
+                  <td className="px-6 py-4 font-semibold text-gray-700">{patient.lastConsultation}</td>
                   <td className="px-6 py-4 text-center">
                     <div className="flex items-center justify-center gap-2">
                       <button
@@ -320,9 +251,9 @@ export default function AdminPatientsPage() {
                   </td>
                 </tr>
               ))}
-              {filteredPatients.length === 0 && (
+              {!isLoading && filteredPatients.length === 0 && (
                 <tr>
-                  <td colSpan="7" className="px-6 py-12 text-center text-gray-400">Tidak ada pasien ditemukan</td>
+                  <td colSpan="6" className="px-6 py-12 text-center text-gray-400">Tidak ada pasien ditemukan</td>
                 </tr>
               )}
             </tbody>
@@ -338,6 +269,7 @@ export default function AdminPatientsPage() {
           onChange={setFormData}
           onCancel={closeModal}
           onSave={handleSave}
+          isSaving={isSaving}
         />
       )}
 
@@ -346,6 +278,7 @@ export default function AdminPatientsPage() {
           patientName={selectedPatient.name}
           onCancel={closeModal}
           onDelete={handleDelete}
+          isSaving={isSaving}
         />
       )}
     </div>
@@ -361,77 +294,52 @@ function SummaryCard({ label, value }) {
   );
 }
 
-function PatientFormModal({ title, mode, formData, onChange, onCancel, onSave }) {
-  const compact = mode === "edit";
-
+function PatientFormModal({ title, mode, formData, onChange, onCancel, onSave, isSaving }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className={`w-full rounded-2xl bg-white shadow-xl ${compact ? "max-w-md" : "max-w-2xl"}`}>
+      <div className="w-full max-w-md rounded-2xl bg-white shadow-xl">
         <div className="flex items-center justify-between border-b border-gray-100 p-6">
           <h3 className="text-xl font-bold text-gray-900">{title}</h3>
           <button onClick={onCancel} className="p-1 text-gray-400 hover:text-gray-600">
-            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            <XIcon className="h-6 w-6" />
           </button>
         </div>
 
         <div className="p-6">
-          <div className={compact ? "space-y-4" : "grid gap-4 md:grid-cols-2"}>
+          <div className="space-y-4">
             <TextField
-              label={compact ? "Nama Pasien *" : "Nama Lengkap *"}
+              label="Nama Lengkap *"
               value={formData.name}
               onChange={(value) => onChange({ ...formData, name: value })}
             />
-            {compact ? (
-              <TextField
-                label="Konsultasi Terakhir"
-                value={formData.lastConsultation}
-                onChange={(value) => onChange({ ...formData, lastConsultation: value })}
-              />
-            ) : (
-              <SelectField
-                label="Status *"
-                value={formData.status}
-                onChange={(value) => onChange({ ...formData, status: value })}
-              />
-            )}
             <TextField
               label="Email *"
               value={formData.email}
+              disabled={mode === 'edit'}
               onChange={(value) => onChange({ ...formData, email: value })}
             />
-            {!compact && (
-              <TextField
-                label="Konsultasi Terakhir"
-                value={formData.lastConsultation}
-                onChange={(value) => onChange({ ...formData, lastConsultation: value })}
-              />
-            )}
+            {mode === 'add' && <p className="text-xs text-indigo-500 font-medium px-1">Email tidak dapat diubah setelah ditambahkan. Password default adalah Pasien123!</p>}
             <TextField
               label="No Telepon"
               value={formData.phone}
               onChange={(value) => onChange({ ...formData, phone: value })}
             />
-            {compact && (
-              <SelectField
-                label="Status *"
-                value={formData.status}
-                onChange={(value) => onChange({ ...formData, status: value })}
-              />
-            )}
           </div>
 
-          <div className="mt-6 flex gap-3 border-t border-gray-100 pt-6">
+          <div className="mt-8 flex gap-3">
             <button
               onClick={onCancel}
-              className="flex-1 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+              disabled={isSaving}
+              className="flex-1 rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
             >
               Batal
             </button>
             <button
               onClick={onSave}
-              className="flex-1 rounded-xl bg-[#5E81CC] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#4A6BB0]"
+              disabled={isSaving}
+              className="flex-1 rounded-xl bg-[#5E81CC] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#4A6BB0] disabled:opacity-50 flex items-center justify-center gap-2"
             >
-              Simpan
+              {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Simpan"}
             </button>
           </div>
         </div>
@@ -440,27 +348,29 @@ function PatientFormModal({ title, mode, formData, onChange, onCancel, onSave })
   );
 }
 
-function DeletePatientModal({ patientName, onCancel, onDelete }) {
+function DeletePatientModal({ patientName, onCancel, onDelete, isSaving }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
       <div className="w-full max-w-md rounded-2xl bg-white px-8 py-9 text-center shadow-xl">
-        <h2 className="text-xl font-bold text-gray-900">Hapus Permanen Pasien</h2>
+        <h2 className="text-xl font-bold text-gray-900">Hapus Pasien</h2>
         <AlertTriangle className="mx-auto mt-6 h-16 w-16 text-red-500" strokeWidth={1.5} />
         <p className="mt-4 text-sm font-medium text-gray-600">
-          Apakah Anda yakin ingin menghapus data <b>{patientName}</b>? Tindakan ini tidak dapat dibatalkan.
+          Apakah Anda yakin ingin menghapus data <b>{patientName}</b>? Tindakan ini akan memindahkan data ke daftar terhapus.
         </p>
         <div className="mt-8 flex gap-3">
           <button
             onClick={onCancel}
-            className="flex-1 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+            disabled={isSaving}
+            className="flex-1 rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
           >
             Batal
           </button>
           <button
             onClick={onDelete}
-            className="flex-1 rounded-xl bg-red-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-600"
+            disabled={isSaving}
+            className="flex-1 rounded-xl bg-red-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-red-600 disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            Hapus
+            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Hapus"}
           </button>
         </div>
       </div>
@@ -468,34 +378,24 @@ function DeletePatientModal({ patientName, onCancel, onDelete }) {
   );
 }
 
-function TextField({ label, value, onChange }) {
+function TextField({ label, value, onChange, disabled }) {
   return (
     <div className="block space-y-1.5">
       <label className="text-sm font-semibold text-gray-700">{label}</label>
       <input
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm transition-all focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#5E81CC]"
+        disabled={disabled}
+        className={`w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#5E81CC] ${disabled ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-gray-50 focus:bg-white'}`}
       />
     </div>
   );
 }
 
-function SelectField({ label, value, onChange }) {
+function XIcon(props) {
   return (
-    <div className="block space-y-1.5">
-      <label className="text-sm font-semibold text-gray-700">{label}</label>
-      <div className="relative">
-        <select
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          className="w-full appearance-none rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm transition-all focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#5E81CC]"
-        >
-          <option>Aktif</option>
-          <option>Nonaktif</option>
-        </select>
-        <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
-      </div>
-    </div>
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+    </svg>
   );
 }
