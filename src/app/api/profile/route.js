@@ -3,17 +3,16 @@ import { supabase } from "@/lib/supabase";
 
 // Helper untuk menyatukan & menstandarkan format data dari tabel 'users' dan 'patients'
 // Helper untuk menyatukan & menstandarkan format data (Tanpa Username)
-function normalizeProfile(user, patient) {
+function normalizeProfile(user, patient, doctor) {
   return {
     id: user.id,
     email: user.email,
-    full_name: user.full_name, // Ini yang akan kita gunakan di UI utama
+    full_name: user.full_name,
     role: user.role,
     img_url: user?.img_url || "",
-    phone_number: patient?.phone_number || "",
+    phone_number: doctor?.phone_number || patient?.phone_number || "",
     address: patient?.address || "",
     date_of_birth: patient?.date_of_birth || "",
-    
   };
 }
 
@@ -31,13 +30,21 @@ async function getUserProfile(userId) {
   // Hapus 'username' dari string select di bawah ini
   const { data: patient, error: patientError } = await supabase
     .from("patients")
-    .select("phone_number, address, date_of_birth") 
+    .select("phone_number, address, date_of_birth")
     .eq("id", userId)
     .maybeSingle();
 
   if (patientError) return { error: patientError };
 
-  return { profile: normalizeProfile(user, patient) };
+  const { data: doctor, error: doctorError } = await supabase
+    .from("doctors")
+    .select("phone_number")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (doctorError) return { error: doctorError };
+
+  return { profile: normalizeProfile(user, patient, doctor) };
 }
 
 // =================================================================
@@ -174,11 +181,25 @@ export async function PATCH(request) {
           id,
           phone_number: String(phone_number || "").trim(),
           address: String(address || "").trim(),
-          date_of_birth: date_of_birth || null, // Pastikan format YYYY-MM-DD atau null
+          date_of_birth: date_of_birth || null,
         }, { onConflict: "id" });
 
       if (updatePatientError) {
         return NextResponse.json({ message: "Gagal menyimpan detail data pasien." }, { status: 500 });
+      }
+    }
+
+    // UPDATE DATA 3: Tabel public.doctors (Khusus jika rolenya doctor)
+    if (currentUser.role === "doctor") {
+      const { error: updateDoctorError } = await supabase
+        .from("doctors")
+        .upsert({
+          id,
+          phone_number: String(phone_number || "").trim(),
+        }, { onConflict: "id" });
+
+      if (updateDoctorError) {
+        return NextResponse.json({ message: "Gagal menyimpan detail data dokter." }, { status: 500 });
       }
     }
 

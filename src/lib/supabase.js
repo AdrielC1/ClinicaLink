@@ -17,9 +17,14 @@ export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseKey);
  */
 export const supabase = isSupabaseConfigured
   ? (typeof window !== "undefined"
-      ? createBrowserClient(supabaseUrl, supabaseKey)
+      ? createBrowserClient(supabaseUrl, supabaseKey, {
+          auth: {
+            persistSession: true,
+            autoRefreshToken: true,
+          },
+        })
       : createClient(supabaseUrl, supabaseKey, {
-          auth: { persistSession: false }
+          auth: { persistSession: false },
         }))
   : null;
 

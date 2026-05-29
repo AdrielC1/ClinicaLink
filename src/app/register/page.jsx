@@ -68,17 +68,28 @@ export default function RegisterPage() {
         return () => cancelAnimationFrame(frame);
     }, []);
 
-    // Guard: Jika user masuk ke halaman register, hancurkan sesi lama
+    // Guard: Jika user masuk ke halaman register, bersihkan sesi lama dengan aman.
     useEffect(() => {
-        const checkAndDestroySession = async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (user) {
-                await supabase.auth.signOut();
+        const clearPublicSession = async () => {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session?.user) {
+                    await supabase.auth.signOut();
+                }
+            } catch (err) {
+                console.warn("Gagal memeriksa sesi lama di halaman register:", err);
+                try {
+                    await supabase.auth.signOut();
+                } catch {
+                    // ignore cleanup failure
+                }
+            } finally {
                 localStorage.removeItem("clinicalink:user");
                 sessionStorage.removeItem("clinicalink:user");
+                document.cookie = "clinicalink_role=; path=/; max-age=0";
             }
         };
-        checkAndDestroySession();
+        clearPublicSession();
     }, []);
 
     const handleNavigate = (path) => {
