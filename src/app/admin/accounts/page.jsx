@@ -125,8 +125,13 @@ export default function AdminAccountsPage() {
             role: selectedAccount.role,
           }),
         });
-        if (res.ok) await fetchData();
-        else alert("Gagal memperbarui data akun.");
+        if (res.ok) {
+            await fetchData();
+            closeModal();
+        } else {
+            const err = await res.json().catch(() => ({}));
+            setFormErrors({ api: err.message || "Gagal memperbarui data akun." });
+        }
       }
 
       if (modal === "add") {
@@ -141,17 +146,18 @@ export default function AdminAccountsPage() {
             role: formData.role,
           }),
         });
-        if (res.ok) await fetchData();
-        else {
-          const err = await res.json();
-          alert(err.message || "Gagal menambah akun.");
+        if (res.ok) {
+            await fetchData();
+            closeModal();
+        } else {
+          const err = await res.json().catch(() => ({}));
+          setFormErrors({ api: err.message || "Gagal menambah akun." });
         }
       }
     } catch (error) {
-      alert("Terjadi kesalahan.");
+      setFormErrors({ api: "Terjadi kesalahan koneksi." });
     } finally {
       setIsSaving(false);
-      closeModal();
     }
   };
 
@@ -344,6 +350,13 @@ function AccountFormModal({ title, mode, formData, onChange, onCancel, onSave, i
         </div>
 
         <div className="p-6 overflow-y-auto">
+          {errors?.api && (
+            <div className="mb-6 p-3.5 bg-red-50 border border-red-200 text-red-600 rounded-xl text-sm font-medium flex items-start gap-2.5">
+              <AlertTriangle className="w-5 h-5 shrink-0" />
+              <span>{errors.api}</span>
+            </div>
+          )}
+
           {mode === 'add' && (
             <div className="mb-6">
               <label className="block text-sm font-semibold text-gray-700 mb-3">Tipe Akun (Role)</label>

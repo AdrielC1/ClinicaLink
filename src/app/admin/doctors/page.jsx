@@ -176,7 +176,7 @@ export default function AdminDoctorsPage() {
                 });
                 const specData = await specRes.json();
                 if (!specRes.ok) {
-                    showToast(specData.message || "Gagal membuat spesialisasi baru.", "error");
+                    setFormErrors({ api: specData.message || "Gagal membuat spesialisasi baru." });
                     setFormLoading(false);
                     return;
                 }
@@ -196,7 +196,10 @@ export default function AdminDoctorsPage() {
                     }),
                 });
                 const d = await res.json();
-                if (!res.ok) { showToast(d.message, "error"); return; }
+                if (!res.ok) { 
+                    setFormErrors({ api: d.message || "Gagal memperbarui dokter." });
+                    return; 
+                }
                 showToast(d.message);
             } else {
                 const res = await fetch("/api/doctors", {
@@ -208,13 +211,16 @@ export default function AdminDoctorsPage() {
                     }),
                 });
                 const d = await res.json();
-                if (!res.ok) { showToast(d.message, "error"); return; }
+                if (!res.ok) { 
+                    setFormErrors({ api: d.message || "Gagal menambah dokter." });
+                    return; 
+                }
                 showToast("Dokter berhasil ditambahkan.");
             }
             setShowModal(false);
             fetchDoctors();
         } catch (err) {
-            showToast("Terjadi kesalahan.", "error");
+            setFormErrors({ api: "Terjadi kesalahan koneksi saat menyimpan." });
         } finally {
             setFormLoading(false);
         }
@@ -454,6 +460,12 @@ export default function AdminDoctorsPage() {
                             </button>
                         </div>
                         <form onSubmit={handleSubmit} className="p-6 space-y-4" noValidate>
+                            {formErrors?.api && (
+                                <div className="mb-4 p-3.5 bg-red-50 border border-red-200 text-red-600 rounded-xl text-sm font-medium flex items-start gap-2.5">
+                                    <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                                    <span>{formErrors.api}</span>
+                                </div>
+                            )}
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="col-span-2 space-y-1.5">
                                     <label className="text-sm font-semibold text-gray-700">Nama Lengkap *</label>
