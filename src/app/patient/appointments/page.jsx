@@ -681,7 +681,13 @@ export default function PatientAppointmentsPage() {
                   {(() => {
                     const [syear, smonth, sday] = newDate.split('-').map(Number);
                     const selectedDayOfWeek = new Date(Date.UTC(syear, smonth - 1, sday)).getUTCDay();
-                    const schedulesForToday = rescheduleSchedules.filter(s => s.day_of_week === selectedDayOfWeek);
+                    const schedulesForToday = rescheduleSchedules.filter(s => {
+                      if (s.day_of_week !== selectedDayOfWeek) return false;
+                      // Check effective date validity
+                      const fromOk = !s.effective_from || s.effective_from <= newDate;
+                      const untilOk = !s.effective_until || s.effective_until >= newDate;
+                      return fromOk && untilOk;
+                    });
 
                     if (schedulesForToday.length === 0) {
                       return <div className="col-span-2 text-sm text-center py-4 text-slate-500 border border-dashed rounded-xl border-slate-300">Tidak ada jadwal praktek di hari ini.</div>;

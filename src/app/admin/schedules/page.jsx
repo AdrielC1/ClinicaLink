@@ -355,16 +355,64 @@ export default function AdminSchedulesPage() {
                 const doctorSchedules = schedules.filter(s => s.doctor_id === formData.doctor_id && !s.effective_until);
                 const originalDays = doctorSchedules.map(s => s.day_of_week);
 
-                const daysToAdd = formData.selected_days.filter(d => !originalDays.includes(d));
-                const daysToUpdate = formData.selected_days.filter(d => originalDays.includes(d));
-                const daysToDelete = originalDays.filter(d => !formData.selected_days.includes(d));
+                const daysToKeep = [];
+                const daysToAdd = [];
+                const daysToDelete = [];
 
-                const promises = [];
+                // Categorize each selected day
+                formData.selected_days.forEach(day => {
+                    if (originalDays.includes(day)) {
+                        const sched = doctorSchedules.find(s => s.day_of_week === day);
+                        const timeChanged = sched.start_time.slice(0, 5) !== formData.start_time || 
+                                            sched.end_time.slice(0, 5) !== formData.end_time ||
+                                            (sched.room_number || "") !== formData.room_number ||
+                                            sched.slot_duration_minutes !== Number(formData.slot_duration_minutes);
+                        
+                        if (timeChanged) {
+                            // Time changed: soft-delete the old one, add a new one
+                            daysToDelete.push(day);
+                            daysToAdd.push(day);
+                        } else {
+                            // No structural changes, keep it
+                            daysToKeep.push(day);
+                        }
+                    } else {
+                        // Completely new day
+                        daysToAdd.push(day);
+                    }
+                });
 
-                daysToUpdate.forEach(day => {
+                // Check for days that were unchecked
+                originalDays.forEach(day => {
+                    if (!formData.selected_days.includes(day)) {
+                        daysToDelete.push(day);
+                    }
+                });
+
+                const deletePromises = [];
+                // Process Deletes First
+                daysToDelete.forEach(day => {
+                    const sched = doctorSchedules.find(s => s.day_of_week === day);
+                    if (sched) {
+                        deletePromises.push(
+                            fetch(`${url}?id=${sched.id}`, { method: 'DELETE' }).then(async r => {
+                                const resData = await r.json();
+                                if (!r.ok) throw new Error(`${DAYS_OF_WEEK[day]}: ${resData.message}`);
+                                return resData;
+                            })
+                        );
+                    }
+                });
+                
+                // Wait for deletes to finish first to avoid conflict errors on POST
+                await Promise.all(deletePromises);
+
+                const savePromises = [];
+                // Process Patches (No-op or minor updates)
+                daysToKeep.forEach(day => {
                     const sched = doctorSchedules.find(s => s.day_of_week === day);
                     const body = { ...formData, day_of_week: day, id: sched.id };
-                    promises.push(
+                    savePromises.push(
                         fetch(url, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(async r => {
                             const resData = await r.json();
                             if (!r.ok) throw new Error(`${DAYS_OF_WEEK[day]}: ${resData.message}`);
@@ -373,9 +421,10 @@ export default function AdminSchedulesPage() {
                     );
                 });
 
+                // Process Adds
                 daysToAdd.forEach(day => {
                     const body = { ...formData, day_of_week: day };
-                    promises.push(
+                    savePromises.push(
                         fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(async r => {
                             const resData = await r.json();
                             if (!r.ok) throw new Error(`${DAYS_OF_WEEK[day]}: ${resData.message}`);
@@ -384,18 +433,7 @@ export default function AdminSchedulesPage() {
                     );
                 });
 
-                daysToDelete.forEach(day => {
-                    const sched = doctorSchedules.find(s => s.day_of_week === day);
-                    promises.push(
-                        fetch(`${url}?id=${sched.id}`, { method: 'DELETE' }).then(async r => {
-                            const resData = await r.json();
-                            if (!r.ok) throw new Error(`${DAYS_OF_WEEK[day]}: ${resData.message}`);
-                            return resData;
-                        })
-                    );
-                });
-
-                await Promise.all(promises);
+                await Promise.all(savePromises);
             } else {
                 const promises = formData.selected_days.map(day => {
                     const body = { ...formData, day_of_week: day };
