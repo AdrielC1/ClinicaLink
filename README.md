@@ -17,6 +17,12 @@ Aplikasi ini menggunakan kombinasi pemicu manual dari dokter dan perhitungan wak
 * **Menunggu Catatan Dokter:** Jika sesi telah melewati batas waktu selesai (`end_time`) namun dokter belum menginput catatan medis, sistem akan memberikan peringatan visual di *dashboard* dokter.
 * **Selesai Paksa (4-Hour Rule):** Untuk menjaga integritas data harian, jika telah melewati 4 jam dari waktu selesai dan dokter tetap tidak merespons/menyimpan catatan, sistem akan secara otomatis memaksa status menjadi "Selesai".
 
+## 🗓️ Smart Schedule "Weekly Refresh" Mechanism
+Perubahan dan penghapusan jadwal dokter menggunakan mekanisme berbasis waktu (*time-versioning*) alih-alih penghapusan langsung:
+* **Tambah Jadwal Baru:** Jadwal yang baru ditambahkan Admin **TIDAK langsung aktif**. Jadwal baru di-insert dengan `effective_from = Senin minggu depan`, sehingga pasien dapat terus memesan slot di minggu berjalan tanpa gangguan.
+* **Hapus Jadwal:** Menghapus jadwal **TIDAK** menghapus baris dari database. Sistem hanya meng-update `effective_until` menjadi hari Minggu di minggu berjalan. Jadwal tetap tersedia untuk booking pasien hingga hari Minggu, dan otomatis tidak muncul mulai hari Senin berikutnya.
+* **Tabel `doctor_schedules`** menggunakan kolom `effective_from` dan `effective_until` untuk versioning, dan **tidak menggunakan `deleted_at`**.
+
 ## 🛠️ Tech Stack
 * **Frontend:** Next.js 14 (App Router), React, Tailwind CSS
 * **Backend & API:** Next.js Server Actions

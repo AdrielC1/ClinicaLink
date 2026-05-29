@@ -6,7 +6,7 @@ You are an expert full-stack developer. Always write robust, type-safe TypeScrip
 
 ## 2. Core Operational Directives
 * **MANDATORY SCHEMA CHECK:** Before generating any database queries or API routes, you MUST read the `database_schema.md` file to understand exact table names, relationships, and custom types.
-* **NO HARD DELETES:** Never use `DELETE FROM` queries. This project strictly enforces a Soft Delete Protocol. Use `UPDATE [table] SET deleted_at = NOW()` instead. Always append `WHERE deleted_at IS NULL` on read operations.
+* **NO HARD DELETES:** Never use `DELETE FROM` queries. This project strictly enforces a Soft Delete Protocol. Use `UPDATE [table] SET deleted_at = NOW()` instead. Always append `WHERE deleted_at IS NULL` on read operations. **EXCEPTION: `doctor_schedules` table does NOT use `deleted_at` — see Rule 6 below.**
 * **SUPABASE CLIENT:** Use `@supabase/ssr` or standard Supabase JS client depending on the environment (Server Actions vs Client Components).
 
 ## 3. The "Virtual State Logic" (CRITICAL - UPDATED FLOW)
@@ -26,3 +26,11 @@ The `doctors` table uses an `inactive_from` (date, nullable) column instead of a
 * **Inactive Doctor:** `inactive_from <= today` → Doctor is considered fully inactive. Do not show in patient-facing listings.
 * **Bulk Cancellation on Save:** When Admin sets `inactive_from`, the backend MUST: (A) Update `doctors.inactive_from`, (B) Cancel all `appointments` with `status='Menunggu'` AND `appointment_date >= inactive_from` by setting `status='Dibatalkan'` and filling `cancellation_reason`, (C) Send a notification to each affected patient.
 * **Re-activation:** Setting `inactive_from` back to NULL re-activates the doctor. No appointments are restored.
+
+## 6. Doctor Schedule "Weekly Refresh" Mechanism (CRITICAL)
+The `doctor_schedules` table uses `effective_from` and `effective_until` for time-versioning. **NEVER use `deleted_at` on this table.**
+
+* **Reading Active Schedules:** Always filter with `effective_until IS NULL OR effective_until > today`. Do NOT filter by `deleted_at` on this table.
+* **Deleting a Schedule (Expire):** NEVER run `DELETE FROM` or set `deleted_at`. Instead, run: `UPDATE doctor_schedules SET effective_until = '[this Sunday at 23:59:59]' WHERE id = [id]`. The schedule stays active until Sunday end-of-day and disappears automatically on Monday.
+* **Adding a New Schedule:** Always INSERT with `effective_from = [next Monday's date]` and `effective_until = NULL`. The schedule will NOT be visible to patients in the current week.
+* **Unique Constraint is DROPPED:** The old UNIQUE constraint on `(doctor_id, day_of_week, start_time)` has been removed to allow historical rows to coexist with new rows for the same slot.
