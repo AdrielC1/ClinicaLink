@@ -14,7 +14,6 @@ export default function AdminSchedulesPage() {
     
     // UI State
     const [searchTerm, setSearchTerm] = useState("");
-    const [currentPage, setCurrentPage] = useState(1);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editingSchedule, setEditingSchedule] = useState(null);

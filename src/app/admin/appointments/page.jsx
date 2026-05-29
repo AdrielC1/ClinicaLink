@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Search, Filter, Plus, Edit3, Eye, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { Search, Filter, Plus, Edit3, Eye, X } from "lucide-react";
 
 function computeVirtualStatus(appt) {
   const now = new Date();
@@ -40,10 +40,6 @@ export default function AdminAppointmentsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("Semua");
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
-
-  // Pagination (Frontend)
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
 
   // Modals
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -109,13 +105,11 @@ export default function AdminAppointmentsPage() {
 
   const handleSearch = (e) => {
     setSearchQuery(e.target.value);
-    setCurrentPage(1);
   };
 
   const handleStatusFilter = (status) => {
     setStatusFilter(status);
     setShowStatusDropdown(false);
-    setCurrentPage(1);
   };
 
   const filteredAppointments = appointments.filter((app) => {
@@ -125,13 +119,6 @@ export default function AdminAppointmentsPage() {
     const matchesStatus = statusFilter === "Semua" || app.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
-
-  // Pagination logic
-  const totalPages = Math.ceil(filteredAppointments.length / itemsPerPage) || 1;
-  const paginatedAppointments = filteredAppointments.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
 
   const getStatusBadge = (status) => {
     switch (status?.toLowerCase()) {
@@ -372,14 +359,14 @@ export default function AdminAppointmentsPage() {
                     Memuat data...
                   </td>
                 </tr>
-              ) : paginatedAppointments.length === 0 ? (
+              ) : filteredAppointments.length === 0 ? (
                 <tr>
                   <td colSpan="7" className="px-6 py-12 text-center text-gray-400">
                     Tidak ada data janji temu ditemukan.
                   </td>
                 </tr>
               ) : (
-                paginatedAppointments.map((app, index) => {
+                filteredAppointments.map((app, index) => {
                   let timeDisplay = app.schedule_time || "-";
                   if (app.start_time && app.end_time) {
                     timeDisplay = `${formatTime(app.start_time)} - ${formatTime(app.end_time)} WIB`;
@@ -391,7 +378,7 @@ export default function AdminAppointmentsPage() {
                   return (
                     <tr key={app.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4 text-center font-medium text-gray-500">
-                        {(currentPage - 1) * itemsPerPage + index + 1}
+                        {index + 1}
                       </td>
                       <td className="px-6 py-4 font-bold text-gray-900">{app.patient_name}</td>
                       <td className="px-6 py-4 font-semibold text-gray-700">{app.doctor_name}</td>
@@ -427,41 +414,6 @@ export default function AdminAppointmentsPage() {
             </tbody>
           </table>
         </div>
-
-        {/* Pagination */}
-        {!loading && filteredAppointments.length > 0 && (
-          <div className="flex items-center justify-center gap-2 mt-6 mb-2">
-            <button
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-              className="p-1.5 text-gray-400 hover:text-[#5E81CC] disabled:opacity-50 transition-colors"
-              title="Halaman sebelumnya"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-              <button
-                key={page}
-                onClick={() => setCurrentPage(page)}
-                className={`w-8 h-8 flex items-center justify-center rounded-full font-semibold text-sm transition-colors ${
-                  currentPage === page
-                    ? "bg-[#5E81CC] text-white"
-                    : "text-gray-600 hover:bg-gray-100"
-                }`}
-              >
-                {page}
-              </button>
-            ))}
-            <button
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-              className="p-1.5 text-gray-400 hover:text-[#5E81CC] disabled:opacity-50 transition-colors"
-              title="Halaman berikutnya"
-            >
-              <ChevronRight className="h-5 w-5" />
-            </button>
-          </div>
-        )}
       </div>
 
       {/* Add Appointment Modal */}

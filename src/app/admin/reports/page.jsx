@@ -1,10 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
   Download,
   Eye,
   X,
@@ -105,19 +103,10 @@ const dateRanges = [
   "01 Maret 2030 - 31 Maret 2030",
 ];
 
-const itemsPerPage = 5;
-
 export default function AdminReportsPage() {
   const [selectedReport, setSelectedReport] = useState(null);
   const [selectedDateRange, setSelectedDateRange] = useState(dateRanges[0]);
   const [dateDropdownOpen, setDateDropdownOpen] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-
-  const totalPages = Math.ceil(reportRows.length / itemsPerPage);
-  const paginatedRows = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    return reportRows.slice(startIndex, startIndex + itemsPerPage);
-  }, [currentPage]);
 
   const downloadReport = () => {
     const rows = [
@@ -226,7 +215,6 @@ export default function AdminReportsPage() {
                     onClick={() => {
                       setSelectedDateRange(range);
                       setDateDropdownOpen(false);
-                      setCurrentPage(1);
                     }}
                     className={`block w-full px-4 py-2.5 text-left text-sm font-semibold transition-colors rounded-lg ${
                       selectedDateRange === range ? "bg-[#E6EDFF] text-[#5E81CC]" : "text-gray-700 hover:bg-gray-50"
@@ -280,9 +268,9 @@ export default function AdminReportsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {paginatedRows.map((row, index) => (
+              {reportRows.map((row, index) => (
                 <tr key={`${row.key}-${row.title}`} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4 text-center font-medium text-gray-500">{(currentPage - 1) * itemsPerPage + index + 1}</td>
+                  <td className="px-6 py-4 text-center font-medium text-gray-500">{index + 1}</td>
                   <td className="px-6 py-4 font-bold text-gray-900">{row.title}</td>
                   <td className="px-6 py-4 text-center text-gray-700">{row.value}</td>
                   <td className="px-6 py-4 text-center">
@@ -301,41 +289,6 @@ export default function AdminReportsPage() {
             </tbody>
           </table>
         </div>
-
-        {/* Pagination */}
-        {reportRows.length > 0 && (
-          <div className="flex items-center justify-center gap-2 mt-6 mb-2">
-            <button
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-              className="p-1.5 text-gray-400 hover:text-[#5E81CC] disabled:opacity-50 transition-colors"
-              title="Halaman sebelumnya"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-              <button
-                key={page}
-                onClick={() => setCurrentPage(page)}
-                className={`w-8 h-8 flex items-center justify-center rounded-full font-semibold text-sm transition-colors ${
-                  currentPage === page
-                    ? "bg-[#5E81CC] text-white"
-                    : "text-gray-600 hover:bg-gray-100"
-                }`}
-              >
-                {page}
-              </button>
-            ))}
-            <button
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-              className="p-1.5 text-gray-400 hover:text-[#5E81CC] disabled:opacity-50 transition-colors"
-              title="Halaman berikutnya"
-            >
-              <ChevronRight className="h-5 w-5" />
-            </button>
-          </div>
-        )}
       </div>
 
       {selectedReport && (

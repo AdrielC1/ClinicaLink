@@ -1,11 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
+import Link from "next/link";
 import {
   AlertTriangle,
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
   Funnel,
   Pencil,
   Plus,
@@ -57,7 +56,26 @@ const emptyForm = {
 };
 
 export default function AdminPatientsPage() {
-  const [patients, setPatients] = useState(initialPatients);
+  const [patients, setPatients] = useState([]);
+  const [deletedCount, setDeletedCount] = useState(0);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("clinicalink:patients");
+      if (stored) {
+        try { setPatients(JSON.parse(stored)); } catch (e) { setPatients(initialPatients); }
+      } else {
+        setPatients(initialPatients);
+        localStorage.setItem("clinicalink:patients", JSON.stringify(initialPatients));
+      }
+
+      const storedDeleted = localStorage.getItem("clinicalink:deleted_patients");
+      if (storedDeleted) {
+        try { setDeletedCount(JSON.parse(storedDeleted).length); } catch (e) {}
+      }
+    }
+  }, []);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [filterOpen, setFilterOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState("Semua");
@@ -79,7 +97,7 @@ export default function AdminPatientsPage() {
     });
   }, [patients, searchQuery, statusFilter]);
 
-  const activePatients = patients.filter((patient) => patient.status === "aktif").length;
+  const activePatients = patients.filter((patient) => patient.status.toLowerCase() === "aktif").length;
 
   const openAddModal = () => {
     setFormData(emptyForm);
@@ -113,34 +131,36 @@ export default function AdminPatientsPage() {
     const normalizedStatus = formData.status === "Aktif" ? "aktif" : "Non aktif";
 
     if (modal === "edit" && selectedPatient) {
-      setPatients((current) =>
-        current.map((patient) =>
-          patient.id === selectedPatient.id
-            ? {
-                ...patient,
-                name: formData.name || patient.name,
-                email: formData.email || patient.email,
-                phone: formData.phone || patient.phone,
-                lastConsultation: formData.lastConsultation || patient.lastConsultation,
-                status: normalizedStatus,
-              }
-            : patient
-        )
+      const updated = patients.map((patient) =>
+        patient.id === selectedPatient.id
+          ? {
+              ...patient,
+              name: formData.name || patient.name,
+              email: formData.email || patient.email,
+              phone: formData.phone || patient.phone,
+              lastConsultation: formData.lastConsultation || patient.lastConsultation,
+              status: normalizedStatus,
+            }
+          : patient
       );
+      setPatients(updated);
+      localStorage.setItem("clinicalink:patients", JSON.stringify(updated));
     }
 
     if (modal === "add") {
-      setPatients((current) => [
-        ...current,
+      const updated = [
+        ...patients,
         {
-          id: current.length + 1,
+          id: patients.length > 0 ? Math.max(...patients.map(p => p.id)) + 1 : 1,
           name: formData.name || "Pasien Baru",
           email: formData.email || "pasien@email.com",
           phone: formData.phone || "0xxxxxxxxxx",
           lastConsultation: formData.lastConsultation || "-",
           status: normalizedStatus,
         },
-      ]);
+      ];
+      setPatients(updated);
+      localStorage.setItem("clinicalink:patients", JSON.stringify(updated));
     }
 
     closeModal();
@@ -148,7 +168,22 @@ export default function AdminPatientsPage() {
 
   const handleDelete = () => {
     if (selectedPatient) {
-      setPatients((current) => current.filter((patient) => patient.id !== selectedPatient.id));
+      const updated = patients.filter((patient) => patient.id !== selectedPatient.id);
+      setPatients(updated);
+      localStorage.setItem("clinicalink:patients", JSON.stringify(updated));
+
+      // Simpan ke daftar terhapus di localStorage
+      const storedDeleted = localStorage.getItem("clinicalink:deleted_patients");
+      let deletedList = [];
+      if (storedDeleted) {
+        try { deletedList = JSON.parse(storedDeleted); } catch (e) {}
+      }
+      deletedList.push({
+        ...selectedPatient,
+        deleted_at: new Date().toISOString(),
+      });
+      localStorage.setItem("clinicalink:deleted_patients", JSON.stringify(deletedList));
+      setDeletedCount(deletedList.length);
     }
     closeModal();
   };
@@ -216,6 +251,17 @@ export default function AdminPatientsPage() {
           <Plus className="h-4 w-4" />
           Tambah pasien
         </button>
+
+        {/* Lihat Terhapus Link */}
+        <Link
+          href="/admin/patients/deleted"
+          className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 rounded-lg text-sm font-semibold transition-colors shadow-sm bg-white text-gray-600 hover:bg-gray-50"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+          Daftar Terhapus {deletedCount > 0 && <span className="bg-orange-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">{deletedCount}</span>}
+        </Link>
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden pb-4 mb-6">
@@ -281,24 +327,6 @@ export default function AdminPatientsPage() {
               )}
             </tbody>
           </table>
-        </div>
-
-        <div className="flex items-center justify-center gap-2 mt-6 mb-2">
-          <button className="p-1.5 text-gray-400 hover:text-[#5E81CC] transition-colors" title="Halaman sebelumnya">
-            <ChevronLeft className="h-5 w-5" />
-          </button>
-          <button className="w-8 h-8 flex items-center justify-center rounded-full font-semibold text-sm transition-colors bg-[#5E81CC] text-white">
-            1
-          </button>
-          <button className="w-8 h-8 flex items-center justify-center rounded-full font-semibold text-sm transition-colors text-gray-600 hover:bg-gray-100">
-            2
-          </button>
-          <button className="w-8 h-8 flex items-center justify-center rounded-full font-semibold text-sm transition-colors text-gray-600 hover:bg-gray-100">
-            3
-          </button>
-          <button className="p-1.5 text-gray-400 hover:text-[#5E81CC] transition-colors" title="Halaman berikutnya">
-            <ChevronRight className="h-5 w-5" />
-          </button>
         </div>
       </div>
 
