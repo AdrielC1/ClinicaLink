@@ -55,6 +55,7 @@ export default function AdminAccountsPage() {
   const [modal, setModal] = useState(null);
   const [selectedAccount, setSelectedAccount] = useState(null);
   const [formData, setFormData] = useState(emptyForm);
+  const [formErrors, setFormErrors] = useState({});
   const [isSaving, setIsSaving] = useState(false);
 
   const filteredAccounts = useMemo(() => {
@@ -68,6 +69,7 @@ export default function AdminAccountsPage() {
 
   const openAddModal = () => {
     setFormData(emptyForm);
+    setFormErrors({});
     setModal("add");
   };
 
@@ -79,6 +81,7 @@ export default function AdminAccountsPage() {
       phone: account.phone,
       role: account.role,
     });
+    setFormErrors({});
     setModal("edit");
   };
 
@@ -94,6 +97,21 @@ export default function AdminAccountsPage() {
   };
 
   const handleSave = async () => {
+    const errors = {};
+    if (!formData.name?.trim()) errors.name = "Mohon isi nama lengkap.";
+    if (!formData.email?.trim()) errors.email = "Mohon isi email.";
+    if (modal === "add" && !formData.password) errors.password = "Mohon isi password.";
+    
+    if (formData.role === 'patient' && !formData.phone?.trim()) {
+        errors.phone = "Mohon isi nomor telepon untuk pasien.";
+    }
+
+    if (Object.keys(errors).length > 0) {
+        setFormErrors(errors);
+        return;
+    }
+
+    setFormErrors({});
     setIsSaving(true);
     try {
       if (modal === "edit" && selectedAccount) {
@@ -288,6 +306,8 @@ export default function AdminAccountsPage() {
           onCancel={closeModal}
           onSave={handleSave}
           isSaving={isSaving}
+          errors={formErrors}
+          setErrors={setFormErrors}
         />
       )}
 
@@ -312,7 +332,7 @@ function SummaryCard({ label, value }) {
   );
 }
 
-function AccountFormModal({ title, mode, formData, onChange, onCancel, onSave, isSaving }) {
+function AccountFormModal({ title, mode, formData, onChange, onCancel, onSave, isSaving, errors, setErrors }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
       <div className="w-full max-w-md rounded-2xl bg-white shadow-xl flex flex-col max-h-[90vh]">
@@ -352,13 +372,15 @@ function AccountFormModal({ title, mode, formData, onChange, onCancel, onSave, i
             <TextField
               label="Nama Lengkap *"
               value={formData.name}
-              onChange={(value) => onChange({ ...formData, name: value })}
+              error={errors?.name}
+              onChange={(value) => { onChange({ ...formData, name: value }); setErrors(e => ({...e, name: null})); }}
             />
             <TextField
               label="Email *"
               value={formData.email}
               disabled={mode === 'edit'}
-              onChange={(value) => onChange({ ...formData, email: value })}
+              error={errors?.email}
+              onChange={(value) => { onChange({ ...formData, email: value }); setErrors(e => ({...e, email: null})); }}
             />
             
             {mode === 'add' && (
@@ -366,15 +388,17 @@ function AccountFormModal({ title, mode, formData, onChange, onCancel, onSave, i
                 label="Password *"
                 type="password"
                 value={formData.password}
-                onChange={(value) => onChange({ ...formData, password: value })}
+                error={errors?.password}
+                onChange={(value) => { onChange({ ...formData, password: value }); setErrors(e => ({...e, password: null})); }}
               />
             )}
 
             {formData.role === 'patient' && (
               <TextField
-                label="No Telepon"
+                label="No Telepon *"
                 value={formData.phone}
-                onChange={(value) => onChange({ ...formData, phone: value })}
+                error={errors?.phone}
+                onChange={(value) => { onChange({ ...formData, phone: value }); setErrors(e => ({...e, phone: null})); }}
               />
             )}
           </div>
@@ -431,7 +455,7 @@ function DeleteAccountModal({ accountName, onCancel, onDelete, isSaving }) {
   );
 }
 
-function TextField({ label, value, onChange, disabled, type = "text" }) {
+function TextField({ label, value, onChange, disabled, type = "text", error }) {
   return (
     <div className="block space-y-1.5">
       <label className="text-sm font-semibold text-gray-700">{label}</label>
@@ -440,8 +464,9 @@ function TextField({ label, value, onChange, disabled, type = "text" }) {
         value={value}
         onChange={(event) => onChange(event.target.value)}
         disabled={disabled}
-        className={`w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#5E81CC] ${disabled ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-gray-50 focus:bg-white'}`}
+        className={`w-full rounded-xl border px-4 py-2.5 text-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#5E81CC] ${disabled ? 'bg-slate-100 text-slate-500 cursor-not-allowed border-gray-200' : error ? 'bg-gray-50 border-red-500 focus:ring-red-500 focus:bg-white' : 'bg-gray-50 border-gray-200 focus:bg-white'}`}
       />
+      {error && <p className="text-xs text-red-500 font-medium">{error}</p>}
     </div>
   );
 }
