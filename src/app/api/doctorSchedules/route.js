@@ -25,7 +25,9 @@ export async function GET(request) {
                     user:users (
                         full_name
                     )
-                )
+                ),
+                effective_from,
+                effective_until
             `)
             .is('deleted_at', null); // Hanya ambil yang belum di-soft delete
 
@@ -44,7 +46,9 @@ export async function GET(request) {
                 start_time: data.start_time,
                 end_time: data.end_time,
                 slot_duration_minutes: data.slot_duration_minutes,
-                room_number: data.room_number
+                room_number: data.room_number,
+                effective_from: data.effective_from,
+                effective_until: data.effective_until
             };
 
             return NextResponse.json({ message: "Berhasil mengambil detail jadwal.", data: formatted }, { status: 200 });
@@ -64,7 +68,9 @@ export async function GET(request) {
                 start_time: item.start_time,
                 end_time: item.end_time,
                 slot_duration_minutes: item.slot_duration_minutes,
-                room_number: item.room_number
+                room_number: item.room_number,
+                effective_from: item.effective_from,
+                effective_until: item.effective_until
             }));
 
             return NextResponse.json({ message: "Berhasil mengambil jadwal dokter.", data: formatted }, { status: 200 });
@@ -83,7 +89,9 @@ export async function GET(request) {
             start_time: item.start_time,
             end_time: item.end_time,
             slot_duration_minutes: item.slot_duration_minutes,
-            room_number: item.room_number
+            room_number: item.room_number,
+            effective_from: item.effective_from,
+            effective_until: item.effective_until
         }));
 
         return NextResponse.json({ message: "Berhasil mengambil semua jadwal.", data: formattedAll }, { status: 200 });

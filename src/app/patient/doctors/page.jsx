@@ -167,8 +167,16 @@ function PatientDoctorsContent() {
     return doctors.map(doc => {
       const docSchedules = schedules.filter(s => s.doctor_id === doc.id);
       
+      // For card display, show schedules valid for "today or future"
+      const todayISO = new Date().toISOString().split('T')[0];
+      const activeSchedules = docSchedules.filter(s => {
+        const fromOk = !s.effective_from || s.effective_from <= todayISO;
+        const untilOk = !s.effective_until || s.effective_until >= todayISO;
+        return fromOk && untilOk;
+      });
+      
       // Calculate min/max days for display
-      const days = docSchedules.map(s => s.day_of_week).sort();
+      const days = activeSchedules.map(s => s.day_of_week).sort();
       let scheduleText = "Belum ada jadwal";
       let timeText = "";
       
@@ -574,7 +582,13 @@ function PatientDoctorsContent() {
                         if (!selectedDate) return <div className="col-span-2 text-sm text-center py-4 text-slate-500 border border-dashed rounded-xl border-slate-300">Pilih tanggal terlebih dahulu</div>;
                         const [syear, smonth, sday] = selectedDate.split('-').map(Number);
                         const selectedDayOfWeek = new Date(Date.UTC(syear, smonth - 1, sday)).getUTCDay();
-                        const schedulesForToday = selectedDoctor.schedules.filter(s => s.day_of_week === selectedDayOfWeek);
+                        const schedulesForToday = selectedDoctor.schedules.filter(s => {
+                          if (s.day_of_week !== selectedDayOfWeek) return false;
+                          // Check effective date validity
+                          const fromOk = !s.effective_from || s.effective_from <= selectedDate;
+                          const untilOk = !s.effective_until || s.effective_until >= selectedDate;
+                          return fromOk && untilOk;
+                        });
 
                         if (schedulesForToday.length > 0) {
                           return schedulesForToday.map(sched => {

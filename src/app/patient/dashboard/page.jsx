@@ -548,9 +548,13 @@ export default function PatientDashboardPage() {
                       // Gunakan UTC agar tidak terjadi shift tanggal akibat timezone
                       const [syear, smonth, sday] = selectedDate.split('-').map(Number);
                       const selectedDayOfWeek = new Date(Date.UTC(syear, smonth - 1, sday)).getUTCDay();
-                      const schedulesForToday = doctorSchedules.filter(
-                        s => s.doctor_id === selectedDoctor.id && s.day_of_week === selectedDayOfWeek
-                      );
+                      const schedulesForToday = doctorSchedules.filter(s => {
+                        if (s.doctor_id !== selectedDoctor.id || s.day_of_week !== selectedDayOfWeek) return false;
+                        // Check effective date validity
+                        const fromOk = !s.effective_from || s.effective_from <= selectedDate;
+                        const untilOk = !s.effective_until || s.effective_until >= selectedDate;
+                        return fromOk && untilOk;
+                      });
 
                       if (schedulesForToday.length > 0) {
                         return schedulesForToday.map(sched => {
