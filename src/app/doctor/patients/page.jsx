@@ -198,10 +198,10 @@ export default function DoctorPatientsPage() {
     <div className="w-full">
       {/* Header Section */}
       <div className="mb-6">
-        <h1 className="text-[24px] font-extrabold text-gray-900 tracking-tight">
+        <h1 className="text-3xl font-bold text-gray-900 mb-1">
           Riwayat Konsultasi
         </h1>
-        <p className="text-[14px] font-medium text-gray-500 mt-1">
+        <p className="text-gray-500 text-sm">
           Lihat seluruh riwayat konsultasi dan detail pasien.
         </p>
       </div>
@@ -210,7 +210,7 @@ export default function DoctorPatientsPage() {
       <div className="mb-5 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3">
         {/* Left: Total Konsultasi */}
         <div className="flex items-center gap-3">
-          <h2 className="text-[15px] font-extrabold text-gray-800">
+          <h2 className="text-lg font-bold text-gray-900">
             Total Riwayat
           </h2>
           <span className="text-[12px] font-bold text-gray-400">
@@ -377,7 +377,7 @@ export default function DoctorPatientsPage() {
           >
             {/* Header */}
             <div className="flex items-center justify-between p-5 border-b border-gray-100">
-              <h2 className="text-[16px] font-extrabold text-gray-900">Detail Konsultasi</h2>
+              <h2 className="text-lg font-bold text-gray-900">Detail Konsultasi</h2>
               <button onClick={closeModal} className="text-gray-400 hover:text-gray-600 transition-colors">
                 <X size={20} />
               </button>

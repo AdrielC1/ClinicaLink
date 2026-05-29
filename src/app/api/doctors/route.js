@@ -2,21 +2,24 @@ import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
 // ===================================================================
-// GET: Ambil semua dokter (mendukung filter is_active & pencarian)
+// GET: Ambil semua dokter (mendukung filter status & pencarian)
 // ===================================================================
 export async function GET(request) {
     try {
         const { searchParams } = new URL(request.url);
         const id = searchParams.get('id');
-        const isActive = searchParams.get('is_active'); // 'true' | 'false'
+        const statusFilter = searchParams.get('status'); // 'active' | 'inactive'
         const search = searchParams.get('search');
         const includeDeleted = searchParams.get('include_deleted') === 'true';
+
+        // Backward compat: support legacy is_active param
+        const legacyIsActive = searchParams.get('is_active');
 
         let query = supabase
             .from('doctors')
             .select(`
                 id,
-                is_active,
+                inactive_from,
                 phone_number,
                 deleted_at,
                 user:users (
@@ -42,30 +45,23 @@ export async function GET(request) {
             return NextResponse.json({ message: "OK", data: formatDoctor(data) }, { status: 200 });
         }
 
-        // Filter berdasarkan status aktif
-        if (isActive !== null && isActive !== undefined && isActive !== '') {
-            query = query.eq('is_active', isActive === 'true');
+        const { data, error } = await query.order('id', { ascending: true });
+        if (error) return NextResponse.json({ message: error.message }, { status: 500 });
+
+        let result = (data || []).map(formatDoctor);
+
+        // Filter berdasarkan status (active/inactive) menggunakan logika inactive_from
+        const todayStr = new Date().toISOString().split('T')[0];
+
+        if (statusFilter === 'active' || legacyIsActive === 'true') {
+            // Aktif = inactive_from IS NULL OR inactive_from > today
+            result = result.filter(d => !d.inactive_from || d.inactive_from > todayStr);
+        } else if (statusFilter === 'inactive' || legacyIsActive === 'false') {
+            // Nonaktif = inactive_from <= today
+            result = result.filter(d => d.inactive_from && d.inactive_from <= todayStr);
         }
 
-        const { data, error } = await query.order('created_at', { ascending: true, referencedTable: 'users' });
-        if (error) {
-            // Fallback jika kolom created_at tidak ada di users
-            const { data: data2, error: error2 } = await supabase
-                .from('doctors')
-                .select(`id, is_active, phone_number, deleted_at, user:users(full_name, email, img_url), specialization:specializations(id, name)`)
-                .is('deleted_at', !includeDeleted ? null : undefined);
-            if (error2) return NextResponse.json({ message: error2.message }, { status: 500 });
-            let result = data2.map(formatDoctor);
-            if (search) {
-                result = result.filter(d =>
-                    d.full_name.toLowerCase().includes(search.toLowerCase()) ||
-                    d.specialization_name.toLowerCase().includes(search.toLowerCase())
-                );
-            }
-            return NextResponse.json({ message: "OK", data: result }, { status: 200 });
-        }
-
-        let result = data.map(formatDoctor);
+        // Filter berdasarkan pencarian nama/spesialisasi
         if (search) {
             result = result.filter(d =>
                 d.full_name.toLowerCase().includes(search.toLowerCase()) ||
@@ -86,10 +82,10 @@ export async function GET(request) {
 export async function POST(request) {
     try {
         const body = await request.json();
-        const { full_name, email, password, specialization_id, phone_number, is_active } = body;
+        const { full_name, email, password, specialization_id, phone_number } = body;
 
-        if (!full_name || !email || !password || !specialization_id) {
-            return NextResponse.json({ message: "Nama, email, password, dan spesialisasi wajib diisi." }, { status: 400 });
+        if (!full_name || !email || !password || !specialization_id || !phone_number) {
+            return NextResponse.json({ message: "Semua kolom utama (termasuk No Telepon) wajib diisi." }, { status: 400 });
         }
 
         // Gunakan endpoint /api/register yang sudah menangani trigger dengan benar
@@ -114,12 +110,9 @@ export async function POST(request) {
         const userId = registerData.user?.id;
         if (!userId) return NextResponse.json({ message: "Gagal mendapatkan ID user baru." }, { status: 500 });
 
-        // Update field tambahan: phone_number dan is_active di tabel doctors
-        if (phone_number || is_active !== undefined) {
-            await supabase.from('doctors').update({
-                ...(phone_number && { phone_number }),
-                ...(is_active !== undefined && { is_active }),
-            }).eq('id', userId);
+        // Update field tambahan: phone_number di tabel doctors
+        if (phone_number) {
+            await supabase.from('doctors').update({ phone_number }).eq('id', userId);
         }
 
         return NextResponse.json({ message: "Dokter berhasil ditambahkan.", data: registerData.user }, { status: 201 });
@@ -130,22 +123,33 @@ export async function POST(request) {
 }
 
 // ===================================================================
-// PATCH: Edit data dokter (phone, is_active, specialization)
+// PATCH: Edit data dokter (phone, inactive_from, specialization)
+//        + Bulk Resolution: cancel affected appointments & notify
 // ===================================================================
 export async function PATCH(request) {
     try {
         const body = await request.json();
-        const { id, specialization_id, phone_number, is_active, full_name } = body;
+        const { id, specialization_id, phone_number, inactive_from, full_name, cancellation_reason, action } = body;
 
         if (!id) return NextResponse.json({ message: "ID dokter wajib ada." }, { status: 400 });
 
-        // Update tabel doctors
-        const { error: doctorError } = await supabase.from('doctors').update({
-            ...(specialization_id !== undefined && { specialization_id }),
-            ...(phone_number !== undefined && { phone_number }),
-            ...(is_active !== undefined && { is_active }),
-        }).eq('id', id);
-        if (doctorError) return NextResponse.json({ message: doctorError.message }, { status: 500 });
+        if (action === 'restore') {
+            const { error: dErr } = await supabase.from('doctors').update({ deleted_at: null }).eq('id', id);
+            const { error: uErr } = await supabase.from('users').update({ deleted_at: null }).eq('id', id);
+            if (dErr || uErr) return NextResponse.json({ message: dErr?.message || uErr?.message }, { status: 500 });
+            return NextResponse.json({ message: "Dokter berhasil dipulihkan." }, { status: 200 });
+        }
+
+        // Build update object for doctors table
+        const doctorUpdate = {};
+        if (specialization_id !== undefined) doctorUpdate.specialization_id = specialization_id;
+        if (phone_number !== undefined) doctorUpdate.phone_number = phone_number;
+        if (inactive_from !== undefined) doctorUpdate.inactive_from = inactive_from; // null = re-activate
+
+        if (Object.keys(doctorUpdate).length > 0) {
+            const { error: doctorError } = await supabase.from('doctors').update(doctorUpdate).eq('id', id);
+            if (doctorError) return NextResponse.json({ message: doctorError.message }, { status: 500 });
+        }
 
         // Update nama di tabel users jika ada
         if (full_name) {
@@ -153,7 +157,65 @@ export async function PATCH(request) {
             if (userError) return NextResponse.json({ message: userError.message }, { status: 500 });
         }
 
-        return NextResponse.json({ message: "Data dokter berhasil diperbarui." }, { status: 200 });
+        // ── Bulk Resolution: Jika inactive_from diset (bukan null) ──
+        let cancelledCount = 0;
+        if (inactive_from) {
+            // Cari semua appointment 'Menunggu' yang terdampak (appointment_date >= inactive_from)
+            const { data: affected, error: fetchErr } = await supabase
+                .from('appointments')
+                .select('id, patient_id, appointment_date, start_time, end_time')
+                .eq('doctor_id', id)
+                .eq('status', 'Menunggu')
+                .gte('appointment_date', inactive_from);
+
+            if (fetchErr) return NextResponse.json({ message: "Gagal fetch appointment terdampak: " + fetchErr.message }, { status: 500 });
+
+            if (affected && affected.length > 0) {
+                const reason = cancellation_reason || 'Dokter dinonaktifkan oleh Admin.';
+                const affectedIds = affected.map(a => a.id);
+
+                // Bulk update appointments → Dibatalkan
+                const { error: cancelErr } = await supabase
+                    .from('appointments')
+                    .update({ status: 'Dibatalkan', cancellation_reason: reason })
+                    .in('id', affectedIds);
+
+                if (cancelErr) return NextResponse.json({ message: "Gagal membatalkan appointment: " + cancelErr.message }, { status: 500 });
+
+                cancelledCount = affected.length;
+
+                // Ambil nama dokter untuk pesan notifikasi
+                const { data: docUser } = await supabase
+                    .from('users')
+                    .select('full_name')
+                    .eq('id', id)
+                    .maybeSingle();
+                const doctorName = docUser?.full_name || 'Dokter';
+
+                // Kirim notifikasi ke setiap pasien terdampak
+                const notifications = affected.map(a => {
+                    const dateLabel = formatDateLabel(a.appointment_date);
+                    const timeLabel = a.start_time ? a.start_time.substring(0, 5).replace(':', '.') : '';
+                    return {
+                        user_id: a.patient_id,
+                        title: 'Janji Temu Dibatalkan',
+                        message: `Janji temu Anda dengan Dr. ${doctorName} pada ${dateLabel} pukul ${timeLabel} WIB telah dibatalkan. Alasan: ${reason}`,
+                        is_read: false,
+                    };
+                });
+
+                if (notifications.length > 0) {
+                    await supabase.from('notifications').insert(notifications);
+                }
+            }
+        }
+
+        return NextResponse.json({
+            message: cancelledCount > 0
+                ? `Data dokter berhasil diperbarui. ${cancelledCount} janji temu telah dibatalkan.`
+                : "Data dokter berhasil diperbarui.",
+            cancelled_count: cancelledCount,
+        }, { status: 200 });
 
     } catch (error) {
         return NextResponse.json({ message: "Kesalahan server: " + error.message }, { status: 500 });
@@ -167,17 +229,26 @@ export async function DELETE(request) {
     try {
         const { searchParams } = new URL(request.url);
         const id = searchParams.get('id');
+        const isHardDelete = searchParams.get('hard') === 'true';
 
         if (!id) return NextResponse.json({ message: "ID dokter wajib ada." }, { status: 400 });
 
-        const { error } = await supabase
-            .from('doctors')
-            .update({ deleted_at: new Date().toISOString() })
-            .eq('id', id);
+        if (isHardDelete) {
+            await supabase.from('doctors').delete().eq('id', id);
+            const { error } = await supabase.from('users').delete().eq('id', id);
+            
+            if (error) return NextResponse.json({ message: error.message }, { status: 500 });
+            return NextResponse.json({ message: "Dokter berhasil dihapus permanen." }, { status: 200 });
+        } else {
+            const now = new Date().toISOString();
+            const { error: dErr } = await supabase.from('doctors').update({ deleted_at: now }).eq('id', id);
+            if (dErr) return NextResponse.json({ message: dErr.message }, { status: 500 });
 
-        if (error) return NextResponse.json({ message: error.message }, { status: 500 });
+            const { error: uErr } = await supabase.from('users').update({ deleted_at: now }).eq('id', id);
+            if (uErr) return NextResponse.json({ message: uErr.message }, { status: 500 });
 
-        return NextResponse.json({ message: "Dokter berhasil dihapus (soft delete)." }, { status: 200 });
+            return NextResponse.json({ message: "Dokter berhasil dihapus (soft delete)." }, { status: 200 });
+        }
 
     } catch (error) {
         return NextResponse.json({ message: "Kesalahan server: " + error.message }, { status: 500 });
@@ -185,9 +256,26 @@ export async function DELETE(request) {
 }
 
 // ===================================================================
-// Helper: Format satu baris dokter dari Supabase
+// Helpers
 // ===================================================================
+const INDONESIAN_MONTHS = [
+    "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+    "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+];
+
+function formatDateLabel(rawDate) {
+    if (!rawDate) return "-";
+    const date = new Date(rawDate);
+    if (Number.isNaN(date.getTime())) return rawDate;
+    return `${date.getDate()} ${INDONESIAN_MONTHS[date.getMonth()]} ${date.getFullYear()}`;
+}
+
 function formatDoctor(doc) {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const inactiveFrom = doc.inactive_from || null;
+    // Computed is_active for backward compat
+    const isActive = !inactiveFrom || inactiveFrom > todayStr;
+
     return {
         id: doc.id,
         full_name: doc.user?.full_name || "Tanpa Nama",
@@ -196,7 +284,8 @@ function formatDoctor(doc) {
         phone_number: doc.phone_number || "-",
         specialization_id: doc.specialization?.id || null,
         specialization_name: doc.specialization?.name || "Belum ada spesialisasi",
-        is_active: doc.is_active,
+        inactive_from: inactiveFrom,
+        is_active: isActive, // computed, backward compat
         deleted_at: doc.deleted_at || null,
     };
 }

@@ -2,18 +2,23 @@ import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
 // Helper function to format schedule data
-const formatSchedule = (s) => ({
-    id: s.id,
-    doctor_id: s.doctor_id,
-    doctor_name: s.doctor?.user?.full_name || "Unknown",
-    specialization: s.doctor?.specialization?.name || "Unknown",
-    day_of_week: s.day_of_week,
-    start_time: s.start_time,
-    end_time: s.end_time,
-    slot_duration_minutes: s.slot_duration_minutes,
-    room_number: s.room_number,
-    is_active: s.doctor?.is_active
-});
+const formatSchedule = (s) => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const inactiveFrom = s.doctor?.inactive_from || null;
+    return {
+        id: s.id,
+        doctor_id: s.doctor_id,
+        doctor_name: s.doctor?.user?.full_name || "Unknown",
+        specialization: s.doctor?.specialization?.name || "Unknown",
+        day_of_week: s.day_of_week,
+        start_time: s.start_time,
+        end_time: s.end_time,
+        slot_duration_minutes: s.slot_duration_minutes,
+        room_number: s.room_number,
+        inactive_from: inactiveFrom,
+        is_active: !inactiveFrom || inactiveFrom > todayStr
+    };
+};
 
 export async function GET(request) {
     try {
@@ -27,7 +32,7 @@ export async function GET(request) {
                 id, day_of_week, start_time, end_time, slot_duration_minutes, room_number, doctor_id,
                 doctor:doctors!inner (
                     id,
-                    is_active,
+                    inactive_from,
                     user:users!inner ( full_name ),
                     specialization:specializations ( name )
                 )

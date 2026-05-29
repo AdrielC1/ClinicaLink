@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { supabase, waitForSupabaseUser } from "@/lib/supabase";
+import CalendarWidget from "@/components/CalendarWidget";
 import {
   Calendar as CalendarIcon,
   Clock,
@@ -13,8 +14,48 @@ import {
   Bell,
   X,
   CheckCircle2,
-  ListFilter
+  ListFilter,
+  Trash2,
+  CalendarCheck,
+  CalendarDays,
+  Loader2
 } from "lucide-react";
+
+// ── Virtual State Logic (from .antigravityrules) ─────────
+function computeVirtualStatus(appt) {
+  const now = new Date();
+  const apptDate = (appt.appointment_date || "").split("T")[0];
+  const endTime = appt.end_time;
+
+  if (!apptDate || !endTime) return appt.status;
+
+  const endDateTime = new Date(`${apptDate}T${endTime}`);
+  const endPlus4h = new Date(endDateTime.getTime() + 4 * 60 * 60 * 1000);
+
+  // Rule 0: Cancelled by Admin (has cancellation_reason)
+  if (appt.status === "Dibatalkan" && appt.cancellation_reason) {
+    return "Dibatalkan Admin";
+  }
+
+  // Rule 4: Forced Selesai after 4 hours past end_time
+  if (appt.status === "Sedang Berlangsung" && now > endPlus4h) {
+    return "Selesai";
+  }
+  // Rule 3: Awaiting notes
+  if (appt.status === "Sedang Berlangsung" && now > endDateTime && !appt.notes) {
+    return "Menunggu Catatan Dokter";
+  }
+  // Rule 2: Normal Sedang Berlangsung
+  if (appt.status === "Sedang Berlangsung") {
+    return "Sedang Berlangsung";
+  }
+  // Rule 1: Auto-cancelled — Menunggu but time has fully passed
+  if (appt.status === "Menunggu" && now > endDateTime) {
+    return "Dibatalkan (Otomatis)";
+  }
+
+  return appt.status;
+}
 
 export default function PatientAppointmentsPage() {
   const router = useRouter();
@@ -27,27 +68,41 @@ export default function PatientAppointmentsPage() {
   // State Pagination & Sorting
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
-  const [sortOption, setSortOption] = useState("date-nearest"); // date-nearest, date-farthest, name-asc, name-desc
+  const [sortOption, setSortOption] = useState("date-newest"); // date-newest, date-oldest, name-asc, name-desc
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // State Calendar
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(null);
   const [currentMonthView, setCurrentMonthView] = useState(new Date());
 
   // State Modal
   const [activeModal, setActiveModal] = useState(null);
   const [selectedAppt, setSelectedAppt] = useState(null);
+  const [cancelConfirmApptId, setCancelConfirmApptId] = useState(null);
+  const [isCanceling, setIsCanceling] = useState(false);
 
   // State Form Reschedule
   const [newDate, setNewDate] = useState("");
+  const [newTime, setNewTime] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [rescheduleDoctor, setRescheduleDoctor] = useState(null);
+  const [rescheduleSchedules, setRescheduleSchedules] = useState([]);
+  const [rescheduleAppointments, setRescheduleAppointments] = useState([]);
+  const [isLoadingReschedule, setIsLoadingReschedule] = useState(false);
 
   const fetchAppointments = async (userId) => {
     try {
       const res = await fetch(`/api/appointments?patient_id=${userId}`);
       if (res.ok) {
         const data = await res.json();
-        setAppointments(Array.isArray(data.data) ? data.data : []);
+        const list = Array.isArray(data.data) ? data.data : [];
+        // Enrich with virtual status
+        const enriched = list.map(appt => ({
+          ...appt,
+          virtualStatus: computeVirtualStatus(appt),
+        }));
+        setAppointments(enriched);
       }
     } catch (error) {
       console.error("Gagal memuat janji temu:", error);
@@ -69,17 +124,47 @@ export default function PatientAppointmentsPage() {
     initData();
   }, [router]);
 
+  const isSameDate = (date1, date2) => {
+    return date1.getFullYear() === date2.getFullYear() &&
+           date1.getMonth() === date2.getMonth() &&
+           date1.getDate() === date2.getDate();
+  };
+  
+  const isSameDateStr = (dateStr, dateObj) => {
+    if (!dateStr) return false;
+    const [y, m, d] = dateStr.split('T')[0].split('-').map(Number);
+    return y === dateObj.getFullYear() && (m - 1) === dateObj.getMonth() && d === dateObj.getDate();
+  };
+
+  const today = new Date();
+
   // Derived Data: Sorted & Paginated Appointments
   const sortedAppointments = useMemo(() => {
-    return [...appointments].sort((a, b) => {
+    let result = [...appointments];
+    if (selectedDate) {
+      const y = selectedDate.getFullYear();
+      const m = String(selectedDate.getMonth() + 1).padStart(2, '0');
+      const d = String(selectedDate.getDate()).padStart(2, '0');
+      const selectedStr = `${y}-${m}-${d}`;
+      result = result.filter(appt => {
+        const apptDateStr = (appt.appointment_date || '').split('T')[0];
+        return apptDateStr === selectedStr;
+      });
+    }
+    if (searchQuery.trim() !== "") {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(appt => appt.doctor_name.toLowerCase().includes(q));
+    }
+    
+    return result.sort((a, b) => {
       const dateA = new Date(`${a.appointment_date}T${a.schedule_time.split(' - ')[0] || '00:00'}:00`);
       const dateB = new Date(`${b.appointment_date}T${b.schedule_time.split(' - ')[0] || '00:00'}:00`);
       
       switch (sortOption) {
-        case "date-nearest":
-          return dateA - dateB;
-        case "date-farthest":
+        case "date-newest":
           return dateB - dateA;
+        case "date-oldest":
+          return dateA - dateB;
         case "name-asc":
           return a.doctor_name.localeCompare(b.doctor_name);
         case "name-desc":
@@ -88,7 +173,7 @@ export default function PatientAppointmentsPage() {
           return 0;
       }
     });
-  }, [appointments, sortOption]);
+  }, [appointments, sortOption, selectedDate]);
 
   const totalPages = Math.ceil(sortedAppointments.length / itemsPerPage);
   const paginatedAppointments = sortedAppointments.slice(
@@ -96,62 +181,25 @@ export default function PatientAppointmentsPage() {
     currentPage * itemsPerPage
   );
 
-  // Derived Data: Calendar
-  const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
-  const getFirstDayOfMonth = (year, month) => {
-    let day = new Date(year, month, 1).getDay();
-    return day === 0 ? 6 : day - 1; // Adjust so Monday is 0
-  };
-
-  const currentYear = currentMonthView.getFullYear();
-  const currentMonthIdx = currentMonthView.getMonth();
-  const daysInMonth = getDaysInMonth(currentYear, currentMonthIdx);
-  const firstDay = getFirstDayOfMonth(currentYear, currentMonthIdx);
-
-  const prevMonthDays = getDaysInMonth(currentYear, currentMonthIdx - 1);
-  const calendarCells = [];
-
-  // Previous month trailing days
-  for (let i = firstDay - 1; i >= 0; i--) {
-    calendarCells.push({ day: prevMonthDays - i, isCurrentMonth: false, date: new Date(currentYear, currentMonthIdx - 1, prevMonthDays - i) });
-  }
-  // Current month days
-  for (let i = 1; i <= daysInMonth; i++) {
-    calendarCells.push({ day: i, isCurrentMonth: true, date: new Date(currentYear, currentMonthIdx, i) });
-  }
-  // Next month leading days (to fill 42 cells typically, or just complete the week)
-  const remainingCells = 42 - calendarCells.length;
-  for (let i = 1; i <= remainingCells; i++) {
-    calendarCells.push({ day: i, isCurrentMonth: false, date: new Date(currentYear, currentMonthIdx + 1, i) });
-  }
-
-  const handlePrevMonth = () => {
-    setCurrentMonthView(new Date(currentYear, currentMonthIdx - 1, 1));
-  };
-  const handleNextMonth = () => {
-    setCurrentMonthView(new Date(currentYear, currentMonthIdx + 1, 1));
-  };
-
-  const isSameDate = (date1, date2) => {
-    return date1.getFullYear() === date2.getFullYear() &&
-           date1.getMonth() === date2.getMonth() &&
-           date1.getDate() === date2.getDate();
-  };
-  const today = new Date();
-  
-  // Derived Data: Selected Date Appointments
-  const selectedDateAppointments = useMemo(() => {
-    return appointments.filter(appt => {
-      if (appt.status === 'Dibatalkan') return false;
-      const apptDate = new Date(appt.appointment_date);
-      return isSameDate(apptDate, selectedDate);
+  const handleMonthChange = (delta) => {
+    setCurrentMonthView(prev => {
+      const newMonth = new Date(prev);
+      newMonth.setMonth(newMonth.getMonth() + delta);
+      return newMonth;
     });
-  }, [appointments, selectedDate]);
+  };
+
+  const selectedDateAppointments = useMemo(() => {
+    const filterObj = selectedDate || today;
+    return appointments.filter(appt => {
+      return isSameDateStr(appt.appointment_date, filterObj);
+    });
+  }, [appointments, selectedDate, today]);
 
   // Derived Data: Next Reminder
   const nextReminder = useMemo(() => {
     const upcoming = appointments
-      .filter(appt => (appt.status === 'Menunggu' || appt.status === 'Scheduled' || appt.status === 'Confirmed' || appt.status === 'Akan Datang'))
+      .filter(appt => appt.virtualStatus === 'Menunggu')
       .filter(appt => {
         const apptDate = new Date(`${appt.appointment_date}T${appt.schedule_time.split(' - ')[0] || '00:00'}:00`);
         return apptDate >= new Date();
@@ -163,6 +211,52 @@ export default function PatientAppointmentsPage() {
       });
     return upcoming.length > 0 ? upcoming[0] : null;
   }, [appointments]);
+
+  const next7Days = useMemo(() => {
+    return Array.from({ length: 7 }).map((_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() + i + 1);
+      const localDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      return {
+        dateObj: d,
+        dateStr: localDateStr,
+        dayName: ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"][d.getDay()],
+        dayDate: d.getDate(),
+        monthShort: ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agt", "Sep", "Okt", "Nov", "Des"][d.getMonth()],
+        fullDate: localDateStr
+      };
+    });
+  }, []);
+
+  const generateTimeSlots = (startTime, endTime, durationMinutes) => {
+    const slots = [];
+    let [currentHour, currentMinute] = startTime.split(':').map(Number);
+    const [endHour, endMinute] = endTime.split(':').map(Number);
+    
+    while (currentHour < endHour || (currentHour === endHour && currentMinute < endMinute)) {
+      const startStr = `${String(currentHour).padStart(2, '0')}:${String(currentMinute).padStart(2, '0')}:00`;
+      
+      currentMinute += durationMinutes;
+      if (currentMinute >= 60) {
+        currentHour += Math.floor(currentMinute / 60);
+        currentMinute = currentMinute % 60;
+      }
+      
+      if (currentHour > endHour || (currentHour === endHour && currentMinute > endMinute)) {
+        break;
+      }
+      
+      const endStr = `${String(currentHour).padStart(2, '0')}:${String(currentMinute).padStart(2, '0')}:00`;
+      
+      slots.push({
+        start_time: startStr,
+        end_time: endStr,
+        label: `${startStr.substring(0,5)} - ${endStr.substring(0,5)} WIB`
+      });
+    }
+    
+    return slots;
+  };
 
   const getReminderText = (reminderAppt) => {
     if (!reminderAppt) return null;
@@ -177,8 +271,7 @@ export default function PatientAppointmentsPage() {
 
   // Handlers
   const handleCancelAppointment = async (apptId) => {
-    const confirmCancel = window.confirm("Apakah Anda yakin ingin membatalkan janji temu ini?");
-    if (!confirmCancel) return;
+    setIsCanceling(true);
 
     try {
       const res = await fetch(`/api/appointments?id=${apptId}`, {
@@ -188,6 +281,7 @@ export default function PatientAppointmentsPage() {
       });
 
       if (res.ok) {
+        setCancelConfirmApptId(null);
         setActiveModal(null);
         fetchAppointments(currentUser.id);
       } else {
@@ -195,18 +289,38 @@ export default function PatientAppointmentsPage() {
       }
     } catch (error) {
       console.error("Error:", error);
+    } finally {
+      setIsCanceling(false);
     }
   };
 
   const handleRescheduleSubmit = async () => {
-    if (!newDate) return alert("Pilih tanggal baru terlebih dahulu.");
+    if (!newDate || !newTime) return alert("Pilih tanggal dan jam baru terlebih dahulu.");
     setIsProcessing(true);
+
+    // Find the matching schedule to get proper end_time
+    const [syear, smonth, sday] = newDate.split('-').map(Number);
+    const selectedDayOfWeek = new Date(Date.UTC(syear, smonth - 1, sday)).getUTCDay();
+    const schedulesForDay = rescheduleSchedules.filter(s => s.day_of_week === selectedDayOfWeek);
+    let endTime = newTime;
+    for (const sched of schedulesForDay) {
+      const slots = generateTimeSlots(sched.start_time, sched.end_time, sched.slot_duration_minutes || 30);
+      const matchedSlot = slots.find(s => s.start_time.substring(0,5) === newTime.substring(0,5));
+      if (matchedSlot) {
+        endTime = matchedSlot.end_time;
+        break;
+      }
+    }
 
     try {
       const res = await fetch(`/api/appointments?id=${selectedAppt.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ appointment_date: newDate })
+        body: JSON.stringify({ 
+          appointment_date: newDate,
+          start_time: newTime,
+          end_time: endTime
+        })
       });
 
       if (res.ok) {
@@ -222,11 +336,41 @@ export default function PatientAppointmentsPage() {
     }
   };
 
+  const fetchDoctorDetailsForReschedule = async (doctorId) => {
+    setIsLoadingReschedule(true);
+    try {
+      const docRes = await fetch(`/api/doctors`);
+      if (docRes.ok) {
+        const docJson = await docRes.json();
+        const doc = docJson.data.find(d => d.id === doctorId);
+        setRescheduleDoctor(doc);
+      }
+      
+      const schedRes = await fetch(`/api/doctorSchedules`);
+      if (schedRes.ok) {
+        const schedJson = await schedRes.json();
+        setRescheduleSchedules(schedJson.data.filter(s => s.doctor_id === doctorId));
+      }
+      
+      const apptRes = await fetch(`/api/appointments?doctor_id=${doctorId}`);
+      if (apptRes.ok) {
+        const apptJson = await apptRes.json();
+        setRescheduleAppointments(apptJson.data);
+      }
+    } catch (e) {
+      console.error("Error fetching reschedule data:", e);
+    } finally {
+      setIsLoadingReschedule(false);
+    }
+  };
+
   const openModal = (type, appt) => {
     setSelectedAppt(appt);
     setActiveModal(type);
     if (type === 'reschedule') {
-      setNewDate(appt.appointment_date);
+      setNewDate("");
+      setNewTime("");
+      fetchDoctorDetailsForReschedule(appt.doctor_id);
     }
   };
 
@@ -240,32 +384,48 @@ export default function PatientAppointmentsPage() {
 
   return (
     <>
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-12 items-start w-full">
-        {/* ================= KOLOM KIRI (Daftar Janji Temu - 8 Kolom) ================= */}
-        <div className="lg:col-span-8 space-y-6 w-full">
+      <div className="grid grid-cols-1 gap-8 xl:grid-cols-[minmax(0,1fr)_320px] items-start w-full">
+        {/* ================= KOLOM KIRI (Daftar Janji Temu) ================= */}
+        <div className="space-y-6 w-full">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Appointment</h1>
-              <p className="text-sm text-slate-500 mt-1">Kelola jadwal konsultasi dan appointment anda.</p>
-            </div>
-            
-            <div className="relative">
-              <button 
-                onClick={() => setIsSortDropdownOpen(!isSortDropdownOpen)}
-                className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 shadow-sm transition active:scale-95"
-              >
-                <ListFilter size={16} />
-                Urutkan
-              </button>
-              
-              {isSortDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-48 rounded-xl border border-slate-100 bg-white shadow-lg py-1 z-20">
-                  <button onClick={() => { setSortOption('date-nearest'); setIsSortDropdownOpen(false); }} className={`block w-full text-left px-4 py-2 text-sm hover:bg-slate-50 ${sortOption === 'date-nearest' ? 'font-bold text-indigo-600' : 'text-slate-700'}`}>Waktu Terdekat</button>
-                  <button onClick={() => { setSortOption('date-farthest'); setIsSortDropdownOpen(false); }} className={`block w-full text-left px-4 py-2 text-sm hover:bg-slate-50 ${sortOption === 'date-farthest' ? 'font-bold text-indigo-600' : 'text-slate-700'}`}>Waktu Terjauh</button>
-                  <button onClick={() => { setSortOption('name-asc'); setIsSortDropdownOpen(false); }} className={`block w-full text-left px-4 py-2 text-sm hover:bg-slate-50 ${sortOption === 'name-asc' ? 'font-bold text-indigo-600' : 'text-slate-700'}`}>Dokter (A-Z)</button>
-                  <button onClick={() => { setSortOption('name-desc'); setIsSortDropdownOpen(false); }} className={`block w-full text-left px-4 py-2 text-sm hover:bg-slate-50 ${sortOption === 'name-desc' ? 'font-bold text-indigo-600' : 'text-slate-700'}`}>Dokter (Z-A)</button>
+            <h1 className="text-3xl font-bold text-gray-900 mb-1">Janji Temu</h1>
+            <p className="text-gray-500 text-sm">Kelola daftar janji temu konsultasi Anda.</p>
+          </div>
+            <div className="flex items-center gap-3">
+              {/* Search Bar */}
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                 </div>
-              )}
+                <input 
+                  type="text"
+                  placeholder="Cari nama dokter..."
+                  value={searchQuery}
+                  onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                  className="pl-9 pr-4 py-2 w-[200px] sm:w-[240px] rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 transition"
+                />
+              </div>
+
+              {/* Sort Dropdown */}
+              <div className="relative">
+                <button 
+                  onClick={() => setIsSortDropdownOpen(!isSortDropdownOpen)}
+                  className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 shadow-sm transition active:scale-95 h-full"
+                >
+                  <ListFilter size={16} />
+                  Urutkan
+                </button>
+                
+                {isSortDropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-48 rounded-xl border border-slate-100 bg-white shadow-lg py-1 z-20">
+                    <button onClick={() => { setSortOption('date-newest'); setIsSortDropdownOpen(false); setCurrentPage(1); }} className={`block w-full text-left px-4 py-2 text-sm hover:bg-slate-50 ${sortOption === 'date-newest' ? 'font-bold text-indigo-600' : 'text-slate-700'}`}>Terbaru (Mendatang)</button>
+                    <button onClick={() => { setSortOption('date-oldest'); setIsSortDropdownOpen(false); setCurrentPage(1); }} className={`block w-full text-left px-4 py-2 text-sm hover:bg-slate-50 ${sortOption === 'date-oldest' ? 'font-bold text-indigo-600' : 'text-slate-700'}`}>Terlama</button>
+                    <button onClick={() => { setSortOption('name-asc'); setIsSortDropdownOpen(false); setCurrentPage(1); }} className={`block w-full text-left px-4 py-2 text-sm hover:bg-slate-50 ${sortOption === 'name-asc' ? 'font-bold text-indigo-600' : 'text-slate-700'}`}>Dokter (A-Z)</button>
+                    <button onClick={() => { setSortOption('name-desc'); setIsSortDropdownOpen(false); setCurrentPage(1); }} className={`block w-full text-left px-4 py-2 text-sm hover:bg-slate-50 ${sortOption === 'name-desc' ? 'font-bold text-indigo-600' : 'text-slate-700'}`}>Dokter (Z-A)</button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -278,7 +438,7 @@ export default function PatientAppointmentsPage() {
                   appt={appt}
                   onDetail={() => openModal('detail', appt)}
                   onReschedule={() => openModal('reschedule', appt)}
-                  onCancel={() => handleCancelAppointment(appt.id)}
+                  onCancel={() => setCancelConfirmApptId(appt.id)}
                 />
               ))
             ) : (
@@ -305,7 +465,7 @@ export default function PatientAppointmentsPage() {
                   onClick={() => setCurrentPage(page)}
                   className={`h-8 w-8 rounded-lg text-sm font-semibold transition ${
                     currentPage === page 
-                      ? 'bg-indigo-600 text-white shadow-sm font-bold' 
+                      ? 'bg-[#5E81CC] text-white shadow-sm font-bold' 
                       : 'text-slate-600 hover:bg-slate-100'
                   }`}
                 >
@@ -324,70 +484,58 @@ export default function PatientAppointmentsPage() {
           )}
         </div>
 
-        {/* ================= KOLOM KANAN (Widget Kalender - 4 Kolom) ================= */}
-        <div className="lg:col-span-4 space-y-6 w-full">
+        {/* ================= KOLOM KANAN (Widget Kalender) ================= */}
+        <div className="space-y-6 w-full">
 
-          {/* Widget Kalender */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="mb-4 flex items-center justify-between">
-              <button onClick={handlePrevMonth} className="rounded-lg p-1.5 hover:bg-slate-50 text-slate-600 transition"><ChevronLeft size={16} /></button>
-              <span className="text-sm font-bold text-slate-800">
-                {currentMonthView.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
-              </span>
-              <button onClick={handleNextMonth} className="rounded-lg p-1.5 hover:bg-slate-50 text-slate-600 transition"><ChevronRight size={16} /></button>
-            </div>
-            <div className="mb-2 grid grid-cols-7 gap-1 text-center text-xs font-bold text-slate-400">
-              <div>Sen</div><div>Sel</div><div>Rab</div><div>Kam</div><div>Jum</div><div>Sab</div><div>Min</div>
-            </div>
-            <div className="grid grid-cols-7 gap-1 text-center text-sm font-semibold text-slate-700">
-              {calendarCells.map((cell, idx) => {
-                const isSelected = isSameDate(cell.date, selectedDate);
-                const isToday = isSameDate(cell.date, today);
-                const hasAppt = appointments.some(a => a.status !== 'Dibatalkan' && isSameDate(new Date(a.appointment_date), cell.date));
+          {/* Widget Kalender & Schedule Strip */}
+          <div className="overflow-hidden rounded-3xl shadow-sm bg-white border border-gray-100">
+            <CalendarWidget
+              currentMonth={currentMonthView}
+              onChangeMonth={handleMonthChange}
+              selectedDate={selectedDate ? `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}` : null}
+              onSelectDate={(isoString) => {
+                const newDate = new Date(isoString);
+                setSelectedDate(prev => prev && isSameDate(prev, newDate) ? null : newDate);
+              }}
+              eventDates={appointments
+                .filter(a => a.virtualStatus !== 'Dibatalkan' && a.virtualStatus !== 'Dibatalkan (Otomatis)' && a.virtualStatus !== 'Dibatalkan Admin')
+                .map(a => a.appointment_date?.split('T')[0])
+              }
+            />
 
-                let btnClass = "rounded-lg p-1 transition cursor-pointer relative ";
-                if (!cell.isCurrentMonth) {
-                  btnClass += "text-slate-300 ";
-                } else if (isSelected) {
-                  btnClass += "bg-indigo-600 text-white shadow-md font-bold ";
-                } else {
-                  btnClass += "hover:bg-indigo-50 hover:text-indigo-600 ";
-                  if (isToday) btnClass += "bg-slate-100 text-slate-900 font-bold ";
-                }
-
-                return (
-                  <div 
-                    key={idx} 
-                    className={btnClass}
-                    onClick={() => setSelectedDate(cell.date)}
-                  >
-                    {cell.day}
-                    {hasAppt && !isSelected && (
-                      <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1 h-1 bg-indigo-400 rounded-full"></span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-          
-          {/* Jadwal pada Tanggal yang Dipilih */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h3 className="text-sm font-bold text-slate-800 mb-3">
-              Jadwal {isSameDate(selectedDate, today) ? "Hari Ini" : selectedDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long' })}
-            </h3>
-            {selectedDateAppointments.length > 0 ? (
-              <div className="space-y-3">
-                {selectedDateAppointments.map(appt => (
-                  <div key={appt.id} className="flex items-center gap-3 text-sm">
-                    <span className="font-semibold text-slate-800 w-24 shrink-0">{appt.schedule_time.split(' - ')[0]}</span>
-                    <span className="text-slate-600 truncate">{appt.doctor_name}</span>
-                  </div>
-                ))}
+            {/* Schedule strip di bawah (Konsisten dengan Dashboard) */}
+            <div className="bg-gray-50 border-t border-gray-100 px-5 py-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-[12px] font-extrabold text-gray-700 uppercase tracking-wide">
+                  {(!selectedDate || isSameDate(selectedDate, today)) ? "Hari ini" : `Jadwal ${selectedDate.toLocaleDateString('id-ID', {day:'numeric', month:'short'})}`}
+                </h3>
               </div>
-            ) : (
-              <p className="text-xs text-slate-400 italic">Tidak ada jadwal.</p>
-            )}
+              
+              <div className="space-y-2">
+                {selectedDateAppointments.length > 0 ? (
+                  selectedDateAppointments.map(appt => {
+                    const isCancelled = appt.virtualStatus === 'Dibatalkan' || appt.virtualStatus === 'Dibatalkan (Otomatis)' || appt.virtualStatus === 'Dibatalkan Admin';
+                    const isDone = appt.virtualStatus === 'Selesai' || appt.virtualStatus === 'Completed';
+                    const lineColor = isCancelled ? 'bg-red-300' : isDone ? 'bg-green-400' : 'bg-[#5E81CC]';
+                    return (
+                      <div key={appt.id} className={`flex items-center gap-3 rounded-xl border border-gray-100 px-3 py-2 shadow-sm transition-all ${isCancelled ? 'bg-slate-50 opacity-60' : 'bg-white hover:border-[#5E81CC]/30 hover:shadow-md'}`}>
+                        <div className={`w-[3px] self-stretch rounded-full shrink-0 ${lineColor}`} />
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-[11px] font-extrabold truncate ${isCancelled ? 'text-slate-500 line-through' : 'text-gray-800'}`}>{appt.doctor_name}</p>
+                          <p className={`text-[10px] font-bold mt-0.5 ${isCancelled ? 'text-slate-400' : 'text-[#5E81CC]'}`}>
+                            {appt.schedule_time} WIB
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="flex items-center gap-2 py-2">
+                    <span className="text-[11px] text-gray-400 font-medium italic">Tidak ada jadwal.</span>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Reminder Card */}
@@ -395,7 +543,7 @@ export default function PatientAppointmentsPage() {
             <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-red-50/60 p-5 shadow-sm">
               <div className="relative z-10 mb-3 flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm font-bold text-red-600">
-                  <Bell size={16} /> Reminder berikutnya
+                  <Bell size={16} /> Pengingat berikutnya
                 </div>
                 <span className="rounded bg-white px-2 py-0.5 text-[10px] font-bold text-red-500 shadow-sm border border-red-100">
                   {getReminderText(nextReminder)}
@@ -415,7 +563,7 @@ export default function PatientAppointmentsPage() {
       {activeModal === 'detail' && selectedAppt && (
         <ModalWrapper onClose={() => setActiveModal(null)}>
           <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
-            <h2 className="text-lg font-bold text-slate-900">Detail Appointment</h2>
+            <h2 className="text-lg font-bold text-slate-900">Detail Janji Temu</h2>
             <button onClick={() => setActiveModal(null)} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-50"><X size={18} /></button>
           </div>
 
@@ -433,7 +581,7 @@ export default function PatientAppointmentsPage() {
                 <p className="text-xs text-slate-500 font-medium">Spesialis Umum</p>
               </div>
             </div>
-            <StatusBadge status={selectedAppt.status} />
+            <StatusBadge status={selectedAppt.virtualStatus} />
           </div>
 
           <div className="space-y-3.5 text-sm mb-6 px-1">
@@ -455,18 +603,24 @@ export default function PatientAppointmentsPage() {
               <span className="text-slate-400 font-medium">Ruangan</span>
               <span className="col-span-2 font-semibold text-slate-800">{selectedAppt.room_number}</span>
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-2 border-b border-slate-50 pb-2">
               <span className="text-slate-400 font-medium">Catatan Keluhan</span>
-              <span className="col-span-2 font-semibold text-slate-800">{selectedAppt.notes || "Tidak ada catatan"}</span>
+              <span className="col-span-2 font-semibold text-slate-800">{selectedAppt.notes || "-"}</span>
             </div>
+            {(selectedAppt.virtualStatus === 'Dibatalkan' || selectedAppt.virtualStatus === 'Dibatalkan Admin') && selectedAppt.cancellation_reason && (
+              <div className="grid grid-cols-3 gap-2">
+                <span className="text-red-400 font-medium">Alasan Batal</span>
+                <span className="col-span-2 font-semibold text-red-600">{selectedAppt.cancellation_reason}</span>
+              </div>
+            )}
           </div>
 
-          {(selectedAppt.status === 'Menunggu' || selectedAppt.status === 'Scheduled' || selectedAppt.status === 'Akan Datang') && (
+          {selectedAppt.virtualStatus === 'Menunggu' && (
             <div className="flex gap-3 pt-4 border-t border-slate-100">
               <button onClick={() => openModal('reschedule', selectedAppt)} className="flex-1 rounded-xl border border-indigo-600 py-2.5 text-sm font-bold text-indigo-600 hover:bg-indigo-50/60 transition active:scale-95">
-                Reschedule
+                Ubah Jadwal
               </button>
-              <button onClick={() => handleCancelAppointment(selectedAppt.id)} className="flex-1 rounded-xl border border-red-200 text-red-500 py-2.5 text-sm font-bold hover:bg-red-50 transition active:scale-95">
+              <button onClick={() => setCancelConfirmApptId(selectedAppt.id)} className="flex-1 rounded-xl border border-red-200 text-red-500 py-2.5 text-sm font-bold hover:bg-red-50 transition active:scale-95">
                 Batalkan Janji
               </button>
             </div>
@@ -477,47 +631,121 @@ export default function PatientAppointmentsPage() {
       {activeModal === 'reschedule' && selectedAppt && (
         <ModalWrapper onClose={() => setActiveModal(null)}>
           <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
-            <h2 className="text-lg font-bold text-slate-900">Reschedule Appointment</h2>
+            <h2 className="text-lg font-bold text-slate-900">Ubah Jadwal Janji Temu</h2>
             <button onClick={() => setActiveModal(null)} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-50"><X size={18} /></button>
           </div>
 
-          <div className="space-y-4 mb-6">
+          <div className="space-y-6 mb-6 text-left">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Pilih Tanggal Baru</label>
-              <div className="relative">
-                <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                <input
-                  type="date"
-                  value={newDate}
-                  onChange={(e) => setNewDate(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm font-medium focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 outline-none transition"
-                />
+              <label className="block text-sm font-bold text-slate-900 mb-3">Pilih Tanggal Baru</label>
+              <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
+                {next7Days.map((d, i) => {
+                  let isDisabled = false;
+                  if (rescheduleDoctor?.inactive_from) {
+                    const inactiveDate = new Date(rescheduleDoctor.inactive_from).toISOString().split('T')[0];
+                    if (d.fullDate >= inactiveDate) {
+                      isDisabled = true;
+                    }
+                  }
+                  
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => { if (!isDisabled) { setNewDate(d.dateStr); setNewTime(""); } }}
+                      disabled={isDisabled}
+                      className={`flex min-w-[70px] shrink-0 flex-col items-center justify-center rounded-2xl border p-3 transition-all ${
+                        isDisabled 
+                          ? "bg-slate-50 border-slate-100 opacity-50 cursor-not-allowed"
+                          : newDate === d.dateStr
+                            ? "bg-[#5E81CC] border-[#5E81CC] text-white shadow-md"
+                            : "bg-white border-slate-200 text-slate-600 hover:border-indigo-300 hover:bg-indigo-50"
+                      }`}
+                    >
+                      <span className={`text-[10px] font-bold uppercase tracking-wider mb-1 ${newDate === d.dateStr && !isDisabled ? "text-indigo-100" : "text-slate-400"}`}>
+                        {d.monthShort}
+                      </span>
+                      <span className="text-lg font-extrabold">{d.dayDate}</span>
+                      <span className={`text-xs font-medium ${newDate === d.dateStr && !isDisabled ? "text-indigo-100" : "text-slate-500"}`}>
+                        {d.dayName}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Pilih Jam Baru</label>
-              <div className="relative">
-                <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                <select className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-8 text-sm font-medium focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 outline-none appearance-none cursor-pointer transition">
-                  <option value={selectedAppt.schedule_time}>{selectedAppt.schedule_time} WIB</option>
-                  <option value="13:00 - 15:00">13:00 - 15:00 WIB (Sesi Siang)</option>
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
-                  <ChevronRight size={16} className="transform rotate-90" />
+            {newDate && (
+              <div className="animate-in fade-in slide-in-from-top-2">
+                <label className="block text-sm font-bold text-slate-900 mb-3">Pilih Jam Baru</label>
+                <div className="grid grid-cols-2 gap-3">
+                  {(() => {
+                    const [syear, smonth, sday] = newDate.split('-').map(Number);
+                    const selectedDayOfWeek = new Date(Date.UTC(syear, smonth - 1, sday)).getUTCDay();
+                    const schedulesForToday = rescheduleSchedules.filter(s => s.day_of_week === selectedDayOfWeek);
+
+                    if (schedulesForToday.length === 0) {
+                      return <div className="col-span-2 text-sm text-center py-4 text-slate-500 border border-dashed rounded-xl border-slate-300">Tidak ada jadwal praktek di hari ini.</div>;
+                    }
+
+                    return schedulesForToday.map(sched => {
+                      const slots = generateTimeSlots(sched.start_time, sched.end_time, sched.slot_duration_minutes || 30);
+                      
+                      return slots.map(slot => {
+                        const bookedAppt = rescheduleAppointments.find(
+                          a => {
+                            const dateMatch = a.appointment_date?.split('T')[0] === newDate;
+                            const timeMatch = a.start_time?.substring(0, 5) === slot.start_time.substring(0, 5);
+                            const statusMatch = !['Dibatalkan', 'Dibatalkan (Otomatis)', 'Selesai', 'Cancelled', 'Completed'].includes(a.status);
+                            return dateMatch && timeMatch && statusMatch;
+                          }
+                        );
+                        
+                        // Is this slot booked by someone else?
+                        const isBookedByOther = bookedAppt && bookedAppt.id !== selectedAppt.id;
+                        // Is this slot the user's own current appointment?
+                        const isOwnSlot = bookedAppt && bookedAppt.id === selectedAppt.id;
+                        
+                        return (
+                          <button
+                            key={slot.start_time}
+                            onClick={() => !isBookedByOther && setNewTime(slot.start_time)}
+                            disabled={isBookedByOther}
+                            className={`flex flex-col items-center justify-center rounded-xl border py-2 text-sm font-bold transition-all ${
+                              isBookedByOther 
+                                ? "bg-amber-50 border-amber-300 text-amber-700 cursor-not-allowed"
+                                : newTime === slot.start_time
+                                  ? "bg-[#5E81CC] border-[#5E81CC] text-white shadow-md"
+                                  : isOwnSlot
+                                    ? "bg-blue-50 border-[#5E81CC] text-[#5E81CC] ring-1 ring-[#5E81CC]/30"
+                                    : "bg-white border-slate-200 text-slate-700 hover:border-indigo-300 hover:bg-indigo-50"
+                            }`}
+                          >
+                            <span>{slot.label}</span>
+                            {isBookedByOther ? (
+                              <span className="block text-[10px] text-amber-600 mt-0.5 font-semibold">Sudah ada janji</span>
+                            ) : isOwnSlot && newTime !== slot.start_time ? (
+                              <span className="block text-[10px] text-[#5E81CC] mt-0.5 font-semibold">Jadwal Anda saat ini</span>
+                            ) : (
+                              <span className="block text-[10px] text-transparent mt-0.5 font-semibold select-none">Tersedia</span>
+                            )}
+                          </button>
+                        );
+                      });
+                    });
+                  })()}
                 </div>
               </div>
-            </div>
+            )}
           </div>
 
           <div className="flex gap-3 pt-4 border-t border-slate-100">
-            <button onClick={() => setActiveModal(null)} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition">
+            <button onClick={() => setActiveModal(null)} className="flex-1 rounded-xl border border-slate-200 py-3.5 text-sm font-bold text-slate-600 shadow-sm hover:bg-slate-50 active:scale-95 transition-all">
               Batal
             </button>
             <button
               onClick={handleRescheduleSubmit}
-              disabled={isProcessing}
-              className="flex-1 rounded-xl bg-indigo-600 py-2.5 text-sm font-bold text-white hover:bg-indigo-700 shadow-md transition disabled:opacity-50 active:scale-95"
+              disabled={isProcessing || !newTime}
+              className="flex-1 rounded-xl bg-[#5E81CC] py-3.5 text-sm font-bold text-white shadow-[0_2px_10px_rgba(94,129,204,0.3)] hover:bg-[#4D6FB5] active:scale-95 transition-all disabled:opacity-50"
             >
               {isProcessing ? "Menyimpan..." : "Simpan Perubahan"}
             </button>
@@ -537,15 +765,46 @@ export default function PatientAppointmentsPage() {
             <div className="w-full bg-slate-50/60 border border-slate-100 rounded-xl p-4 my-5 space-y-2.5 text-sm text-left">
               <div className="flex justify-between"><span className="text-slate-400 font-medium">Dokter</span><span className="font-semibold text-slate-800">{selectedAppt.doctor_name}</span></div>
               <div className="flex justify-between"><span className="text-slate-400 font-medium">Tanggal Baru</span><span className="font-semibold text-slate-800">{new Date(newDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</span></div>
-              <div className="flex justify-between"><span className="text-slate-400 font-medium">Waktu</span><span className="font-semibold text-slate-800">{selectedAppt.schedule_time} WIB</span></div>
+              <div className="flex justify-between"><span className="text-slate-400 font-medium">Waktu</span><span className="font-semibold text-slate-800">{newTime.substring(0, 5)} WIB</span></div>
             </div>
 
-            <button onClick={() => setActiveModal(null)} className="w-full rounded-xl bg-indigo-600 py-2.5 text-sm font-bold text-white hover:bg-indigo-700 shadow-md transition active:scale-95">
+            <button onClick={() => setActiveModal(null)} className="w-full rounded-xl bg-[#5E81CC] py-2.5 text-sm font-bold text-white hover:bg-[#4D6FB5] shadow-md transition active:scale-95">
               Selesai
             </button>
           </div>
         </ModalWrapper>
       )}
+
+      {cancelConfirmApptId && (
+        <ModalWrapper onClose={() => !isCanceling && setCancelConfirmApptId(null)}>
+          <div className="text-center p-4">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-50 text-red-500 border-4 border-red-100/50">
+              <Trash2 size={24} />
+            </div>
+            <h3 className="mb-2 text-xl font-extrabold text-slate-900 tracking-tight">Batalkan Janji Temu?</h3>
+            <p className="mb-8 text-sm text-slate-500 font-medium leading-relaxed">
+              Apakah Anda yakin ingin membatalkan janji temu ini? Tindakan ini tidak dapat dibatalkan.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setCancelConfirmApptId(null)}
+                disabled={isCanceling}
+                className="flex-1 rounded-xl bg-slate-100 py-3.5 text-sm font-bold text-slate-600 shadow-sm hover:bg-slate-200 active:scale-95 transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+              >
+                Kembali
+              </button>
+              <button
+                onClick={() => handleCancelAppointment(cancelConfirmApptId)}
+                disabled={isCanceling}
+                className="flex-1 rounded-xl bg-red-500 py-3.5 text-sm font-bold text-white shadow-md hover:bg-red-600 active:scale-95 transition-all flex justify-center items-center gap-2 disabled:opacity-70 disabled:active:scale-100 disabled:cursor-not-allowed"
+              >
+                {isCanceling ? <Loader2 size={18} className="animate-spin" /> : "Ya, Batalkan"}
+              </button>
+            </div>
+          </div>
+        </ModalWrapper>
+      )}
+
     </>
   );
 }
@@ -553,7 +812,7 @@ export default function PatientAppointmentsPage() {
 // ================= LAYOUT SUB-COMPONENTS =================
 
 function AppointmentCard({ appt, onDetail, onReschedule, onCancel }) {
-  const isWaiting = appt.status === 'Menunggu' || appt.status === 'Scheduled' || appt.status === 'Akan Datang';
+  const isWaiting = appt.virtualStatus === 'Menunggu';
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-12 gap-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md transition duration-200 items-center w-full">
@@ -573,9 +832,6 @@ function AppointmentCard({ appt, onDetail, onReschedule, onCancel }) {
           <div className="flex items-center gap-2 mt-1">
             <span className="flex items-center gap-0.5 text-[11px] text-slate-500">
               <MapPin size={11} className="text-slate-400" /> ClinicaLink
-            </span>
-            <span className="flex items-center gap-0.5 text-[11px] text-slate-500 font-medium">
-              <Star size={11} className="text-yellow-400 fill-yellow-400" /> 4.9
             </span>
           </div>
         </div>
@@ -599,23 +855,23 @@ function AppointmentCard({ appt, onDetail, onReschedule, onCancel }) {
 
       {/* Status & Tombol Aksi (4 Kolom) */}
       <div className="md:col-span-4 flex flex-col sm:flex-row md:flex-col gap-2.5 border-t border-slate-100 pt-3 md:border-t-0 md:pt-0 items-start md:items-end w-full justify-end">
-        <StatusBadge status={appt.status} />
+        <StatusBadge status={appt.virtualStatus} />
 
-        <div className="grid grid-cols-3 gap-1.5 w-full md:max-w-[210px]">
-          <button onClick={onDetail} className="rounded-lg border border-indigo-200 px-2 py-1.5 text-xs font-bold text-indigo-600 hover:bg-indigo-50/50 transition">
-            Detail
+        <div className="flex flex-col gap-2 w-full sm:w-auto md:w-full md:max-w-[130px]">
+          <button onClick={onDetail} className="flex items-center justify-center rounded-lg border border-indigo-200 px-3 py-1.5 text-xs font-bold text-indigo-600 hover:bg-indigo-50/50 transition">
+            Lihat Detail
           </button>
-          {isWaiting ? (
+          {isWaiting && (
             <>
-              <button onClick={onReschedule} className="rounded-lg border border-indigo-200 px-2 py-1.5 text-xs font-bold text-indigo-600 hover:bg-indigo-50/50 transition">
-                Resched
+              <button onClick={onReschedule} className="flex items-center justify-center gap-1.5 rounded-lg border border-indigo-200 px-3 py-1.5 text-xs font-bold text-indigo-600 hover:bg-indigo-50/50 transition">
+                <CalendarDays size={14} />
+                Ubah Jadwal
               </button>
-              <button onClick={onCancel} className="rounded-lg border border-red-200 px-2 py-1.5 text-xs font-bold text-red-500 hover:bg-red-50 transition">
-                Batal
+              <button onClick={onCancel} className="flex items-center justify-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-bold text-red-500 hover:bg-red-50 transition">
+                <Trash2 size={12} />
+                Batalkan
               </button>
             </>
-          ) : (
-            <div className="col-span-2"></div>
           )}
         </div>
       </div>
@@ -638,8 +894,17 @@ function StatusBadge({ status }) {
   if (status === 'Menunggu' || status === 'Scheduled' || status === 'Akan Datang') {
     return <span className="inline-flex rounded-full bg-green-50 border border-green-200 px-2.5 py-0.5 text-xs font-bold text-green-600">Dijadwalkan</span>;
   }
-  if (status === 'Dibatalkan' || status === 'Cancelled') {
-    return <span className="inline-flex rounded-full bg-red-50 border border-red-200 px-2.5 py-0.5 text-xs font-bold text-red-500">Dibatalkan</span>;
+  if (status === 'Dibatalkan' || status === 'Cancelled' || status === 'Dibatalkan (Otomatis)' || status === 'Dibatalkan Admin') {
+    return <span className="inline-flex rounded-full bg-red-50 border border-red-200 px-2.5 py-0.5 text-xs font-bold text-red-500">{status === 'Dibatalkan (Otomatis)' ? 'Dibatalkan' : status === 'Dibatalkan Admin' ? 'Dibatalkan Admin' : 'Dibatalkan'}</span>;
+  }
+  if (status === 'Sedang Berlangsung') {
+    return <span className="inline-flex rounded-full bg-blue-50 border border-blue-200 px-2.5 py-0.5 text-xs font-bold text-blue-600">Sedang Berlangsung</span>;
+  }
+  if (status === 'Menunggu Catatan Dokter') {
+    return <span className="inline-flex rounded-full bg-amber-50 border border-amber-200 px-2.5 py-0.5 text-xs font-bold text-amber-600">Menunggu Catatan</span>;
+  }
+  if (status === 'Selesai' || status === 'Completed') {
+    return <span className="inline-flex rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-xs font-bold text-emerald-600">Selesai</span>;
   }
   return <span className="inline-flex rounded-full bg-slate-50 border border-slate-200 px-2.5 py-0.5 text-xs font-bold text-slate-500">{status}</span>;
 }

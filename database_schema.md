@@ -21,7 +21,7 @@ This document outlines the PostgreSQL schema managed via Supabase.
 ### 3. `doctors`
 * `id` (uuid, PK) -> FK to `users.id`
 * `specialization_id` (int4) -> FK to `specializations.id`
-* `bio` (text), `is_active` (boolean)
+* `bio` (text), `inactive_from` (date, nullable) — NULL = aktif, berisi tanggal = nonaktif mulai tanggal tsb
 
 ### 4. `specializations`
 * `id` (int4, PK), `name` (varchar), `description` (text)
@@ -41,7 +41,7 @@ This document outlines the PostgreSQL schema managed via Supabase.
 * `appointment_date` (date)
 * `start_time`, `end_time` (time)
 * `status` (appointment_status, default 'Menunggu')
-* `patient_complaints`, `medical_notes` (text, nullable)
+* `patient_complaints`, `medical_notes`, `cancellation_reason` (text, nullable)
 * **CONSTRAINT `unique_doctor_slot`**: UNIQUE(`doctor_id`, `appointment_date`, `start_time`) -> Prevents double-booking.
 
 ### 7. `notifications`

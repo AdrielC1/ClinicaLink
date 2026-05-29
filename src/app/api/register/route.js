@@ -195,18 +195,12 @@ export async function POST(request) {
                 { status: 201 }
             );
         } catch (supabaseError) {
+            console.error("Supabase Error during register:", supabaseError);
             return NextResponse.json(
                 {
-                    message: "Registrasi pasien berhasil dalam mode lokal.",
-                    warning: supabaseError.message,
-                    user: createLocalPatient({
-                        email: cleanEmail,
-                        full_name,
-                        phone_number
-                    })
-                }
-                ,
-                { status: 201 }
+                    message: "Registrasi gagal: " + supabaseError.message
+                },
+                { status: 500 }
             );
         }
 

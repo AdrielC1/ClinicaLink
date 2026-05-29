@@ -35,7 +35,7 @@ const icons = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
     </svg>
   ),
-  "Kelola Appointment": (
+  "Kelola Janji Temu": (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
     </svg>
@@ -61,8 +61,8 @@ const icons = {
 const adminLinks = [
   { href: "/admin/dashboard", label: "Beranda" },
   { href: "/admin/doctors", label: "Kelola Dokter" },
-  { href: "/admin/patients", label: "Kelola Pasien" },
-  { href: "/admin/appointments", label: "Kelola Appointment" },
+  { href: "/admin/accounts", label: "Kelola Akun" },
+  { href: "/admin/appointments", label: "Kelola Janji Temu" },
   { href: "/admin/schedules", label: "Kelola Jadwal" },
   { href: "/admin/reports", label: "Laporan" },
   { href: "/admin/settings", label: "Pengaturan" },
@@ -88,6 +88,24 @@ const ROLE_ROUTES = {
   patient: "/patient",
 };
 
+const adminAlerts = [
+  { title: "Appointment baru masuk", description: "Kimmy membuat appointment pukul 10.00 WIB.", href: "/admin/appointments", tone: "blue" },
+  { title: "Appointment dibatalkan", description: "Sila membatalkan jadwal konsultasi hari ini.", href: "/admin/appointments", tone: "red" },
+  { title: "Jadwal dokter berubah", description: "Jadwal Dr. Mike diperbarui oleh admin.", href: "/admin/schedules", tone: "amber" },
+  { title: "Pasien baru terdaftar", description: "Nina baru bergabung sebagai pasien.", href: "/admin/accounts", tone: "green" },
+  { title: "Dokter baru ditambahkan", description: "Dr. Riri ditambahkan sebagai dokter baru.", href: "/admin/doctors", tone: "blue" },
+  { title: "Konflik jadwal terdeteksi", description: "Ada potensi slot bentrok pada 12 Mei 2030.", href: "/admin/schedules", tone: "red" },
+  { title: "Reminder laporan", description: "Laporan mingguan siap ditinjau.", href: "/admin/reports", tone: "amber" },
+  { title: "Data perlu verifikasi", description: "Ada dokter yang belum aktif.", href: "/admin/doctors", tone: "green" },
+];
+
+const alertToneClass = {
+  blue: "bg-[#E6EDFF] text-[#5E81CC]",
+  red: "bg-[#FFEDED] text-[#F15959]",
+  amber: "bg-[#FFF0CF] text-[#D99000]",
+  green: "bg-[#E5FFE6] text-[#05A805]",
+};
+
 function readStoredUser() {
   if (typeof window === "undefined") return null;
   const rawUser = localStorage.getItem("clinicalink:user") ?? sessionStorage.getItem("clinicalink:user");
@@ -105,7 +123,8 @@ export default function AppSidebarLayout({ children, role }) {
   const pathname = usePathname();
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState(null);
-  const [hasUnread, setHasUnread] = useState(true);
+  const [hasUnread, setHasUnread] = useState(false);
+  const [showAdminAlerts, setShowAdminAlerts] = useState(false);
 
   const [isRoleValid] = useState(() => {
     if (typeof window === "undefined") return true;
@@ -213,18 +232,65 @@ export default function AppSidebarLayout({ children, role }) {
     const handleStorage = () => {
       const u = readStoredUser();
       if (u) setCurrentUser(prev => ({ ...prev, ...u }));
-      
-      const read = localStorage.getItem("notifications_read");
-      setHasUnread(read !== "true");
     };
     window.addEventListener("storage", handleStorage);
     
-    setHasUnread(localStorage.getItem("notifications_read") !== "true");
+    // Fetch unread count via API route (respects RLS correctly)
+    const fetchUnread = async (uid) => {
+      try {
+        const res = await fetch(`/api/notifications?user_id=${uid}&unread=true`, { cache: 'no-store' });
+        if (res.ok) {
+          const body = await res.json();
+          const count = Array.isArray(body.notifications) ? body.notifications.length : 0;
+          setHasUnread(count > 0);
+        }
+      } catch {
+        // silently fail
+      }
+    };
+
+    // Use a unique channel name per mount to avoid Strict Mode double-invoke conflict
+    const channelName = `sidebar-notif-${Date.now()}`;
+    let channel = null;
+    let mounted = true;
+
+    // Get authenticated user ID from Supabase session (reliable, works for all accounts)
+    (async () => {
+      const { data } = await supabase.auth.getUser();
+      const uid = data?.user?.id;
+      if (!uid || !mounted) return;
+
+      fetchUnread(uid);
+
+      // Remove any stale channel with the same prefix before subscribing
+      channel = supabase
+        .channel(channelName)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${uid}` },
+          () => { if (mounted) fetchUnread(uid); }
+        )
+        .subscribe();
+
+      // Also listen to manual CustomEvent as fallback
+      window._sidebarNotifUid = uid;
+    })();
+
+    // Also listen to manual CustomEvent as fallback
+    const updateListener = (e) => {
+      if (e?.detail && typeof e.detail.unreadCount === 'number') {
+        setHasUnread(e.detail.unreadCount > 0);
+      } else if (window._sidebarNotifUid) {
+        fetchUnread(window._sidebarNotifUid);
+      }
+    };
+    window.addEventListener('notifications_updated', updateListener);
     
     return () => {
+      mounted = false;
       window.removeEventListener("pageshow", handleHistoryNavigation);
       window.removeEventListener("popstate", handleHistoryNavigation);
       window.removeEventListener("storage", handleStorage);
+      window.removeEventListener('notifications_updated', updateListener);
+      if (channel) supabase.removeChannel(channel);
     };
   }, [role]);
 
@@ -244,6 +310,22 @@ export default function AppSidebarLayout({ children, role }) {
     }
   };
 
+  const handleBellClick = () => {
+    if (role === 'patient') {
+      router.push('/patient/notifications');
+      return;
+    }
+
+    if (role === 'admin') {
+      setShowAdminAlerts((open) => !open);
+    }
+  };
+
+  const openAdminAlertTarget = (href) => {
+    setShowAdminAlerts(false);
+    router.push(href);
+  };
+
   if (!isRoleValid) return null;
 
   const displayUserName = getUserName(currentUser, role);
@@ -257,9 +339,9 @@ export default function AppSidebarLayout({ children, role }) {
       );
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-[#2D3748] font-sans p-6 md:p-10 flex flex-col w-full">
+    <div className="min-h-screen lg:h-screen lg:overflow-hidden bg-[#F8FAFC] text-[#2D3748] font-sans p-6 md:p-10 flex flex-col w-full">
       {/* Top Navbar */}
-      <header className="w-full bg-white rounded-2xl shadow-sm px-6 md:px-8 py-4 flex items-center justify-between mb-8 z-20 relative">
+      <header className="shrink-0 w-full bg-white rounded-2xl shadow-sm px-6 md:px-8 py-4 flex items-center justify-between mb-8 z-20 relative">
         {/* Left: Logo */}
         <Link href="/landing" className="flex items-center gap-2 hover:opacity-90 transition-opacity">
           <Image src={brandIcon} alt="ClinicaLink" width={35} height={35} priority />
@@ -274,6 +356,8 @@ export default function AppSidebarLayout({ children, role }) {
 
         {/* Right: Profile */}
         <div className="flex items-center gap-6 shrink-0">
+          {/* Bell button removed per user request */}
+          
           <div 
             onClick={() => {
               if (role === 'patient') router.push('/patient/profile');
@@ -294,9 +378,9 @@ export default function AppSidebarLayout({ children, role }) {
       </header>
 
       {/* Main Layout Area */}
-      <div className="flex flex-col lg:flex-row gap-8 flex-1">
+      <div className="flex flex-col lg:flex-row gap-8 flex-1 min-h-0">
         {/* Transparent Left Sidebar */}
-        <aside className="w-full lg:w-64 shrink-0 flex flex-col justify-between bg-white/60 backdrop-blur-sm border border-gray-100 shadow-sm rounded-2xl p-4 self-start lg:sticky lg:top-10 lg:h-[calc(100vh-180px)]">
+        <aside className="w-full lg:w-64 shrink-0 flex flex-col justify-between bg-white/60 backdrop-blur-sm border border-gray-100 shadow-sm rounded-2xl p-4 lg:h-full lg:overflow-y-auto">
           <nav className="space-y-1.5 flex-1">
             {links.map((link) => {
               const active = pathname === link.href;
@@ -304,24 +388,29 @@ export default function AppSidebarLayout({ children, role }) {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`flex items-center gap-4 px-4 py-3 rounded-xl text-[15px] font-bold transition-all duration-200 ${active ? "bg-[#E6EDFF] text-[#5E81CC] shadow-sm" : "text-gray-700 hover:bg-white hover:shadow-sm"}`}
+                  className={`flex items-center gap-4 px-4 py-3 rounded-xl text-[15px] font-bold transition-all duration-200 relative ${active ? "bg-[#E6EDFF] text-[#5E81CC] shadow-sm" : "text-gray-700 hover:bg-white hover:shadow-sm"}`}
                 >
-                  {link.customIcon ? (
-                    <span
-                      aria-hidden="true"
-                      className={`h-5 w-5 ${active ? "bg-[#5E81CC]" : "bg-gray-600"}`}
-                      style={{
-                        WebkitMaskImage: `url(${link.customIcon.src})`, maskImage: `url(${link.customIcon.src})`,
-                        WebkitMaskPosition: "center", maskPosition: "center",
-                        WebkitMaskRepeat: "no-repeat", maskRepeat: "no-repeat",
-                        WebkitMaskSize: "contain", maskSize: "contain",
-                      }}
-                    />
-                  ) : (
-                    <span className={`${active ? "text-[#5E81CC]" : "text-gray-600"}`}>
-                      {icons[link.label] || icons["Beranda"]}
-                    </span>
-                  )}
+                  <div className="relative shrink-0">
+                    {link.customIcon ? (
+                      <span
+                        aria-hidden="true"
+                        className={`block h-5 w-5 ${active ? "bg-[#5E81CC]" : "bg-gray-600"}`}
+                        style={{
+                          WebkitMaskImage: `url(${link.customIcon.src})`, maskImage: `url(${link.customIcon.src})`,
+                          WebkitMaskPosition: "center", maskPosition: "center",
+                          WebkitMaskRepeat: "no-repeat", maskRepeat: "no-repeat",
+                          WebkitMaskSize: "contain", maskSize: "contain",
+                        }}
+                      />
+                    ) : (
+                      <span className={`block ${active ? "text-[#5E81CC]" : "text-gray-600"}`}>
+                        {icons[link.label] || icons["Beranda"]}
+                      </span>
+                    )}
+                    {link.label === "Notifikasi" && hasUnread && (
+                      <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-red-500 border border-white"></span>
+                    )}
+                  </div>
                   {link.label}
                 </Link>
               );
@@ -347,8 +436,8 @@ export default function AppSidebarLayout({ children, role }) {
           </div>
         </aside>
 
-        {/* Content Area */}
-        <main className="flex-1 w-full min-w-0">
+        {/* Content Area - 3rd Box */}
+        <main className="flex-1 w-full min-w-0 lg:overflow-y-auto lg:h-full bg-white border border-gray-100 shadow-sm rounded-2xl p-6 md:p-8">
           {children}
         </main>
       </div>

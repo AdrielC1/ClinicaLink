@@ -16,7 +16,11 @@ export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseKey);
  * Drop-in replacement: API-nya identik dengan createClient biasa.
  */
 export const supabase = isSupabaseConfigured
-  ? createBrowserClient(supabaseUrl, supabaseKey)
+  ? (typeof window !== "undefined"
+      ? createBrowserClient(supabaseUrl, supabaseKey)
+      : createClient(supabaseUrl, supabaseKey, {
+          auth: { persistSession: false }
+        }))
   : null;
 
 export async function waitForSupabaseUser(maxRetries = 6, delayMs = 120) {

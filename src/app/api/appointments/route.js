@@ -132,12 +132,14 @@ export async function GET(request) {
             status: item.status,
             notes: item.medical_notes || "",
             complaints: item.patient_complaints || "",
+            cancellation_reason: item.cancellation_reason || "",
             patient_id: item.patient_id,
             patient_name: item.patient?.user?.full_name || "Unknown Patient",
             patient_email: item.patient?.user?.email || "-",
             patient_phone: item.patient?.phone_number || "-",
             patient_dob: item.patient?.date_of_birth || "",
             schedule_id: item.schedule_id,
+            doctor_id: item.doctor_id,
             doctor_name: item.schedule?.doctor?.user?.full_name || "Unknown Doctor",
             doctor_img: item.schedule?.doctor?.user?.img_url || null,
             room_number: item.schedule?.room_number || "-",
@@ -172,10 +174,10 @@ export async function POST(request) {
             );
         }
 
-        // 2. Query ke doctor_schedules untuk ambil doctor_id, start_time, end_time, dan nama dokter
+        // 2. Query ke doctor_schedules untuk ambil doctor_id, start_time, end_time, dan data dokter (termasuk inactive_from)
         const { data: scheduleData, error: scheduleError } = await supabase
             .from('doctor_schedules')
-            .select(`doctor_id, start_time, end_time, room_number, doctor:doctors ( user:users ( full_name ) )`)
+            .select(`doctor_id, start_time, end_time, room_number, doctor:doctors ( inactive_from, user:users ( full_name ) )`)
             .eq('id', schedule_id)
             .maybeSingle();
 
@@ -184,6 +186,18 @@ export async function POST(request) {
                 { message: "Gagal memproses janji temu: ID Jadwal (schedule_id) tidak valid atau tidak ditemukan." },
                 { status: 400 }
             );
+        }
+
+        // 2.5 Validasi terhadap tanggal nonaktif (inactive_from)
+        if (scheduleData.doctor?.inactive_from) {
+            const inactiveDateStr = new Date(scheduleData.doctor.inactive_from).toISOString().split('T')[0];
+            const appointmentDateStr = appointment_date.split('T')[0];
+            if (appointmentDateStr >= inactiveDateStr) {
+                return NextResponse.json(
+                    { message: `Dokter tidak tersedia mulai tanggal ${new Date(inactiveDateStr).toLocaleDateString('id-ID')}` },
+                    { status: 400 }
+                );
+            }
         }
 
         // Ekstrak data otomatis dari jadwal dokter (gunakan waktu slot spesifik jika ada, kalau tidak fallback ke jadwal)
@@ -212,7 +226,7 @@ export async function POST(request) {
         const doctorName = scheduleData?.doctor?.user?.full_name || "dokter";
         await createNotification(
             patient_id,
-            "Booking Janji Temu Berhasil",
+            "Pembuatan Janji Temu Berhasil",
             `Janji temu Anda dengan Dr. ${doctorName} pada ${formatDateLabel(appointment_date)} pukul ${formatTimeLabel(autoStartTime)} berhasil dibuat.`
         );
 

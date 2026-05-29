@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 
@@ -28,18 +28,18 @@ function DashboardMockup() {
           <div className="w-20 h-5 bg-gray-100 rounded-full" />
           <div className="w-5 h-5 rounded-full bg-gray-100" />
           <div className="w-5 h-5 rounded-full bg-gray-200" />
-          <span className="text-xs text-gray-500">Account</span>
+          <span className="text-xs text-gray-500">Akun</span>
         </div>
       </div>
       <div className="flex">
         <div className="w-28 border-r border-gray-100 py-3 px-2 flex flex-col gap-1">
           {[
             { icon: "⊞", label: "Dashboard", active: true },
-            { icon: "👤", label: "Profile" },
-            { icon: "📅", label: "Appointment" },
-            { icon: "🩺", label: "Doctor" },
-            { icon: "🔔", label: "Notification" },
-            { icon: "📋", label: "History" },
+            { icon: "👤", label: "Profil" },
+            { icon: "📅", label: "Janji Temu" },
+            { icon: "🩺", label: "Dokter" },
+            { icon: "🔔", label: "Notifikasi" },
+            { icon: "📋", label: "Riwayat" },
           ].map((item) => (
             <div key={item.label}
               className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg ${item.active ? "bg-indigo-50 text-indigo-600" : "text-gray-500"
@@ -51,7 +51,7 @@ function DashboardMockup() {
           ))}
           <div className="mt-4 flex items-center gap-1.5 px-2 py-1.5 text-gray-400">
             <span className="text-xs">↩</span>
-            <span className="text-xs">Log out</span>
+            <span className="text-xs">Keluar</span>
           </div>
         </div>
         <div className="flex-1 p-3">
@@ -107,10 +107,10 @@ function Hero() {
           <Link href="/register"
             className="px-6 py-3 rounded-xl text-white font-semibold text-sm shadow-lg hover:opacity-90 transition-opacity"
             style={{ background: "linear-gradient(135deg,#6366F1,#3B82F6)" }}
-          >Get Started</Link>
+          >Mulai Sekarang</Link>
           <a href="#fitur"
             className="px-6 py-3 rounded-xl text-gray-700 font-semibold text-sm border border-gray-300 hover:border-indigo-400 hover:text-indigo-600 transition-colors"
-          >Learn More</a>
+          >Pelajari Lebih Lanjut</a>
         </div>
       </div>
       <div className="flex-1 flex justify-center">
@@ -177,22 +177,22 @@ function CaraKerja() {
     <section id="cara-kerja" className="py-20">
       <div className="max-w-6xl mx-auto px-6">
         <h2 className="text-3xl font-bold text-center text-gray-900 mb-14">Cara Kerja ClinicaLink</h2>
-        <div className="flex flex-col md:flex-row items-start justify-center">
+        <div className="flex flex-col md:flex-row items-start justify-center md:gap-4">
           {steps.map((s, i) => (
             <div key={s.num} className="flex items-center">
-              <div className="flex flex-col items-center text-center w-40">
-                <div className="w-14 h-14 rounded-full flex items-center justify-center text-2xl mb-3 shadow-sm"
+              <div className="flex flex-col items-center text-center w-56">
+                <div className="w-20 h-20 rounded-full flex items-center justify-center text-4xl mb-4 shadow-sm"
                   style={{ background: "linear-gradient(135deg,#EEF2FF,#DBEAFE)" }}>
                   <span>{s.icon}</span>
                 </div>
-                <div className="w-8 h-8 rounded-full bg-indigo-600 text-white text-sm font-bold flex items-center justify-center mb-2">
+                <div className="w-10 h-10 rounded-full bg-indigo-600 text-white text-base font-bold flex items-center justify-center mb-3">
                   {s.num}
                 </div>
-                <h3 className="font-semibold text-gray-800 mb-1">{s.title}</h3>
-                <p className="text-xs text-gray-500 leading-relaxed">{s.desc}</p>
+                <h3 className="font-bold text-gray-800 text-lg mb-2">{s.title}</h3>
+                <p className="text-sm text-gray-500 leading-relaxed px-2">{s.desc}</p>
               </div>
               {i < steps.length - 1 && (
-                <div className="hidden md:block mx-2 text-gray-300 text-2xl mb-10">→</div>
+                <div className="hidden md:block mx-4 text-gray-300 text-4xl mb-16">→</div>
               )}
             </div>
           ))}
@@ -212,24 +212,28 @@ const doctors = [
 function DokterCard({ doc }) {
   return (
     <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-      <div className="h-44 bg-gradient-to-br from-indigo-50 to-blue-50 flex items-center justify-center">
-        <div className="w-24 h-24 rounded-full bg-indigo-100 flex items-center justify-center">
-          <svg width="48" height="48" fill="none" stroke="#6366F1" strokeWidth="1.5">
-            <circle cx="24" cy="16" r="8" />
-            <path d="M8 44c0-8.837 7.163-16 16-16s16 7.163 16 16" strokeLinecap="round" />
-          </svg>
-        </div>
+      <div className="h-44 bg-gradient-to-br from-indigo-50 to-blue-50 relative flex items-center justify-center overflow-hidden">
+        {doc.img_url ? (
+          <img src={doc.img_url} alt={doc.name} className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-24 h-24 rounded-full bg-indigo-100 flex items-center justify-center z-10">
+            <svg width="48" height="48" fill="none" stroke="#6366F1" strokeWidth="1.5">
+              <circle cx="24" cy="16" r="8" />
+              <path d="M8 44c0-8.837 7.163-16 16-16s16 7.163 16 16" strokeLinecap="round" />
+            </svg>
+          </div>
+        )}
       </div>
       <div className="p-4">
-        <h3 className="font-semibold text-gray-800">{doc.name}</h3>
-        <p className="text-sm text-gray-500 mb-1">{doc.spec}</p>
+        <h3 className="font-semibold text-gray-800 truncate">{doc.name}</h3>
+        <p className="text-sm text-gray-500 mb-1 truncate">{doc.spec}</p>
         <p className="text-xs text-gray-400 mb-3">{doc.schedule}</p>
         <div className="flex items-center justify-between">
           <span className="text-xs px-3 py-1 rounded-full bg-green-50 text-green-600 font-medium">Tersedia</span>
           <Link href="/login"
             className="text-xs px-4 py-1.5 rounded-lg text-white font-medium hover:opacity-90"
             style={{ background: "linear-gradient(135deg,#6366F1,#3B82F6)" }}
-          >Booking Now</Link>
+          >Pesan Sekarang</Link>
         </div>
       </div>
     </div>
@@ -237,6 +241,61 @@ function DokterCard({ doc }) {
 }
 
 function DoctorSection() {
+  const [dbDoctors, setDbDoctors] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const docRes = await fetch("/api/doctors?status=active", { cache: 'no-store' });
+        const docData = await docRes.json();
+        const schedRes = await fetch("/api/doctorSchedules", { cache: 'no-store' });
+        const schedData = await schedRes.json();
+
+        if (docRes.ok && schedRes.ok) {
+          const docs = docData.data || [];
+          const scheds = schedData.data || [];
+
+          const mapped = docs.map(doc => {
+            const docSchedules = scheds.filter(s => s.doctor_id === doc.id);
+            const days = docSchedules.map(s => s.day_of_week).sort();
+            let scheduleText = "Belum ada jadwal";
+            let timeText = "";
+            
+            if (days.length > 0) {
+              const dayNames = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
+              const firstDay = dayNames[days[0]];
+              const lastDay = dayNames[days[days.length - 1]];
+              scheduleText = days.length > 1 ? `${firstDay} - ${lastDay}` : firstDay;
+              
+              if (docSchedules[0]?.start_time && docSchedules[0]?.end_time) {
+                 const start = docSchedules[0].start_time.substring(0, 5).replace(':', '.');
+                 const end = docSchedules[0].end_time.substring(0, 5).replace(':', '.');
+                 timeText = `${start} - ${end}`;
+              }
+            }
+            
+            return {
+              name: doc.full_name,
+              spec: doc.specialization_name || "Umum",
+              schedule: timeText ? `${scheduleText} | ${timeText}` : scheduleText,
+              img_url: doc.img_url
+            };
+          });
+          
+          setDbDoctors(mapped.slice(0, 4));
+        }
+      } catch (e) {
+        console.error("Gagal load dokter", e);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const displayDoctors = dbDoctors.length > 0 ? dbDoctors : doctors;
+
   return (
     <section id="doctor" className="bg-gray-50 py-20">
       <div className="max-w-6xl mx-auto px-6">
@@ -246,9 +305,21 @@ function DoctorSection() {
             Lihat semua Dokter →
           </Link>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {doctors.map((d) => <DokterCard key={d.name} doc={d} />)}
-        </div>
+        
+        {isLoading ? (
+          <div className="flex justify-center items-center py-10">
+            <div className="animate-pulse flex space-x-4">
+              <div className="w-64 h-72 bg-gray-200 rounded-2xl"></div>
+              <div className="w-64 h-72 bg-gray-200 rounded-2xl hidden sm:block"></div>
+              <div className="w-64 h-72 bg-gray-200 rounded-2xl hidden lg:block"></div>
+              <div className="w-64 h-72 bg-gray-200 rounded-2xl hidden lg:block"></div>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {displayDoctors.map((d) => <DokterCard key={d.name} doc={d} />)}
+          </div>
+        )}
       </div>
     </section>
   );
@@ -309,9 +380,9 @@ function Footer() {
               {[
                 { label: "Beranda", href: "#beranda" },
                 { label: "Fitur", href: "#fitur" },
-                { label: "Doctor", href: "#doctor" },
+                { label: "Dokter", href: "#doctor" },
                 { label: "Cara Kerja", href: "#cara-kerja" },
-                { label: "About", href: "#about" },
+                { label: "Tentang", href: "#about" },
               ].map((m) => (
                 <li key={m.label}><a href={m.href} className="text-sm text-gray-500 hover:text-indigo-600">{m.label}</a></li>
               ))}
@@ -320,7 +391,7 @@ function Footer() {
           <div>
             <h4 className="font-semibold text-gray-800 mb-4">Layanan</h4>
             <ul className="flex flex-col gap-2">
-              {["Booking Doctor", "Jadwal", "Reminder", "Riwayat", "Dashboard"].map((l) => (
+              {["Pesan Dokter", "Jadwal", "Reminder", "Riwayat", "Dashboard"].map((l) => (
                 <li key={l}><a href="#" className="text-sm text-gray-500 hover:text-indigo-600">{l}</a></li>
               ))}
             </ul>

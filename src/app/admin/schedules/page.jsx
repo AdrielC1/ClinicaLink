@@ -14,7 +14,6 @@ export default function AdminSchedulesPage() {
     
     // UI State
     const [searchTerm, setSearchTerm] = useState("");
-    const [currentPage, setCurrentPage] = useState(1);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editingSchedule, setEditingSchedule] = useState(null);
@@ -40,7 +39,7 @@ export default function AdminSchedulesPage() {
         try {
             const [schedulesRes, doctorsRes] = await Promise.all([
                 fetch('/api/schedules'),
-                fetch('/api/doctors?is_active=true')
+                fetch('/api/doctors?status=active')
             ]);
             
             const schedulesData = await schedulesRes.json();
@@ -254,14 +253,14 @@ export default function AdminSchedulesPage() {
     });
 
     return (
-        <div className="font-sans text-slate-800 pb-10">
+        <div className="font-sans text-slate-800 pb-6">
             {/* Header Section */}
-            <div className="flex flex-col xl:flex-row justify-between items-stretch mb-4 gap-6">
+            <div className="flex flex-col xl:flex-row justify-between items-stretch mb-6 gap-6">
                 
                 {/* Kiri: Title di atas */}
-                <div className="flex-1 flex flex-col justify-between mt-2">
+                <div className="flex-1 flex flex-col justify-between">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-900 mb-2">Kelola Jadwal</h1>
+                        <h1 className="text-3xl font-bold text-gray-900 mb-1">Kelola Jadwal</h1>
                         <p className="text-gray-500 text-sm mb-4">
                             Menampilkan seluruh jadwal praktik dokter.
                         </p>
