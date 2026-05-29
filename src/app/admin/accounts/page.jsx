@@ -8,36 +8,40 @@ import {
   Plus,
   Search,
   Trash2,
-  Loader2
+  Loader2,
+  Shield,
+  User
 } from "lucide-react";
 
 const emptyForm = {
   name: "",
   email: "",
   phone: "",
+  password: "",
+  role: "patient",
 };
 
-export default function AdminPatientsPage() {
-  const [patients, setPatients] = useState([]);
+export default function AdminAccountsPage() {
+  const [accounts, setAccounts] = useState([]);
   const [deletedCount, setDeletedCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch("/api/patients");
+      const res = await fetch("/api/accounts");
       if (res.ok) {
         const { data } = await res.json();
-        setPatients(data);
+        setAccounts(data);
       }
       
-      const resDel = await fetch("/api/patients?include_deleted=only");
+      const resDel = await fetch("/api/accounts?include_deleted=only");
       if (resDel.ok) {
         const { data: delData } = await resDel.json();
         setDeletedCount(delData.length);
       }
     } catch (error) {
-      console.error("Failed to fetch patients:", error);
+      console.error("Failed to fetch accounts:", error);
     } finally {
       setIsLoading(false);
     }
@@ -49,76 +53,80 @@ export default function AdminPatientsPage() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [modal, setModal] = useState(null);
-  const [selectedPatient, setSelectedPatient] = useState(null);
+  const [selectedAccount, setSelectedAccount] = useState(null);
   const [formData, setFormData] = useState(emptyForm);
   const [isSaving, setIsSaving] = useState(false);
 
-  const filteredPatients = useMemo(() => {
+  const filteredAccounts = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    return patients.filter((patient) => {
+    return accounts.filter((account) => {
       return !query ||
-        patient.name.toLowerCase().includes(query) ||
-        patient.email.toLowerCase().includes(query);
+        account.name.toLowerCase().includes(query) ||
+        account.email.toLowerCase().includes(query);
     });
-  }, [patients, searchQuery]);
+  }, [accounts, searchQuery]);
 
   const openAddModal = () => {
     setFormData(emptyForm);
     setModal("add");
   };
 
-  const openEditModal = (patient) => {
-    setSelectedPatient(patient);
+  const openEditModal = (account) => {
+    setSelectedAccount(account);
     setFormData({
-      name: patient.name,
-      email: patient.email,
-      phone: patient.phone,
+      name: account.name,
+      email: account.email,
+      phone: account.phone,
+      role: account.role,
     });
     setModal("edit");
   };
 
-  const openDeleteModal = (patient) => {
-    setSelectedPatient(patient);
+  const openDeleteModal = (account) => {
+    setSelectedAccount(account);
     setModal("delete");
   };
 
   const closeModal = () => {
     setModal(null);
-    setSelectedPatient(null);
+    setSelectedAccount(null);
     setFormData(emptyForm);
   };
 
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      if (modal === "edit" && selectedPatient) {
-        const res = await fetch("/api/patients", {
+      if (modal === "edit" && selectedAccount) {
+        const res = await fetch("/api/accounts", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            id: selectedPatient.id,
+            id: selectedAccount.id,
             name: formData.name,
             phone: formData.phone,
+            role: selectedAccount.role,
           }),
         });
         if (res.ok) await fetchData();
-        else alert("Gagal memperbarui data pasien.");
+        else alert("Gagal memperbarui data akun.");
       }
 
       if (modal === "add") {
-        const res = await fetch("/api/patients", {
+        const res = await fetch("/api/accounts", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             name: formData.name,
             email: formData.email,
-            phone: formData.phone,
+            phone: formData.role === 'patient' ? formData.phone : undefined,
+            password: formData.password,
+            role: formData.role,
           }),
         });
         if (res.ok) await fetchData();
         else {
           const err = await res.json();
-          alert(err.message || "Gagal menambah pasien.");
+          alert(err.message || "Gagal menambah akun.");
         }
       }
     } catch (error) {
@@ -132,12 +140,12 @@ export default function AdminPatientsPage() {
   const handleDelete = async () => {
     setIsSaving(true);
     try {
-      if (selectedPatient) {
-        const res = await fetch(`/api/patients?id=${selectedPatient.id}`, {
+      if (selectedAccount) {
+        const res = await fetch(`/api/accounts?id=${selectedAccount.id}`, {
           method: "DELETE",
         });
         if (res.ok) await fetchData();
-        else alert("Gagal menghapus pasien.");
+        else alert("Gagal menghapus akun.");
       }
     } catch (error) {
       alert("Terjadi kesalahan.");
@@ -150,15 +158,14 @@ export default function AdminPatientsPage() {
   return (
     <div className="font-sans text-slate-800 pb-6">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-1">Kelola Pasien</h1>
-        <p className="text-gray-500 text-sm">Kelola data pasien yang terdaftar di sistem</p>
+        <h1 className="text-3xl font-bold text-gray-900 mb-1">Kelola Akun</h1>
+        <p className="text-gray-500 text-sm">Kelola data akun pengguna yang terdaftar di sistem</p>
       </div>
 
       <div className="flex gap-4 mb-6 flex-wrap">
-        <SummaryCard label="Total Pasien" value={patients.length} />
-        {/* Placeholder for future features if needed */}
-        <SummaryCard label="Menunggu" value="-" />
-        <SummaryCard label="Selesai" value="-" />
+        <SummaryCard label="Total Akun" value={accounts.length} />
+        <SummaryCard label="Akun Admin" value={accounts.filter(a => a.role === 'admin').length} />
+        <SummaryCard label="Akun Pasien" value={accounts.filter(a => a.role === 'patient').length} />
       </div>
 
       <div className="flex flex-wrap gap-3 items-center mb-6">
@@ -169,7 +176,7 @@ export default function AdminPatientsPage() {
           </div>
           <input
             type="text"
-            placeholder="Search pasien..."
+            placeholder="Search akun..."
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
             className="pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm w-56 focus:outline-none focus:ring-2 focus:ring-[#5E81CC] focus:border-transparent transition-all shadow-sm"
@@ -181,12 +188,12 @@ export default function AdminPatientsPage() {
           className="flex items-center gap-2 px-5 py-2.5 bg-[#5E81CC] text-white font-semibold rounded-lg text-sm shadow-md hover:bg-[#4A6BB0] transition-colors"
         >
           <Plus className="h-4 w-4" />
-          Tambah pasien
+          Tambah Akun
         </button>
 
         {/* Lihat Terhapus Link */}
         <Link
-          href="/admin/patients/deleted"
+          href="/admin/accounts/deleted"
           className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 rounded-lg text-sm font-semibold transition-colors shadow-sm bg-white text-gray-600 hover:bg-gray-50"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -198,7 +205,7 @@ export default function AdminPatientsPage() {
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden pb-4 mb-6">
         <div className="p-6 pb-4 border-b border-slate-100 flex justify-between items-center">
-          <h2 className="text-lg font-bold text-gray-900">Daftar Pasien</h2>
+          <h2 className="text-lg font-bold text-gray-900">Daftar Akun</h2>
         </div>
 
         <div className="overflow-x-auto">
@@ -206,10 +213,10 @@ export default function AdminPatientsPage() {
             <thead className="bg-[#F3F6FB] text-gray-700 font-semibold text-xs border-y border-gray-100">
               <tr>
                 <th className="px-6 py-4 text-center w-12">No</th>
-                <th className="px-6 py-4">Nama Pasien</th>
+                <th className="px-6 py-4">Nama Pengguna</th>
                 <th className="px-6 py-4">Email</th>
+                <th className="px-6 py-4">Role</th>
                 <th className="px-6 py-4">No Telepon</th>
-                <th className="px-6 py-4">Konsultasi Terakhir</th>
                 <th className="px-6 py-4 text-center">Aksi</th>
               </tr>
             </thead>
@@ -218,32 +225,43 @@ export default function AdminPatientsPage() {
                 <tr>
                   <td colSpan="6" className="px-6 py-12 text-center text-slate-500">
                     <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-[#5E81CC]" />
-                    Memuat data pasien...
+                    Memuat data akun...
                   </td>
                 </tr>
-              ) : filteredPatients.map((patient, index) => (
+              ) : filteredAccounts.map((account, index) => (
                 <tr
-                  key={patient.id}
+                  key={account.id}
                   className="hover:bg-gray-50 transition-colors"
                 >
                   <td className="px-6 py-4 text-center font-medium text-gray-500">{index + 1}</td>
-                  <td className="px-6 py-4 font-bold text-gray-900">{patient.name}</td>
-                  <td className="px-6 py-4 text-gray-600">{patient.email}</td>
-                  <td className="px-6 py-4 text-gray-600">{patient.phone}</td>
-                  <td className="px-6 py-4 font-semibold text-gray-700">{patient.lastConsultation}</td>
+                  <td className="px-6 py-4 font-bold text-gray-900">{account.name}</td>
+                  <td className="px-6 py-4 text-gray-600">{account.email}</td>
+                  <td className="px-6 py-4">
+                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
+                      account.role === 'admin' ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' :
+                      account.role === 'doctor' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' :
+                      'bg-blue-50 text-blue-700 border border-blue-100'
+                    }`}>
+                      {account.role === 'admin' && <Shield className="w-3 h-3" />}
+                      {account.role === 'doctor' && <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>}
+                      {account.role === 'patient' && <User className="w-3 h-3" />}
+                      {account.role.charAt(0).toUpperCase() + account.role.slice(1)}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-gray-600">{account.role === 'admin' ? '-' : account.phone}</td>
                   <td className="px-6 py-4 text-center">
                     <div className="flex items-center justify-center gap-2">
                       <button
-                        onClick={() => openEditModal(patient)}
+                        onClick={() => openEditModal(account)}
                         className="p-1.5 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        title="Edit Pasien"
+                        title="Edit Akun"
                       >
                         <Pencil className="h-4 w-4" />
                       </button>
                       <button
-                        onClick={() => openDeleteModal(patient)}
+                        onClick={() => openDeleteModal(account)}
                         className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Hapus Pasien"
+                        title="Hapus Akun"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -251,9 +269,9 @@ export default function AdminPatientsPage() {
                   </td>
                 </tr>
               ))}
-              {!isLoading && filteredPatients.length === 0 && (
+              {!isLoading && filteredAccounts.length === 0 && (
                 <tr>
-                  <td colSpan="6" className="px-6 py-12 text-center text-gray-400">Tidak ada pasien ditemukan</td>
+                  <td colSpan="6" className="px-6 py-12 text-center text-gray-400">Tidak ada akun ditemukan</td>
                 </tr>
               )}
             </tbody>
@@ -262,8 +280,8 @@ export default function AdminPatientsPage() {
       </div>
 
       {(modal === "add" || modal === "edit") && (
-        <PatientFormModal
-          title={modal === "add" ? "Tambah Pasien" : "Edit Pasien"}
+        <AccountFormModal
+          title={modal === "add" ? "Tambah Akun" : "Edit Akun"}
           mode={modal}
           formData={formData}
           onChange={setFormData}
@@ -273,9 +291,9 @@ export default function AdminPatientsPage() {
         />
       )}
 
-      {modal === "delete" && selectedPatient && (
-        <DeletePatientModal
-          patientName={selectedPatient.name}
+      {modal === "delete" && selectedAccount && (
+        <DeleteAccountModal
+          accountName={selectedAccount.name}
           onCancel={closeModal}
           onDelete={handleDelete}
           isSaving={isSaving}
@@ -294,10 +312,10 @@ function SummaryCard({ label, value }) {
   );
 }
 
-function PatientFormModal({ title, mode, formData, onChange, onCancel, onSave, isSaving }) {
+function AccountFormModal({ title, mode, formData, onChange, onCancel, onSave, isSaving }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="w-full max-w-md rounded-2xl bg-white shadow-xl">
+      <div className="w-full max-w-md rounded-2xl bg-white shadow-xl flex flex-col max-h-[90vh]">
         <div className="flex items-center justify-between border-b border-gray-100 p-6">
           <h3 className="text-xl font-bold text-gray-900">{title}</h3>
           <button onClick={onCancel} className="p-1 text-gray-400 hover:text-gray-600">
@@ -305,7 +323,31 @@ function PatientFormModal({ title, mode, formData, onChange, onCancel, onSave, i
           </button>
         </div>
 
-        <div className="p-6">
+        <div className="p-6 overflow-y-auto">
+          {mode === 'add' && (
+            <div className="mb-6">
+              <label className="block text-sm font-semibold text-gray-700 mb-3">Tipe Akun (Role)</label>
+              <div className="flex p-1 bg-gray-100 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => onChange({ ...formData, role: 'patient' })}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-lg transition-all ${formData.role === 'patient' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                  <User className="w-4 h-4" />
+                  Pasien
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onChange({ ...formData, role: 'admin' })}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-lg transition-all ${formData.role === 'admin' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                  <Shield className="w-4 h-4" />
+                  Admin
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="space-y-4">
             <TextField
               label="Nama Lengkap *"
@@ -318,12 +360,23 @@ function PatientFormModal({ title, mode, formData, onChange, onCancel, onSave, i
               disabled={mode === 'edit'}
               onChange={(value) => onChange({ ...formData, email: value })}
             />
-            {mode === 'add' && <p className="text-xs text-indigo-500 font-medium px-1">Email tidak dapat diubah setelah ditambahkan. Password default adalah Pasien123!</p>}
-            <TextField
-              label="No Telepon"
-              value={formData.phone}
-              onChange={(value) => onChange({ ...formData, phone: value })}
-            />
+            
+            {mode === 'add' && (
+              <TextField
+                label="Password *"
+                type="password"
+                value={formData.password}
+                onChange={(value) => onChange({ ...formData, password: value })}
+              />
+            )}
+
+            {formData.role === 'patient' && (
+              <TextField
+                label="No Telepon"
+                value={formData.phone}
+                onChange={(value) => onChange({ ...formData, phone: value })}
+              />
+            )}
           </div>
 
           <div className="mt-8 flex gap-3">
@@ -348,14 +401,14 @@ function PatientFormModal({ title, mode, formData, onChange, onCancel, onSave, i
   );
 }
 
-function DeletePatientModal({ patientName, onCancel, onDelete, isSaving }) {
+function DeleteAccountModal({ accountName, onCancel, onDelete, isSaving }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
       <div className="w-full max-w-md rounded-2xl bg-white px-8 py-9 text-center shadow-xl">
-        <h2 className="text-xl font-bold text-gray-900">Hapus Pasien</h2>
+        <h2 className="text-xl font-bold text-gray-900">Hapus Akun</h2>
         <AlertTriangle className="mx-auto mt-6 h-16 w-16 text-red-500" strokeWidth={1.5} />
         <p className="mt-4 text-sm font-medium text-gray-600">
-          Apakah Anda yakin ingin menghapus data <b>{patientName}</b>? Tindakan ini akan memindahkan data ke daftar terhapus.
+          Apakah Anda yakin ingin menghapus akun <b>{accountName}</b>? Tindakan ini akan memindahkan data ke daftar terhapus.
         </p>
         <div className="mt-8 flex gap-3">
           <button
@@ -378,11 +431,12 @@ function DeletePatientModal({ patientName, onCancel, onDelete, isSaving }) {
   );
 }
 
-function TextField({ label, value, onChange, disabled }) {
+function TextField({ label, value, onChange, disabled, type = "text" }) {
   return (
     <div className="block space-y-1.5">
       <label className="text-sm font-semibold text-gray-700">{label}</label>
       <input
+        type={type}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         disabled={disabled}

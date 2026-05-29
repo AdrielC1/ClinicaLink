@@ -61,7 +61,7 @@ const icons = {
 const adminLinks = [
   { href: "/admin/dashboard", label: "Beranda" },
   { href: "/admin/doctors", label: "Kelola Dokter" },
-  { href: "/admin/patients", label: "Kelola Pasien" },
+  { href: "/admin/accounts", label: "Kelola Akun" },
   { href: "/admin/appointments", label: "Kelola Janji Temu" },
   { href: "/admin/schedules", label: "Kelola Jadwal" },
   { href: "/admin/reports", label: "Laporan" },
@@ -92,7 +92,7 @@ const adminAlerts = [
   { title: "Appointment baru masuk", description: "Kimmy membuat appointment pukul 10.00 WIB.", href: "/admin/appointments", tone: "blue" },
   { title: "Appointment dibatalkan", description: "Sila membatalkan jadwal konsultasi hari ini.", href: "/admin/appointments", tone: "red" },
   { title: "Jadwal dokter berubah", description: "Jadwal Dr. Mike diperbarui oleh admin.", href: "/admin/schedules", tone: "amber" },
-  { title: "Pasien baru terdaftar", description: "Nina baru bergabung sebagai pasien.", href: "/admin/patients", tone: "green" },
+  { title: "Pasien baru terdaftar", description: "Nina baru bergabung sebagai pasien.", href: "/admin/accounts", tone: "green" },
   { title: "Dokter baru ditambahkan", description: "Dr. Riri ditambahkan sebagai dokter baru.", href: "/admin/doctors", tone: "blue" },
   { title: "Konflik jadwal terdeteksi", description: "Ada potensi slot bentrok pada 12 Mei 2030.", href: "/admin/schedules", tone: "red" },
   { title: "Reminder laporan", description: "Laporan mingguan siap ditinjau.", href: "/admin/reports", tone: "amber" },
