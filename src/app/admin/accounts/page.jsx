@@ -469,16 +469,42 @@ function DeleteAccountModal({ accountName, onCancel, onDelete, isSaving }) {
 }
 
 function TextField({ label, value, onChange, disabled, type = "text", error }) {
+  const [showPassword, setShowPassword] = useState(false);
+
   return (
     <div className="block space-y-1.5">
       <label className="text-sm font-semibold text-gray-700">{label}</label>
-      <input
-        type={type}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        disabled={disabled}
-        className={`w-full rounded-xl border px-4 py-2.5 text-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#5E81CC] ${disabled ? 'bg-slate-100 text-slate-500 cursor-not-allowed border-gray-200' : error ? 'bg-gray-50 border-red-500 focus:ring-red-500 focus:bg-white' : 'bg-gray-50 border-gray-200 focus:bg-white'}`}
-      />
+      <div className="relative">
+        <input
+          type={type === "password" ? (showPassword ? "text" : "password") : type}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          disabled={disabled}
+          className={`w-full rounded-xl border px-4 py-2.5 ${type === "password" ? 'pr-10' : ''} text-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#5E81CC] ${disabled ? 'bg-slate-100 text-slate-500 cursor-not-allowed border-gray-200' : error ? 'bg-gray-50 border-red-500 focus:ring-red-500 focus:bg-white' : 'bg-gray-50 border-gray-200 focus:bg-white'}`}
+        />
+        {type === "password" && (
+          <button
+            type="button"
+            onClick={() => setShowPassword((prev) => !prev)}
+            className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-700"
+            aria-label={showPassword ? "Sembunyikan password" : "Tampilkan password"}
+          >
+            {showPassword ? (
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+                <path d="M17.94 17.94A10.46 10.46 0 0 1 12 19.5c-5.4 0-9.93-3.38-11.79-8.25a1 1 0 0 1 0-.5A10.46 10.46 0 0 1 6.06 6.06" />
+                <path d="M1 1l22 22" />
+                <path d="M14.12 14.12A3 3 0 0 1 9.88 9.88" />
+                <path d="M10.65 6.65A7.96 7.96 0 0 1 12 5.5c5.4 0 9.93 3.38 11.79 8.25" />
+              </svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            )}
+          </button>
+        )}
+      </div>
       {error && <p className="text-xs text-red-500 font-medium">{error}</p>}
     </div>
   );

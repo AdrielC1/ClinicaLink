@@ -65,6 +65,7 @@ const adminLinks = [
   { href: "/admin/appointments", label: "Kelola Janji Temu" },
   { href: "/admin/schedules", label: "Kelola Jadwal" },
   { href: "/admin/reports", label: "Laporan" },
+  { href: "/admin/profile", label: "Profil", customIcon: profileIcon },
   { href: "/admin/settings", label: "Pengaturan" },
 ];
 
@@ -80,6 +81,7 @@ const patientLinks = [
 const doctorLinks = [
   { href: "/doctor/dashboard", label: "Beranda" },
   { href: "/doctor/patients", label: "Riwayat Konsultasi" },
+  { href: "/doctor/profile", label: "Profil", customIcon: profileIcon },
 ];
 
 const ROLE_ROUTES = {
@@ -114,9 +116,9 @@ function readStoredUser() {
 }
 
 function getUserName(user, role) {
-  if (role === 'admin') return 'Admin';
-  const name = user?.full_name || user?.fullName || user?.name || user?.username || (role === 'doctor' ? 'Dokter' : 'Pasien');
-  return String(name).trim();
+  const name = user?.full_name || user?.fullName || user?.name || user?.username;
+  if (name) return String(name).trim();
+  return role === 'doctor' ? 'Dokter' : role === 'patient' ? 'Pasien' : 'Admin';
 }
 
 export default function AppSidebarLayout({ children, role }) {
@@ -331,12 +333,9 @@ export default function AppSidebarLayout({ children, role }) {
   const displayUserName = getUserName(currentUser, role);
 
   // LOGIKA DINAMIS AVATAR: Menggunakan img_url dari database jika ada, jika tidak, pakai placeholder
-  const avatarUrl = currentUser?.img_url 
-    ? currentUser.img_url 
-    : (role === 'admin'
-        ? "https://ui-avatars.com/api/?name=Admin&background=5E81CC&color=fff&rounded=true"
-        : `https://ui-avatars.com/api/?name=${encodeURIComponent(displayUserName)}&background=5E81CC&color=fff&rounded=true`
-      );
+  const avatarUrl = currentUser?.img_url
+    ? currentUser.img_url
+    : `https://ui-avatars.com/api/?name=${encodeURIComponent(displayUserName)}&background=5E81CC&color=fff&rounded=true`;
 
   return (
     <div className="min-h-screen lg:h-screen lg:overflow-hidden bg-[#F8FAFC] text-[#2D3748] font-sans p-6 md:p-10 flex flex-col w-full">
@@ -361,8 +360,8 @@ export default function AppSidebarLayout({ children, role }) {
           <div 
             onClick={() => {
               if (role === 'patient') router.push('/patient/profile');
-              else if (role === 'admin') router.push('/admin/settings');
-              else if (role === 'doctor') router.push('/doctor/dashboard'); // Navigasi opsional untuk dokter
+              else if (role === 'admin') router.push('/admin/profile');
+              else if (role === 'doctor') router.push('/doctor/profile');
             }}
             className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
           >

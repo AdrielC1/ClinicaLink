@@ -13,6 +13,9 @@ export default function AdminSettingsPage() {
     email: "Admin@gmail.com",
     role: "Administrator",
   });
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [klinik, setKlinik] = useState({
     name: "ClinicaLink",
@@ -214,15 +217,66 @@ export default function AdminSettingsPage() {
             <div className="space-y-4">
               <div className="grid grid-cols-[140px_1fr] items-center gap-4">
                 <label className="text-xs font-bold text-gray-900">Password lama <span className="float-right">:</span></label>
-                <input type="password" placeholder="" className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#5E81CC] transition-all" />
+                <div className="relative w-full">
+                  <input type={showOldPassword ? "text" : "password"} placeholder="" className="w-full px-4 py-2 pr-10 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#5E81CC] transition-all" />
+                  <button type="button" onClick={() => setShowOldPassword(prev => !prev)} className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-700">
+                    {showOldPassword ? (
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+                        <path d="M17.94 17.94A10.46 10.46 0 0 1 12 19.5c-5.4 0-9.93-3.38-11.79-8.25a1 1 0 0 1 0-.5A10.46 10.46 0 0 1 6.06 6.06" />
+                        <path d="M1 1l22 22" />
+                        <path d="M14.12 14.12A3 3 0 0 1 9.88 9.88" />
+                        <path d="M10.65 6.65A7.96 7.96 0 0 1 12 5.5c5.4 0 9.93 3.38 11.79 8.25" />
+                      </svg>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
               </div>
               <div className="grid grid-cols-[140px_1fr] items-center gap-4">
                 <label className="text-xs font-bold text-gray-900">Password baru <span className="float-right">:</span></label>
-                <input type="password" placeholder="" className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#5E81CC] transition-all" />
+                <div className="relative w-full">
+                  <input type={showNewPassword ? "text" : "password"} placeholder="" className="w-full px-4 py-2 pr-10 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#5E81CC] transition-all" />
+                  <button type="button" onClick={() => setShowNewPassword(prev => !prev)} className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-700">
+                    {showNewPassword ? (
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+                        <path d="M17.94 17.94A10.46 10.46 0 0 1 12 19.5c-5.4 0-9.93-3.38-11.79-8.25a1 1 0 0 1 0-.5A10.46 10.46 0 0 1 6.06 6.06" />
+                        <path d="M1 1l22 22" />
+                        <path d="M14.12 14.12A3 3 0 0 1 9.88 9.88" />
+                        <path d="M10.65 6.65A7.96 7.96 0 0 1 12 5.5c5.4 0 9.93 3.38 11.79 8.25" />
+                      </svg>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
               </div>
               <div className="grid grid-cols-[140px_1fr] items-center gap-4">
                 <label className="text-xs font-bold text-gray-900">Konfirmasi password <span className="float-right">:</span></label>
-                <input type="password" placeholder="" className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#5E81CC] transition-all" />
+                <div className="relative w-full">
+                  <input type={showConfirmPassword ? "text" : "password"} placeholder="" className="w-full px-4 py-2 pr-10 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#5E81CC] transition-all" />
+                  <button type="button" onClick={() => setShowConfirmPassword(prev => !prev)} className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-700">
+                    {showConfirmPassword ? (
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+                        <path d="M17.94 17.94A10.46 10.46 0 0 1 12 19.5c-5.4 0-9.93-3.38-11.79-8.25a1 1 0 0 1 0-.5A10.46 10.46 0 0 1 6.06 6.06" />
+                        <path d="M1 1l22 22" />
+                        <path d="M14.12 14.12A3 3 0 0 1 9.88 9.88" />
+                        <path d="M10.65 6.65A7.96 7.96 0 0 1 12 5.5c5.4 0 9.93 3.38 11.79 8.25" />
+                      </svg>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
 

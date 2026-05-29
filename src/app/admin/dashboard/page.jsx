@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
 import {
   CalendarCheck,
   ChevronLeft,
@@ -64,6 +67,141 @@ const activities = [
 ];
 
 export default function AdminDashboardPage() {
+  const [doctors, setDoctors] = useState([]);
+  const [patients, setPatients] = useState([]);
+  const [appointments, setAppointments] = useState([]);
+  const [todayAppointments, setTodayAppointments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const [editAppointment, setEditAppointment] = useState(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+
+  const loadDashboardData = async () => {
+    setLoading(true);
+    setError("");
+
+    try {
+      const [doctorRes, patientRes, appointmentRes, todayRes] = await Promise.all([
+        fetch("/api/doctors", { cache: "no-store" }),
+        fetch("/api/patient", { cache: "no-store" }),
+        fetch("/api/appointments", { cache: "no-store" }),
+        fetch("/api/appointments?today=true", { cache: "no-store" }),
+      ]);
+
+      const [doctorJson, patientJson, appointmentJson, todayJson] = await Promise.all([
+        doctorRes.json(),
+        patientRes.json(),
+        appointmentRes.json(),
+        todayRes.json(),
+      ]);
+
+      if (!doctorRes.ok || !patientRes.ok || !appointmentRes.ok || !todayRes.ok) {
+        throw new Error("Gagal memuat data sistem.");
+      }
+
+      setDoctors(Array.isArray(doctorJson.data) ? doctorJson.data : []);
+      setPatients(Array.isArray(patientJson.data) ? patientJson.data : []);
+      setAppointments(Array.isArray(appointmentJson.data) ? appointmentJson.data : []);
+      setTodayAppointments(Array.isArray(todayJson.data) ? todayJson.data : []);
+    } catch (err) {
+      console.error(err);
+      setError(err?.message || "Terjadi kesalahan saat memuat dashboard.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  const recentActivities = useMemo(() => {
+    return appointments.slice(0, 3).map((item) => {
+      const patientName = item.patient_name || "Pasien";
+      if (item.status === "Dibatalkan") {
+        return {
+          title: `Appointment ${patientName} telah dibatalkan`,
+          type: "cancel",
+        };
+      }
+      if (item.status === "Selesai") {
+        return {
+          title: `Appointment ${patientName} telah selesai`,
+          type: "success",
+        };
+      }
+      return {
+        title: `Appointment ${patientName} telah diubah`,
+        type: "edit",
+      };
+    });
+  }, [appointments]);
+
+  const openDetail = (appointment) => {
+    setSelectedAppointment(appointment);
+    setIsDetailOpen(true);
+  };
+
+  const openEdit = (appointment) => {
+    setEditAppointment({
+      id: appointment.id,
+      appointment_date: appointment.appointment_date || "",
+      start_time: appointment.start_time || "",
+      end_time: appointment.end_time || "",
+      patient_name: appointment.patient_name,
+      doctor_name: appointment.doctor_name,
+    });
+    setIsEditOpen(true);
+  };
+
+  const closeModals = () => {
+    setIsDetailOpen(false);
+    setSelectedAppointment(null);
+    setIsEditOpen(false);
+    setEditAppointment(null);
+  };
+
+  const handleDelete = async (appointmentId) => {
+    const confirmed = window.confirm("Yakin ingin menghapus/membatalkan appointment ini?");
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch(`/api/appointments?id=${appointmentId}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) throw new Error("Gagal menghapus appointment.");
+      loadDashboardData();
+    } catch (err) {
+      window.alert(err?.message || "Terjadi kesalahan.");
+    }
+  };
+
+  const handleEditSubmit = async (event) => {
+    event.preventDefault();
+    if (!editAppointment) return;
+
+    try {
+      const res = await fetch(`/api/appointments?id=${editAppointment.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          appointment_date: editAppointment.appointment_date,
+          start_time: editAppointment.start_time,
+          end_time: editAppointment.end_time,
+        }),
+      });
+
+      if (!res.ok) throw new Error("Gagal menyimpan perubahan.");
+      closeModals();
+      loadDashboardData();
+    } catch (err) {
+      window.alert(err?.message || "Terjadi kesalahan.");
+    }
+  };
+
   return (
     <div className="font-sans text-slate-800 pb-6">
       <div className="mb-6">
