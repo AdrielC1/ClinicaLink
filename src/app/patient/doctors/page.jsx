@@ -112,8 +112,8 @@ function PatientDoctorsContent() {
       setCurrentUser(user);
 
       try {
-        // Fetch Doctors
-        const docRes = await fetch("/api/doctors?is_active=true", { cache: 'no-store' });
+        // Fetch Doctors (status=active includes doctors with future inactive_from)
+        const docRes = await fetch("/api/doctors?status=active", { cache: 'no-store' });
         const docData = await docRes.json();
         
         // Fetch Specializations
@@ -137,6 +137,20 @@ function PatientDoctorsContent() {
   }, [router]);
 
   // --- Memoized Derived Data ---
+  
+  const next7Days = useMemo(() => {
+    return Array.from({ length: 7 }).map((_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() + i + 1);
+      const localDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      return {
+        dateNum: d.getDate(),
+        dayName: ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"][d.getDay()],
+        monthShort: ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agt", "Sep", "Okt", "Nov", "Des"][d.getMonth()],
+        fullDate: localDateStr
+      };
+    });
+  }, []);
   
   // Calculate specialization counts
   const specializationCounts = useMemo(() => {
@@ -248,10 +262,10 @@ function PatientDoctorsContent() {
       const res = await fetch(`/api/appointments?doctor_id=${doc.id}`);
       if (res.ok) {
         const data = await res.json();
-        setDoctorAppointments(Array.isArray(data.data) ? data.data : []);
+        setDoctorAppointments(Array.isArray(data.data) ? data.data : (data.data ? [data.data] : []));
       }
-    } catch (e) {
-      console.error(e);
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -260,7 +274,7 @@ function PatientDoctorsContent() {
     setSelectedDoctor(null);
   };
 
-  const handleBookingSubmit = async () => {
+  const submitBooking = async () => {
     if (!selectedDate || !selectedSchedule) {
       alert("Pilih tanggal dan jam terlebih dahulu!");
       return;
@@ -282,7 +296,7 @@ function PatientDoctorsContent() {
       });
 
       if (res.ok) {
-        setBookingStep(2); // Show Success Modal
+        setBookingStep(3); // Show Success Modal
       } else {
         const err = await res.json();
         alert(err.message || "Gagal membuat janji temu.");
@@ -318,79 +332,77 @@ function PatientDoctorsContent() {
   return (
     <div className="flex flex-col h-full">
       
-      {/* Header Info */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-1">Daftar Dokter</h1>
-        <p className="text-gray-500 text-sm">Lihat dokter spesialis yang tersedia dan buat janji temu konsultasi Anda dengan mudah.</p>
-      </div>
-
-      {/* Toolbar */}
-      <div className="flex flex-col md:flex-row gap-4 mb-6 relative z-10">
-        {/* Search Input */}
-        <div className="relative flex-1 max-w-xs bg-white rounded-xl shadow-sm border border-slate-100">
-          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-            <Search className="h-4 w-4 text-slate-400" />
-          </div>
-          <input
-            type="text"
-            className="block w-full pl-10 pr-3 py-2.5 bg-transparent text-[13px] focus:ring-2 focus:ring-indigo-100 outline-none transition-all placeholder:text-slate-400 font-bold text-slate-700"
-            placeholder="Cari Dokter atau spesialis"
-            value={searchQuery}
-            onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-          />
+      {/* Header Info & Toolbar */}
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between mb-6 gap-4 relative z-10">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-1">Daftar Dokter</h1>
+          <p className="text-gray-500 text-sm">Lihat dokter spesialis yang tersedia dan buat janji temu konsultasi Anda dengan mudah.</p>
         </div>
 
-        {/* Specialization Dropdown */}
-        <div className="relative">
-          <select
-            className="appearance-none w-full md:w-56 bg-white shadow-sm border border-slate-100 text-slate-500 text-[13px] font-bold rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-100 cursor-pointer"
-            value={selectedSpecialization}
-            onChange={(e) => { setSelectedSpecialization(e.target.value); setCurrentPage(1); }}
-          >
-            <option value="Semua Spesialis">Semua Spesialis</option>
-            {specializations.map(s => (
-              <option key={s.id} value={s.name}>{s.name}</option>
-            ))}
-          </select>
-          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-slate-400">
-            <ChevronDown className="h-4 w-4" />
-          </div>
-        </div>
-
-        {/* Sort Button */}
-        <div className="relative">
-          <button 
-            onClick={() => setShowSortDropdown(!showSortDropdown)}
-            className="flex items-center gap-2 bg-white border border-slate-100 text-slate-700 text-[13px] font-bold rounded-xl px-4 py-2.5 hover:bg-slate-50 transition-colors shadow-sm"
-          >
-            <ArrowUpDown className="h-4 w-4" />
-            Urutkan {sortOption ? `(${sortOption})` : ''}
-          </button>
-          
-          {showSortDropdown && (
-            <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-slate-100 z-[999] py-1.5 overflow-hidden">
-              {['A-Z', 'Z-A', 'Terdekat'].map(opt => (
-                <button
-                  key={opt}
-                  onClick={() => handleSort(opt)}
-                  className={`block w-full text-left px-4 py-2.5 text-[13px] font-bold hover:bg-indigo-50 transition-colors ${sortOption === opt ? 'text-indigo-600 bg-indigo-50' : 'text-slate-700'}`}
-                >
-                  {opt}
-                </button>
-              ))}
-              {sortOption !== "" && (
-                 <button onClick={() => handleSort("")} className="block w-full text-left px-4 py-2.5 text-[13px] font-bold text-rose-500 hover:bg-rose-50 border-t border-slate-100 mt-1">Reset Urutan</button>
-              )}
+        <div className="flex flex-col sm:flex-row items-center gap-3">
+          {/* Search Input */}
+          <div className="relative w-full sm:w-auto">
+            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+              <Search className="h-4 w-4 text-slate-400" />
             </div>
-          )}
+            <input
+              type="text"
+              className="block w-full sm:w-[240px] pl-10 pr-3 py-2.5 bg-white rounded-xl shadow-sm border border-slate-100 text-[13px] focus:ring-2 focus:ring-indigo-100 outline-none transition-all placeholder:text-slate-400 font-bold text-slate-700"
+              placeholder="Cari Dokter atau spesialis"
+              value={searchQuery}
+              onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+            />
+          </div>
+
+          {/* Specialization Dropdown */}
+          <div className="relative w-full sm:w-auto">
+            <select
+              className="appearance-none w-full sm:w-[180px] bg-white shadow-sm border border-slate-100 text-slate-500 text-[13px] font-bold rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-100 cursor-pointer"
+              value={selectedSpecialization}
+              onChange={(e) => { setSelectedSpecialization(e.target.value); setCurrentPage(1); }}
+            >
+              <option value="Semua Spesialis">Semua Spesialis</option>
+              {specializations.map(s => (
+                <option key={s.id} value={s.name}>{s.name}</option>
+              ))}
+            </select>
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-slate-400">
+              <ChevronDown className="h-4 w-4" />
+            </div>
+          </div>
+
+          {/* Sort Button */}
+          <div className="relative w-full sm:w-auto flex-shrink-0">
+            <button 
+              onClick={() => setShowSortDropdown(!showSortDropdown)}
+              className="flex items-center justify-center gap-2 bg-white border border-slate-100 text-slate-700 text-[13px] font-bold rounded-xl px-4 py-2.5 hover:bg-slate-50 transition-colors shadow-sm w-full h-full"
+            >
+              <ArrowUpDown className="h-4 w-4" />
+              Urutkan {sortOption ? `(${sortOption})` : ''}
+            </button>
+            
+            {showSortDropdown && (
+              <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-slate-100 z-[999] py-1.5 overflow-hidden">
+                {['A-Z', 'Z-A', 'Terdekat'].map(opt => (
+                  <button
+                    key={opt}
+                    onClick={() => handleSort(opt)}
+                    className={`block w-full text-left px-4 py-2.5 text-[13px] font-bold hover:bg-indigo-50 transition-colors ${sortOption === opt ? 'text-indigo-600 bg-indigo-50' : 'text-slate-700'}`}
+                  >
+                    {opt}
+                  </button>
+                ))}
+                {sortOption !== "" && (
+                   <button onClick={() => handleSort("")} className="block w-full text-left px-4 py-2.5 text-[13px] font-bold text-rose-500 hover:bg-rose-50 border-t border-slate-100 mt-1">Reset Urutan</button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Main Content Grid */}
-      <div className="flex flex-col lg:flex-row gap-8 flex-1 z-0">
-        
-        {/* Left: Doctors Grid */}
-        <div className="flex-1">
+      <div className="flex-1 z-0">
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {currentDoctors.map(doc => (
               <div key={doc.id} className="bg-white rounded-[24px] overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.04)] border border-slate-100 flex flex-col relative group transition-all duration-300 hover:shadow-[0_8px_24px_rgba(94,129,204,0.12)]">
@@ -421,16 +433,16 @@ function PatientDoctorsContent() {
 
                   <div className="flex items-center justify-between w-full mt-auto border-t border-slate-100 pt-5">
                     {/* Tersedia Kiri */}
-                    <span className="text-[11px] font-extrabold uppercase tracking-widest text-emerald-500 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100">
-                      Tersedia
+                    <span className={`text-[11px] font-extrabold uppercase tracking-widest px-3 py-1.5 rounded-lg border ${doc.inactive_from ? 'text-rose-500 bg-rose-50 border-rose-100' : 'text-emerald-500 bg-emerald-50 border-emerald-100'}`}>
+                      {doc.inactive_from ? `Nonaktif ${new Date(doc.inactive_from).toLocaleDateString('id-ID', {day:'numeric',month:'short'})}` : 'Tersedia'}
                     </span>
 
                     {/* Booking Kanan */}
                     <button 
                       onClick={() => openBookingModal(doc)}
-                      className="bg-[#5E81CC] hover:bg-indigo-600 text-white text-[13px] font-extrabold py-2 px-6 rounded-xl transition-colors shadow-[0_2px_10px_rgba(94,129,204,0.3)] active:scale-95"
+                      className="bg-[#5E81CC] hover:bg-[#4D6FB5] text-white text-[13px] font-extrabold py-2 px-6 rounded-xl transition-colors shadow-[0_2px_10px_rgba(94,129,204,0.3)] active:scale-95"
                     >
-                      Booking
+                      Buat Janji
                     </button>
                   </div>
                 </div>
@@ -481,250 +493,229 @@ function PatientDoctorsContent() {
 
           {/* Bottom Banner Dihapus */}
 
+          {/* Pagination End */}
         </div>
-
-        {/* Right: Specializations Sidebar */}
-        <div className="w-full lg:w-[240px] shrink-0">
-          <div className="bg-white rounded-[24px] shadow-[0_2px_12px_rgba(0,0,0,0.04)] border border-slate-100 p-5">
-            <h3 className="text-[13px] font-extrabold text-slate-900 mb-4">Kategori Spesialis</h3>
-            <div className="space-y-1">
-              
-              {specializations.map(spec => (
-                <button
-                  key={spec.id}
-                  onClick={() => { setSelectedSpecialization(spec.name); setCurrentPage(1); }}
-                  className="flex items-center justify-between w-full py-2.5 px-3 hover:bg-slate-50 rounded-xl transition-colors group"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="text-[#5E81CC]">
-                      {getIconForSpec(spec.name)}
-                    </div>
-                    <span className="text-[11px] font-extrabold text-slate-700 group-hover:text-slate-900">
-                      {spec.name}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-extrabold text-slate-900">{specializationCounts[spec.name] || 0}</span>
-                    <ChevronRight className="w-3 h-3 text-slate-300" />
-                  </div>
-                </button>
-              ))}
-
-            </div>
-            
-            {/* Tombol lihat semua dihapus */}
-          </div>
-        </div>
-      </div>
 
       {/* ================= BOOKING MODAL ================= */}
       {isBookingModalOpen && selectedDoctor && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-[24px] w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-[24px] w-full max-w-[480px] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
             
-            {/* Header */}
-            <div className="flex justify-between items-center px-6 py-5 border-b border-slate-100">
-              <h2 className="text-[15px] font-extrabold text-slate-900">Booking Appointment</h2>
-              <button onClick={closeBookingModal} className="text-slate-400 hover:text-slate-700 transition-colors">
-                <X className="w-5 h-5" />
-              </button>
+            {/* Header Modal */}
+            <div className="flex items-center justify-between border-b border-slate-100 p-6 pb-4">
+              <h2 className="text-lg font-bold text-slate-900 tracking-tight">
+                {bookingStep === 1 && "Pilih Jadwal Konsultasi"}
+                {bookingStep === 2 && "Detail Keluhan"}
+                {bookingStep === 3 && "Berhasil!"}
+              </h2>
+              {bookingStep < 3 && (
+                <button onClick={() => setIsBookingModalOpen(false)} className="rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition">
+                  <X size={20} />
+                </button>
+              )}
             </div>
 
-            {bookingStep === 1 && (
-              <div className="px-6 py-6 max-h-[80vh] overflow-y-auto scrollbar-none">
-                {/* Doctor Info */}
-                <div className="flex items-center gap-4 mb-8">
-                  <div className="w-[60px] h-[60px] rounded-full bg-slate-100 overflow-hidden border border-slate-200 flex-shrink-0">
-                     <img src={selectedDoctor.img_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedDoctor.full_name)}&background=random`} alt={selectedDoctor.full_name} className="w-full h-full object-cover" />
-                  </div>
-                  <div>
-                    <h3 className="text-[15px] font-extrabold text-slate-900">{selectedDoctor.full_name}</h3>
-                    <p className="text-[13px] font-bold text-slate-500">{selectedDoctor.specialization_name || "Spesialis Umum"}</p>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  {/* Tanggal */}
-                  <div>
-                    <label className="block text-[13px] font-extrabold text-slate-900 mb-2">Tanggal</label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                        <CalendarDays className="h-[18px] w-[18px] text-slate-500" />
-                      </div>
-                      <input 
-                        type="date"
-                        min={new Date().toISOString().split('T')[0]}
-                        value={selectedDate}
-                        onChange={(e) => { setSelectedDate(e.target.value); setSelectedSchedule(null); }}
-                        className="block w-full pl-11 pr-4 py-2.5 border border-slate-200 rounded-[14px] text-[13px] font-extrabold text-slate-700 focus:ring-2 focus:ring-indigo-100 focus:border-[#5E81CC] outline-none transition-all"
-                      />
+            <div className="p-6 pt-2">
+              {/* STEP 1 */}
+              {bookingStep === 1 && (
+                <div className="space-y-6">
+                  <div className="flex items-center gap-4 rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                    <div className="flex h-12 w-12 overflow-hidden items-center justify-center rounded-full bg-white text-2xl shadow-sm border border-slate-200">
+                      {selectedDoctor.img_url ? (
+                        <img src={selectedDoctor.img_url} alt={selectedDoctor.full_name} className="w-full h-full object-cover" />
+                      ) : (
+                        "👨‍⚕️"
+                      )}
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-slate-900">{selectedDoctor.full_name}</h3>
+                      <p className="text-xs font-medium text-slate-500">{selectedDoctor.specialization_name || "Klinik Umum"}</p>
                     </div>
                   </div>
 
-                  {/* Jam */}
                   <div>
-                    <label className="block text-[13px] font-extrabold text-slate-900 mb-2">Jam</label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                        <Clock className="h-[18px] w-[18px] text-slate-500" />
-                      </div>
-                      <select
-                        value={selectedSchedule?.start_time || ""}
-                        onChange={(e) => {
-                           if(!e.target.value) { setSelectedSchedule(null); return; }
-                           const slotStr = e.target.options[e.target.selectedIndex].dataset.slot;
-                           if(slotStr) setSelectedSchedule(JSON.parse(slotStr));
-                        }}
-                        disabled={!selectedDate}
-                        className="block w-full pl-11 pr-10 py-2.5 border border-slate-200 rounded-[14px] text-[13px] font-extrabold text-slate-700 focus:ring-2 focus:ring-indigo-100 focus:border-[#5E81CC] outline-none transition-all appearance-none bg-white disabled:bg-slate-50 disabled:text-slate-400 cursor-pointer"
-                      >
-                        <option value="">Pilih Jam</option>
-                        {(() => {
-                           if(!selectedDate) return null;
-                           const dateObj = new Date(selectedDate);
-                           const dayOfWeek = dateObj.getDay();
-                           const availableSchedules = selectedDoctor.schedules.filter(s => s.day_of_week === dayOfWeek);
-                           
-                           if (availableSchedules.length === 0) {
-                              return <option disabled>Tidak ada jadwal di hari ini</option>;
-                           }
-                           
-                           return availableSchedules.map(sched => {
-                              const slots = generateTimeSlots(sched.start_time, sched.end_time, sched.slot_duration_minutes || 30);
-                              
-                              const now = new Date();
-                              const todayStr = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().split('T')[0];
-                              const currentH = now.getHours();
-                              const currentM = now.getMinutes();
+                    <h4 className="mb-3 text-sm font-bold text-slate-900">Pilih Tanggal</h4>
+                    <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
+                      {next7Days.map((d) => {
+                        let isDisabled = false;
+                        if (selectedDoctor.inactive_from) {
+                          const inactiveDate = new Date(selectedDoctor.inactive_from).toISOString().split('T')[0];
+                          if (d.fullDate >= inactiveDate) {
+                            isDisabled = true;
+                          }
+                        }
+                        
+                        return (
+                          <button
+                            key={d.fullDate}
+                            onClick={() => { if (!isDisabled) { setSelectedDate(d.fullDate); setSelectedSchedule(null); } }}
+                            disabled={isDisabled}
+                            className={`flex min-w-[70px] flex-col items-center justify-center rounded-2xl border p-3 transition-all ${
+                              isDisabled 
+                                ? "bg-slate-50 border-slate-100 opacity-50 cursor-not-allowed"
+                                : selectedDate === d.fullDate
+                                  ? "bg-[#5E81CC] border-[#5E81CC] text-white shadow-md"
+                                  : "bg-white border-slate-200 text-slate-600 hover:border-indigo-300 hover:bg-indigo-50"
+                              }`}
+                          >
+                            <span className={`text-[10px] font-bold uppercase tracking-wider mb-1 ${selectedDate === d.fullDate && !isDisabled ? "text-indigo-100" : "text-slate-400"}`}>{d.monthShort}</span>
+                            <span className="text-lg font-extrabold">{d.dateNum}</span>
+                            <span className={`text-xs font-medium ${selectedDate === d.fullDate && !isDisabled ? "text-indigo-100" : "text-slate-500"}`}>{d.dayName}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
 
-                              return slots.map(slot => {
-                                 const isBooked = doctorAppointments.some(a => 
-                                    a.appointment_date?.split('T')[0] === selectedDate && 
-                                    a.start_time?.substring(0,5) === slot.start_time.substring(0,5) &&
-                                    !['Dibatalkan', 'Cancelled'].includes(a.status)
-                                 );
-                                 
-                                 let isPassed = false;
-                                 if (selectedDate === todayStr) {
-                                    const [slotH, slotM] = slot.start_time.split(':').map(Number);
-                                    if (slotH < currentH || (slotH === currentH && slotM <= currentM)) {
-                                       isPassed = true;
+                  <div>
+                    <h4 className="mb-3 text-sm font-bold text-slate-900">Waktu Tersedia</h4>
+                    <div className="grid grid-cols-2 gap-3">
+                      {(() => {
+                        if (!selectedDate) return <div className="col-span-2 text-sm text-center py-4 text-slate-500 border border-dashed rounded-xl border-slate-300">Pilih tanggal terlebih dahulu</div>;
+                        const [syear, smonth, sday] = selectedDate.split('-').map(Number);
+                        const selectedDayOfWeek = new Date(Date.UTC(syear, smonth - 1, sday)).getUTCDay();
+                        const schedulesForToday = selectedDoctor.schedules.filter(s => s.day_of_week === selectedDayOfWeek);
+
+                        if (schedulesForToday.length > 0) {
+                          return schedulesForToday.map(sched => {
+                            const slots = generateTimeSlots(sched.start_time, sched.end_time, sched.slot_duration_minutes || 30);
+                            
+                            return (
+                              <div key={sched.id} className="col-span-2 grid grid-cols-2 gap-3">
+                                {slots.map(slot => {
+                                  const isBooked = doctorAppointments.some(
+                                    a => {
+                                      const dateMatch = a.appointment_date?.split('T')[0] === selectedDate?.split('T')[0];
+                                      const timeMatch = a.start_time?.substring(0, 5) === slot.start_time.substring(0, 5);
+                                      const statusMatch = !['Dibatalkan', 'Selesai', 'Cancelled', 'Completed'].includes(a.status);
+                                      return dateMatch && timeMatch && statusMatch;
                                     }
-                                 }
-                                 
-                                 const slotData = JSON.stringify({
-                                    id: sched.id,
-                                    start_time: slot.start_time,
-                                    end_time: slot.end_time
-                                 });
-
-                                 return (
-                                    <option 
-                                      key={slot.start_time} 
-                                      value={slot.start_time} 
-                                      disabled={isBooked || isPassed}
-                                      data-slot={slotData}
+                                  );
+                                  
+                                  return (
+                                    <button
+                                      key={slot.start_time}
+                                      onClick={() => !isBooked && setSelectedSchedule({ ...sched, start_time: slot.start_time, end_time: slot.end_time })}
+                                      disabled={isBooked}
+                                      className={`flex flex-col items-center justify-center rounded-xl border py-2 text-sm font-bold transition-all ${
+                                        isBooked 
+                                          ? "bg-amber-50 border-amber-300 text-amber-700 cursor-not-allowed"
+                                          : selectedSchedule?.start_time === slot.start_time && selectedSchedule?.id === sched.id
+                                            ? "bg-[#5E81CC] border-[#5E81CC] text-white shadow-md"
+                                            : "bg-white border-slate-200 text-slate-700 hover:border-indigo-300 hover:bg-indigo-50"
+                                      }`}
                                     >
-                                      {slot.label} {isBooked ? "(Penuh)" : isPassed ? "(Sudah terlewat)" : ""}
-                                    </option>
-                                 );
-                              });
-                           });
-                        })()}
-                      </select>
-                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400">
-                        <ChevronDown className="h-4 w-4" />
-                      </div>
+                                      <span>{slot.label}</span>
+                                      {isBooked ? (
+                                        <span className="block text-[10px] text-amber-600 mt-0.5 font-semibold">Sudah ada janji</span>
+                                      ) : (
+                                        <span className="block text-[10px] text-transparent mt-0.5 font-semibold select-none">Tersedia</span>
+                                      )}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            );
+                          });
+                        } else {
+                          return (
+                            <div className="col-span-2 text-sm text-center py-4 text-slate-500 border border-dashed rounded-xl border-slate-300">
+                              Tidak ada jadwal praktik dokter di hari ini.
+                            </div>
+                          );
+                        }
+                      })()}
                     </div>
                   </div>
 
-                  {/* Lokasi */}
-                  <div>
-                    <label className="block text-[13px] font-extrabold text-slate-900 mb-2">Lokasi</label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                        <MapPin className="h-[18px] w-[18px] text-slate-500" />
-                      </div>
-                      <input 
-                        type="text"
-                        value={selectedLocation}
-                        readOnly
-                        className="block w-full pl-11 pr-4 py-2.5 border border-slate-200 rounded-[14px] text-[13px] font-extrabold text-slate-700 outline-none cursor-default"
-                      />
+                  <button
+                    onClick={() => setBookingStep(2)}
+                    disabled={!selectedSchedule}
+                    className="w-full mt-4 rounded-xl bg-[#5E81CC] py-3.5 text-sm font-bold text-white shadow-[0_2px_10px_rgba(94,129,204,0.3)] hover:bg-[#4D6FB5] active:scale-95 transition-all disabled:opacity-50"
+                  >
+                    Selanjutnya
+                  </button>
+                </div>
+              )}
+
+              {/* STEP 2 */}
+              {bookingStep === 2 && (
+                <div className="space-y-6">
+                  <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4 space-y-3">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-slate-500 font-medium">Tanggal</span>
+                      <span className="font-bold text-slate-900">{new Date(selectedDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-slate-500 font-medium">Waktu</span>
+                      <span className="font-bold text-slate-900">{selectedSchedule.start_time.substring(0, 5)} - {selectedSchedule.end_time.substring(0, 5)} WIB</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-slate-500 font-medium">Dokter</span>
+                      <span className="font-bold text-slate-900">{selectedDoctor.full_name}</span>
                     </div>
                   </div>
 
-                  {/* Keluhan */}
                   <div>
-                    <label className="block text-[13px] font-extrabold text-slate-900 mb-2">Keluhan</label>
-                    <textarea 
-                      rows={3}
+                    <label className="block text-sm font-bold text-slate-900 mb-2">Detail Keluhan (Opsional)</label>
+                    <textarea
+                      rows={4}
+                      placeholder="Tuliskan keluhan yang Anda rasakan..."
                       value={medicalNotes}
-                      onChange={e => setMedicalNotes(e.target.value)}
-                      maxLength={200}
-                      placeholder="Sakit gigi sebelah kanan sejak 2 hari yang lalu."
-                      className="block w-full p-3.5 border border-slate-200 rounded-[14px] text-[13px] font-bold text-slate-700 focus:ring-2 focus:ring-indigo-100 focus:border-[#5E81CC] outline-none transition-all resize-none placeholder:text-slate-400 placeholder:font-semibold"
+                      onChange={(e) => setMedicalNotes(e.target.value)}
+                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm focus:border-[#5E81CC] focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100 transition resize-none"
                     ></textarea>
-                    <div className="text-right mt-1.5 text-[10px] font-extrabold text-slate-400">{medicalNotes.length}/200</div>
+                  </div>
+                  <div className="flex gap-3 mt-8">
+                    <button
+                      onClick={() => setBookingStep(1)}
+                      className="w-full rounded-xl border border-slate-200 bg-white py-3.5 text-sm font-bold text-slate-600 shadow-sm hover:bg-slate-50 active:scale-95 transition-all"
+                    >
+                      Kembali
+                    </button>
+                    <button
+                      onClick={submitBooking}
+                      disabled={isSubmitting}
+                      className="w-full rounded-xl bg-[#5E81CC] py-3.5 text-sm font-bold text-white shadow-[0_2px_10px_rgba(94,129,204,0.3)] hover:bg-[#4D6FB5] active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                          Menyimpan...
+                        </>
+                      ) : (
+                        "Konfirmasi Janji Temu"
+                      )}
+                    </button>
                   </div>
                 </div>
+              )}
 
-                <button 
-                  onClick={handleBookingSubmit}
-                  disabled={isSubmitting}
-                  className="w-full mt-6 bg-[#5E81CC] hover:bg-indigo-600 text-white font-extrabold text-[13px] py-3.5 rounded-[14px] transition-all shadow-[0_4px_12px_rgba(94,129,204,0.3)] active:scale-[0.98] disabled:opacity-70 flex justify-center items-center"
-                >
-                  {isSubmitting ? "Memproses..." : "Konfirmasi Booking"}
-                </button>
-              </div>
-            )}
-
-            {bookingStep === 2 && (
-              <div className="px-8 py-10 flex flex-col items-center text-center">
-                <div className="w-16 h-16 bg-[#22C55E] rounded-full flex items-center justify-center text-white mb-5">
-                  <CheckCircle2 className="w-10 h-10" />
-                </div>
-                
-                <h2 className="text-[17px] font-extrabold text-slate-900 mb-1.5">Booking Berhasil!</h2>
-                <p className="text-[13px] font-bold text-slate-500 mb-8">Janji temu anda telah berhasil dibuat</p>
-
-                <div className="w-full text-left space-y-4 mb-8">
-                  <div className="grid grid-cols-[80px_1fr] gap-4">
-                     <span className="text-[13px] font-bold text-slate-500">Dokter</span>
-                     <span className="text-[13px] font-extrabold text-slate-900">{selectedDoctor.full_name} - {selectedDoctor.specialization_name || "Spesialis Umum"}</span>
+              {/* STEP 3 */}
+              {bookingStep === 3 && (
+                <div className="flex flex-col items-center justify-center py-6 text-center">
+                  <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-green-100 text-green-500 shadow-inner">
+                    <svg className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
                   </div>
-                  <div className="grid grid-cols-[80px_1fr] gap-4">
-                     <span className="text-[13px] font-bold text-slate-500">Tanggal</span>
-                     <span className="text-[13px] font-extrabold text-slate-900">
-                       {new Date(selectedDate).toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'})}
-                     </span>
-                  </div>
-                  <div className="grid grid-cols-[80px_1fr] gap-4">
-                     <span className="text-[13px] font-bold text-slate-500">Jam</span>
-                     <span className="text-[13px] font-extrabold text-slate-900">{selectedSchedule?.start_time.substring(0,5).replace(':', '.')} - {selectedSchedule?.end_time.substring(0,5).replace(':', '.')} WIB</span>
-                  </div>
-                  <div className="grid grid-cols-[80px_1fr] gap-4">
-                     <span className="text-[13px] font-bold text-slate-500">Lokasi</span>
-                     <span className="text-[13px] font-extrabold text-slate-900">{selectedLocation}</span>
-                  </div>
-                  {medicalNotes && (
-                    <div className="grid grid-cols-[80px_1fr] gap-4">
-                       <span className="text-[13px] font-bold text-slate-500">Keluhan</span>
-                       <span className="text-[13px] font-extrabold text-slate-900 leading-relaxed">{medicalNotes}</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="w-full flex flex-col gap-3">
-                  <button onClick={() => { closeBookingModal(); router.push('/patient/appointments'); }} className="w-full bg-[#5E81CC] hover:bg-indigo-600 text-white font-extrabold text-[13px] py-3.5 rounded-[14px] transition-all shadow-sm">
-                    Lihat Appointment
-                  </button>
-                  <button onClick={closeBookingModal} className="w-full bg-white border border-slate-200 text-slate-700 font-extrabold text-[13px] py-3.5 rounded-[14px] hover:bg-slate-50 transition-colors">
-                    Tutup
+                  <h3 className="mb-2 text-2xl font-bold text-slate-900">Janji Temu Berhasil!</h3>
+                  <p className="mb-8 text-sm text-slate-500 max-w-[280px]">
+                    Janji temu Anda telah berhasil dijadwalkan. Silakan cek menu Janji Temu untuk detail lebih lanjut.
+                  </p>
+                  <button
+                    onClick={() => {
+                      setIsBookingModalOpen(false);
+                      setBookingStep(1);
+                      router.push('/patient/appointments');
+                    }}
+                    className="w-full rounded-xl bg-slate-900 py-3.5 text-sm font-bold text-white shadow-md hover:bg-slate-800 active:scale-95 transition-all"
+                  >
+                    Tutup & Lihat Appointment
                   </button>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
 
           </div>
         </div>

@@ -123,7 +123,7 @@ export default function AppSidebarLayout({ children, role }) {
   const pathname = usePathname();
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState(null);
-  const [hasUnread, setHasUnread] = useState(true);
+  const [hasUnread, setHasUnread] = useState(false);
   const [showAdminAlerts, setShowAdminAlerts] = useState(false);
 
   const [isRoleValid] = useState(() => {
@@ -232,18 +232,65 @@ export default function AppSidebarLayout({ children, role }) {
     const handleStorage = () => {
       const u = readStoredUser();
       if (u) setCurrentUser(prev => ({ ...prev, ...u }));
-      
-      const read = localStorage.getItem("notifications_read");
-      setHasUnread(read !== "true");
     };
     window.addEventListener("storage", handleStorage);
     
-    setHasUnread(localStorage.getItem("notifications_read") !== "true");
+    // Fetch unread count via API route (respects RLS correctly)
+    const fetchUnread = async (uid) => {
+      try {
+        const res = await fetch(`/api/notifications?user_id=${uid}&unread=true`, { cache: 'no-store' });
+        if (res.ok) {
+          const body = await res.json();
+          const count = Array.isArray(body.notifications) ? body.notifications.length : 0;
+          setHasUnread(count > 0);
+        }
+      } catch {
+        // silently fail
+      }
+    };
+
+    // Use a unique channel name per mount to avoid Strict Mode double-invoke conflict
+    const channelName = `sidebar-notif-${Date.now()}`;
+    let channel = null;
+    let mounted = true;
+
+    // Get authenticated user ID from Supabase session (reliable, works for all accounts)
+    (async () => {
+      const { data } = await supabase.auth.getUser();
+      const uid = data?.user?.id;
+      if (!uid || !mounted) return;
+
+      fetchUnread(uid);
+
+      // Remove any stale channel with the same prefix before subscribing
+      channel = supabase
+        .channel(channelName)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${uid}` },
+          () => { if (mounted) fetchUnread(uid); }
+        )
+        .subscribe();
+
+      // Also listen to manual CustomEvent as fallback
+      window._sidebarNotifUid = uid;
+    })();
+
+    // Also listen to manual CustomEvent as fallback
+    const updateListener = (e) => {
+      if (e?.detail && typeof e.detail.unreadCount === 'number') {
+        setHasUnread(e.detail.unreadCount > 0);
+      } else if (window._sidebarNotifUid) {
+        fetchUnread(window._sidebarNotifUid);
+      }
+    };
+    window.addEventListener('notifications_updated', updateListener);
     
     return () => {
+      mounted = false;
       window.removeEventListener("pageshow", handleHistoryNavigation);
       window.removeEventListener("popstate", handleHistoryNavigation);
       window.removeEventListener("storage", handleStorage);
+      window.removeEventListener('notifications_updated', updateListener);
+      if (channel) supabase.removeChannel(channel);
     };
   }, [role]);
 
@@ -309,51 +356,7 @@ export default function AppSidebarLayout({ children, role }) {
 
         {/* Right: Profile */}
         <div className="flex items-center gap-6 shrink-0">
-          <div className="relative">
-            <button 
-              onClick={handleBellClick}
-              className="text-gray-600 hover:text-[#5E81CC] transition-colors relative p-1"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-              </svg>
-              {(hasUnread || role === 'admin') && <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>}
-            </button>
-
-            {role === 'admin' && showAdminAlerts && (
-              <div className="absolute right-0 top-10 z-50 w-[min(88vw,360px)] overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-2xl">
-                <div className="border-b border-slate-100 px-5 py-4">
-                  <h2 className="text-sm font-extrabold text-slate-900">Admin Alerts</h2>
-                  <p className="mt-1 text-xs font-semibold text-slate-500">Pusat aktivitas yang perlu perhatian cepat.</p>
-                </div>
-                <div className="max-h-[360px] overflow-y-auto p-2">
-                  {adminAlerts.map((alert) => (
-                    <button
-                      key={alert.title}
-                      onClick={() => openAdminAlertTarget(alert.href)}
-                      className="grid w-full grid-cols-[34px_1fr] gap-3 rounded-xl px-3 py-3 text-left transition-colors hover:bg-slate-50"
-                    >
-                      <span className={`mt-0.5 flex h-8 w-8 items-center justify-center rounded-full text-[11px] font-extrabold ${alertToneClass[alert.tone]}`}>
-                        !
-                      </span>
-                      <span>
-                        <span className="block text-[13px] font-extrabold leading-tight text-slate-900">{alert.title}</span>
-                        <span className="mt-1 block text-[11px] font-semibold leading-snug text-slate-500">{alert.description}</span>
-                      </span>
-                    </button>
-                  ))}
-                </div>
-                <div className="border-t border-slate-100 p-3">
-                  <button
-                    onClick={() => openAdminAlertTarget('/admin/notifications')}
-                    className="w-full rounded-xl bg-[#5E81CC] px-4 py-2.5 text-[12px] font-extrabold text-white transition-colors hover:bg-[#4D6FB5]"
-                  >
-                    Lihat Pusat Aktivitas
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+          {/* Bell button removed per user request */}
           
           <div 
             onClick={() => {
@@ -385,24 +388,29 @@ export default function AppSidebarLayout({ children, role }) {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`flex items-center gap-4 px-4 py-3 rounded-xl text-[15px] font-bold transition-all duration-200 ${active ? "bg-[#E6EDFF] text-[#5E81CC] shadow-sm" : "text-gray-700 hover:bg-white hover:shadow-sm"}`}
+                  className={`flex items-center gap-4 px-4 py-3 rounded-xl text-[15px] font-bold transition-all duration-200 relative ${active ? "bg-[#E6EDFF] text-[#5E81CC] shadow-sm" : "text-gray-700 hover:bg-white hover:shadow-sm"}`}
                 >
-                  {link.customIcon ? (
-                    <span
-                      aria-hidden="true"
-                      className={`h-5 w-5 ${active ? "bg-[#5E81CC]" : "bg-gray-600"}`}
-                      style={{
-                        WebkitMaskImage: `url(${link.customIcon.src})`, maskImage: `url(${link.customIcon.src})`,
-                        WebkitMaskPosition: "center", maskPosition: "center",
-                        WebkitMaskRepeat: "no-repeat", maskRepeat: "no-repeat",
-                        WebkitMaskSize: "contain", maskSize: "contain",
-                      }}
-                    />
-                  ) : (
-                    <span className={`${active ? "text-[#5E81CC]" : "text-gray-600"}`}>
-                      {icons[link.label] || icons["Beranda"]}
-                    </span>
-                  )}
+                  <div className="relative shrink-0">
+                    {link.customIcon ? (
+                      <span
+                        aria-hidden="true"
+                        className={`block h-5 w-5 ${active ? "bg-[#5E81CC]" : "bg-gray-600"}`}
+                        style={{
+                          WebkitMaskImage: `url(${link.customIcon.src})`, maskImage: `url(${link.customIcon.src})`,
+                          WebkitMaskPosition: "center", maskPosition: "center",
+                          WebkitMaskRepeat: "no-repeat", maskRepeat: "no-repeat",
+                          WebkitMaskSize: "contain", maskSize: "contain",
+                        }}
+                      />
+                    ) : (
+                      <span className={`block ${active ? "text-[#5E81CC]" : "text-gray-600"}`}>
+                        {icons[link.label] || icons["Beranda"]}
+                      </span>
+                    )}
+                    {link.label === "Notifikasi" && hasUnread && (
+                      <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-red-500 border border-white"></span>
+                    )}
+                  </div>
                   {link.label}
                 </Link>
               );

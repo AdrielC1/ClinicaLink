@@ -40,7 +40,7 @@ export default function AdminSchedulesPage() {
         try {
             const [schedulesRes, doctorsRes] = await Promise.all([
                 fetch('/api/schedules'),
-                fetch('/api/doctors?is_active=true')
+                fetch('/api/doctors?status=active')
             ]);
             
             const schedulesData = await schedulesRes.json();

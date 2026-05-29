@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import CalendarWidget from "@/components/CalendarWidget";
 
 // ── Helper: format tanggal ISO (YYYY-MM-DD) → display "25 Mei 2025"
 const MONTHS_ID = [
@@ -84,108 +85,6 @@ function ActionButton({ appointment, onAction, loading }) {
 
   return null;
 }
-
-// ── Komponen Kalender kecil (sidebar)
-function MiniCalendar({ selectedDate, onSelectDate, appointmentDates, currentMonth, onChangeMonth }) {
-  const year  = currentMonth.getFullYear();
-  const month = currentMonth.getMonth();
-
-  // Buat grid 42 sel (6 minggu)
-  const cells = [];
-  const firstDay = new Date(year, month, 1).getDay(); // 0=Minggu
-  const daysInMonth    = new Date(year, month + 1, 0).getDate();
-  const daysInPrevMonth = new Date(year, month, 0).getDate();
-
-  // Isi hari dari bulan sebelumnya
-  for (let i = firstDay - 1; i >= 0; i--) {
-    cells.push({ day: daysInPrevMonth - i, isCurrentMonth: false, date: new Date(year, month - 1, daysInPrevMonth - i) });
-  }
-  // Isi hari bulan ini
-  for (let d = 1; d <= daysInMonth; d++) {
-    cells.push({ day: d, isCurrentMonth: true, date: new Date(year, month, d) });
-  }
-  // Isi hari dari bulan berikutnya
-  let next = 1;
-  while (cells.length < 42) {
-    cells.push({ day: next, isCurrentMonth: false, date: new Date(year, month + 1, next) });
-    next++;
-  }
-
-  const todayISO = toLocalISO(new Date());
-
-  return (
-    <section className="bg-white px-6 py-7 sm:px-8 shadow-sm rounded-2xl">
-      {/* Header bulan */}
-      <div className="flex items-center justify-between gap-4">
-        <button
-          type="button"
-          aria-label="Bulan sebelumnya"
-          onClick={() => onChangeMonth(-1)}
-          className="shrink-0 p-1 rounded hover:bg-gray-100 transition-colors"
-        >
-          <ChevronLeft size={18} />
-        </button>
-        <p className="min-w-0 truncate text-[12px] font-extrabold">
-          {MONTHS_ID[month]} {year}
-        </p>
-        <button
-          type="button"
-          aria-label="Bulan berikutnya"
-          onClick={() => onChangeMonth(1)}
-          className="shrink-0 p-1 rounded hover:bg-gray-100 transition-colors"
-        >
-          <ChevronRight size={18} />
-        </button>
-      </div>
-
-      {/* Nama hari */}
-      <div className="mt-7 grid grid-cols-7 gap-y-4 text-center text-[10px] font-bold text-gray-500">
-        {WEEKDAYS_SHORT.map((d) => <span key={d}>{d}</span>)}
-      </div>
-
-      {/* Grid tanggal */}
-      <div className="mt-4 grid grid-cols-7 gap-y-3 text-center text-[11px] font-extrabold text-gray-800">
-        {cells.map((cell, idx) => {
-          const isoDate = toLocalISO(cell.date);
-          const isSelected = isoDate === selectedDate;
-          const isToday    = isoDate === todayISO;
-          const hasAppt    = cell.isCurrentMonth && appointmentDates.has(isoDate);
-
-          return (
-            <div key={idx} className="flex flex-col items-center gap-[3px]">
-              <button
-                type="button"
-                onClick={() => cell.isCurrentMonth && onSelectDate(isoDate)}
-                className={`mx-auto flex h-[26px] w-[26px] items-center justify-center rounded-full transition-colors
-                  ${!cell.isCurrentMonth ? "text-[#b9bec7] font-medium cursor-default" : "cursor-pointer hover:bg-indigo-50"}
-                  ${isSelected ? "bg-[#5E81CC] text-white hover:bg-[#5E81CC]" : ""}
-                  ${isToday && !isSelected ? "ring-2 ring-[#5E81CC] text-[#5E81CC]" : ""}
-                `}
-              >
-                {cell.day}
-              </button>
-              {/* Titik indikator ada appointment */}
-              {hasAppt && (
-                <span className={`h-[4px] w-[4px] rounded-full ${isSelected ? "bg-white" : "bg-[#5E81CC]"}`} />
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Jadwal pada tanggal terpilih */}
-      <div className="mt-8 border-t border-[#f1f5f9] pt-6">
-        <h3 className="text-[13px] font-extrabold text-gray-900">
-          Jadwal {selectedDate === todayISO ? "Hari ini" : formatDisplayDate(selectedDate)}
-        </h3>
-        <SidebarScheduleList selectedDate={selectedDate} appointmentDates={appointmentDates} />
-      </div>
-    </section>
-  );
-}
-
-// placeholder — akan diisi lewat props
-function SidebarScheduleList() { return null; }
 
 function formatDisplayDate(isoDate) {
   if (!isoDate) return "";
@@ -412,59 +311,21 @@ export default function DoctorDashboardPage() {
 
       {/* ── SIDEBAR KANAN ── */}
       <aside className="space-y-6">
-        {/* ── KALENDER CLEAN ── */}
+        {/* ── KALENDER CLEAN & SCHEDULE STRIP ── */}
         <div className="overflow-hidden rounded-3xl shadow-sm bg-white border border-gray-100">
-
-          {/* Header Kalender */}
-          <div className="bg-[#5E81CC] px-5 pt-3 pb-1">
-            {/* Navigasi bulan */}
-            <div className="flex items-center justify-between mb-3">
-              <button
-                type="button"
-                aria-label="Bulan sebelumnya"
-                onClick={() => handleChangeMonth(-1)}
-                className="w-8 h-8 flex items-center justify-center rounded-xl text-white hover:bg-white/20 transition-all active:scale-90"
-              >
-                <ChevronLeft size={18} />
-              </button>
-              <p className="text-[14px] font-extrabold text-white tracking-wide">
-                {MONTHS_ID[currentMonth.getMonth()]} {currentMonth.getFullYear()}
-              </p>
-              <button
-                type="button"
-                aria-label="Bulan berikutnya"
-                onClick={() => handleChangeMonth(1)}
-                className="w-8 h-8 flex items-center justify-center rounded-xl text-white hover:bg-white/20 transition-all active:scale-90"
-              >
-                <ChevronRight size={18} />
-              </button>
-            </div>
-
-            {/* Nama hari */}
-            <div className="grid grid-cols-7 text-center">
-              {WEEKDAYS_SHORT.map((d) => (
-                <span key={d} className="text-[11px] font-bold text-blue-100 tracking-wider py-1">
-                  {d}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          {/* Body kalender */}
-          <div className="bg-white px-4 pb-4 pt-3">
-            <CalendarGrid
-              currentMonth={currentMonth}
-              selectedDate={selectedDate}
-              appointmentDates={appointmentDates}
-              onSelectDate={setSelectedDate}
-            />
-          </div>
+          <CalendarWidget
+            currentMonth={currentMonth}
+            onChangeMonth={handleChangeMonth}
+            selectedDate={selectedDate}
+            onSelectDate={setSelectedDate}
+            eventDates={Array.from(appointmentDates)}
+          />
 
           {/* Schedule strip di bawah */}
           <div className="bg-gray-50 border-t border-gray-100 px-5 py-4">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-[12px] font-extrabold text-gray-700 uppercase tracking-wide">
-                {selectedDate === todayISO ? "Hari ini" : formatDisplayDate(selectedDate)}
+                {selectedDate === todayISO ? "Hari ini" : `Jadwal ${formatDisplayDate(selectedDate)}`}
               </h3>
               {loadingTable && <Loader2 size={12} className="animate-spin text-[#5E81CC]" />}
             </div>
@@ -507,73 +368,6 @@ export default function DoctorDashboardPage() {
           </div>
         </div>
       </aside>
-    </div>
-  );
-}
-
-// ── Sub-komponen Grid Kalender (Modern)
-function CalendarGrid({ currentMonth, selectedDate, appointmentDates, onSelectDate }) {
-  const year  = currentMonth.getFullYear();
-  const month = currentMonth.getMonth();
-  const todayISO = toLocalISO(new Date());
-
-  const cells = [];
-  const firstDay       = new Date(year, month, 1).getDay();
-  const daysInMonth    = new Date(year, month + 1, 0).getDate();
-  const daysInPrevMonth = new Date(year, month, 0).getDate();
-
-  for (let i = firstDay - 1; i >= 0; i--) {
-    cells.push({ date: new Date(year, month - 1, daysInPrevMonth - i), isCurrentMonth: false });
-  }
-  for (let d = 1; d <= daysInMonth; d++) {
-    cells.push({ date: new Date(year, month, d), isCurrentMonth: true });
-  }
-  let next = 1;
-  while (cells.length < 42) {
-    cells.push({ date: new Date(year, month + 1, next++), isCurrentMonth: false });
-  }
-
-  return (
-    <div className="grid grid-cols-7 gap-y-1">
-      {cells.map((cell, idx) => {
-        const isoDate    = toLocalISO(cell.date);
-        const isSelected = isoDate === selectedDate;
-        const isToday    = isoDate === todayISO;
-        const hasAppt    = cell.isCurrentMonth && appointmentDates.has(isoDate);
-        const day        = cell.date.getDate();
-
-        return (
-          <div key={idx} className="flex flex-col items-center py-[2px]">
-            <button
-              type="button"
-              onClick={() => cell.isCurrentMonth && onSelectDate(isoDate)}
-              disabled={!cell.isCurrentMonth}
-              className={[
-                "relative w-8 h-8 flex items-center justify-center rounded-xl text-[12px] font-bold transition-all duration-150 select-none",
-                !cell.isCurrentMonth
-                  ? "text-gray-300 cursor-default"
-                  : "cursor-pointer",
-                isSelected
-                  ? "bg-[#5E81CC] text-white shadow-md shadow-[#5E81CC]/30 scale-105 font-extrabold"
-                  : isToday
-                    ? "bg-[#EEF3FF] text-[#5E81CC] font-extrabold ring-2 ring-[#5E81CC] ring-offset-1"
-                    : cell.isCurrentMonth
-                      ? "text-gray-700 hover:bg-indigo-50 hover:text-[#5E81CC]"
-                      : "",
-              ].join(" ")}
-            >
-              {day}
-              {/* Titik appointment: muncul di sudut kanan atas */}
-              {hasAppt && !isSelected && (
-                <span className="absolute top-[5px] right-[5px] w-[5px] h-[5px] rounded-full bg-[#5E81CC] shadow-sm" />
-              )}
-              {hasAppt && isSelected && (
-                <span className="absolute top-[5px] right-[5px] w-[5px] h-[5px] rounded-full bg-white/80" />
-              )}
-            </button>
-          </div>
-        );
-      })}
     </div>
   );
 }

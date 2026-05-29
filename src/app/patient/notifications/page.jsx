@@ -179,6 +179,35 @@ export default function PatientNotificationsPage() {
     [notifications]
   );
 
+  const handleNotificationClick = async (item) => {
+    if (item.is_read) return;
+    try {
+      const { error } = await supabase.from('notifications').update({ is_read: true }).eq('id', item.id);
+      if (!error) {
+        setNotifications((prev) => {
+          const next = prev.map((n) => (n.id === item.id ? { ...n, is_read: true } : n));
+          window.dispatchEvent(new CustomEvent('notifications_updated', { detail: { unreadCount: next.filter(n => !n.is_read).length } }));
+          return next;
+        });
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleMarkAllAsRead = async () => {
+    if (unreadCount === 0) return;
+    try {
+      const { error } = await supabase.from('notifications').update({ is_read: true }).eq('user_id', userId).eq('is_read', false);
+      if (!error) {
+        setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+        window.dispatchEvent(new CustomEvent('notifications_updated', { detail: { unreadCount: 0 } }));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const summaryCards = [
     {
       value: String(unreadCount),
@@ -189,7 +218,7 @@ export default function PatientNotificationsPage() {
     },
     {
       value: String(reminderCount),
-      title: "Reminder hari ini",
+      title: "Pengingat hari ini",
       description: "jangan sampai terlewat",
       icon: CheckCircle2,
       iconClass: "border border-green-100 text-green-600 bg-green-50/50",
@@ -247,8 +276,16 @@ export default function PatientNotificationsPage() {
 
           {/* Notifications Container */}
           <div className="rounded-xl bg-white p-5 shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100/50">
-            <div className="mb-4">
+            <div className="mb-4 flex items-center justify-between">
               <h2 className="text-sm font-bold text-gray-900">Semua Notifikasi</h2>
+              {unreadCount > 0 && (
+                <button
+                  onClick={handleMarkAllAsRead}
+                  className="text-xs font-bold text-[#5E81CC] hover:text-[#4A6BB0] hover:underline transition-colors"
+                >
+                  Tandai semua sudah dibaca
+                </button>
+              )}
             </div>
 
             {loading ? (
@@ -266,7 +303,7 @@ export default function PatientNotificationsPage() {
                 Tidak ada notifikasi lainnya
               </div>
             ) : (
-              <div className="divide-y divide-gray-100">
+              <div className="flex flex-col gap-1">
                 {notifications.map((item) => {
                   const meta = resolveNotificationMeta(item);
                   const Icon = meta.icon;
@@ -276,7 +313,8 @@ export default function PatientNotificationsPage() {
                   return (
                     <div
                       key={item.id}
-                      className="flex items-start gap-4 py-4.5 first:pt-2 last:pb-2"
+                      onClick={() => handleNotificationClick(item)}
+                      className={`flex items-start gap-4 p-4 rounded-xl cursor-pointer transition-colors ${item.is_read ? 'bg-white hover:bg-gray-50' : 'bg-[#EEF3FF] hover:bg-[#E5EEFF]'} first:mt-2 last:mb-2`}
                     >
                       {/* Icon Container */}
                       <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${meta.iconClass}`}>
@@ -317,7 +355,7 @@ export default function PatientNotificationsPage() {
 
           {/* Nearest Reminder Card */}
           <div className="rounded-2xl bg-[#EEF2FF] p-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] border border-blue-50/50 text-center">
-            <h2 className="text-sm font-bold text-gray-900">Reminder Terdekat</h2>
+            <h2 className="text-sm font-bold text-gray-900">Pengingat Terdekat</h2>
 
             {/* Avatar Doctor */}
             <div className="mx-auto mt-5 flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-white shadow-sm">
@@ -331,7 +369,7 @@ export default function PatientNotificationsPage() {
             </div>
 
             <h3 className="mt-4 text-base font-bold text-gray-900">
-              {nearestAppointment ? `Dr. ${nearestAppointment.doctor_name}` : "Belum ada reminder"}
+              {nearestAppointment ? nearestAppointment.doctor_name : "Belum ada reminder"}
             </h3>
 
             {/* Info Items */}

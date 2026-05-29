@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase, waitForSupabaseUser } from "@/lib/supabase";
-// HAPUS import AppSidebarLayout dari sini jika masih ada
 import {
   CalendarCheck,
   Bell,
@@ -12,8 +11,17 @@ import {
   Clock,
   X,
   CheckCircle2,
-  CalendarDays
+  CalendarDays,
+  MapPin,
+  FileText,
+  Search,
+  User,
+  LogOut,
+  Loader2,
+  ArrowRight
 } from "lucide-react";
+import AppSidebarLayout from "@/components/AppSidebarLayout";
+import CalendarWidget from "@/components/CalendarWidget";
 
 function generateTimeSlots(startTimeStr, endTimeStr, intervalMinutes = 30) {
   const slots = [];
@@ -79,11 +87,12 @@ export default function PatientDashboardPage() {
   const next7Days = Array.from({ length: 7 }).map((_, i) => {
     const d = new Date();
     d.setDate(d.getDate() + i + 1);
+    const localDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     return {
-      fullDate: d.toISOString().split('T')[0],
-      dayName: d.toLocaleDateString('id-ID', { weekday: 'long' }),
       dateNum: d.getDate(),
-      monthShort: d.toLocaleDateString('id-ID', { month: 'short' })
+      dayName: ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"][d.getDay()],
+      monthShort: ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agt", "Sep", "Okt", "Nov", "Des"][d.getMonth()],
+      fullDate: localDateStr
     };
   });
 
@@ -96,11 +105,11 @@ export default function PatientDashboardPage() {
         setAppointments(Array.isArray(apptData.data) ? apptData.data : (apptData.data ? [apptData.data] : []));
       }
 
-      const docRes = await fetch("/api/doctors", { cache: 'no-store' });
+      const docRes = await fetch("/api/doctors?status=active", { cache: 'no-store' });
       if (docRes.ok) {
         const docData = await docRes.json();
         const docsArray = Array.isArray(docData.data) ? docData.data : [];
-        setDoctors(docsArray.filter(doc => doc.is_active !== false));
+        setDoctors(docsArray);
       }
 
       const schedRes = await fetch("/api/doctorSchedules", { cache: 'no-store' });
@@ -201,57 +210,34 @@ export default function PatientDashboardPage() {
     }
   };
 
-  const upcomingAppointments = appointments.filter(a => a.status === "Menunggu" || a.status === "Scheduled");
+  const upcomingAppointments = appointments.filter(a => {
+    if (a.status !== "Menunggu" && a.status !== "Scheduled") return false;
+    
+    // Check if appointment has passed
+    if (!a.appointment_date) return true;
+    
+    const now = new Date();
+    const todayStr = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+    const apptDateStr = a.appointment_date.split('T')[0];
+    
+    if (apptDateStr < todayStr) return false;
+    
+    if (apptDateStr === todayStr && a.end_time) {
+       const currentH = now.getHours();
+       const currentM = now.getMinutes();
+       const [endH, endM] = a.end_time.split(':').map(Number);
+       
+       if (currentH > endH || (currentH === endH && currentM >= endM)) {
+           return false;
+       }
+    }
+    
+    return true;
+  });
   const completedAppointments = appointments.filter(a => a.status === "Selesai" || a.status === "Completed");
 
   // --- Dynamic Calendar Logic ---
   const currentMonthYearStr = currentCalendarMonth.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
-  
-  const handlePrevMonth = () => {
-    setCurrentCalendarMonth(prev => {
-      const newDate = new Date(prev);
-      newDate.setMonth(newDate.getMonth() - 1);
-      return newDate;
-    });
-  };
-
-  const handleNextMonth = () => {
-    setCurrentCalendarMonth(prev => {
-      const newDate = new Date(prev);
-      newDate.setMonth(newDate.getMonth() + 1);
-      return newDate;
-    });
-  };
-
-  // Generate 42 days grid (6 weeks)
-  const calendarDays = [];
-  const year = currentCalendarMonth.getFullYear();
-  const month = currentCalendarMonth.getMonth();
-  
-  const firstDayOfMonth = new Date(year, month, 1);
-  const lastDayOfMonth = new Date(year, month + 1, 0);
-  
-  const firstDayWeekday = firstDayOfMonth.getDay(); // 0 (Sun) to 6 (Sat)
-  
-  // Padding previous month
-  const prevMonthLastDay = new Date(year, month, 0).getDate();
-  for (let i = firstDayWeekday - 1; i >= 0; i--) {
-    const d = new Date(year, month - 1, prevMonthLastDay - i);
-    calendarDays.push({ date: d, isCurrentMonth: false });
-  }
-  
-  // Current month
-  for (let i = 1; i <= lastDayOfMonth.getDate(); i++) {
-    const d = new Date(year, month, i);
-    calendarDays.push({ date: d, isCurrentMonth: true });
-  }
-  
-  // Padding next month
-  const remainingDays = 42 - calendarDays.length;
-  for (let i = 1; i <= remainingDays; i++) {
-    const d = new Date(year, month + 1, i);
-    calendarDays.push({ date: d, isCurrentMonth: false });
-  }
 
   // --- Daily Schedule & Reminder Logic ---
   const appointmentsOnSelectedDate = appointments.filter(a => {
@@ -286,7 +272,7 @@ export default function PatientDashboardPage() {
   if (loading) {
     return (
       <div className="flex h-full min-h-[60vh] items-center justify-center">
-        <p className="text-slate-500 font-medium animate-pulse">Memuat Dashboard...</p>
+        <p className="text-slate-500 font-medium animate-pulse">Memuat Beranda...</p>
       </div>
     );
   }
@@ -301,7 +287,7 @@ export default function PatientDashboardPage() {
         <div className="flex-1 space-y-8 min-w-0">
 
           {/* Hero Banner */}
-          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-500 to-[#5E81CC] p-8 sm:p-10 text-white shadow-lg border border-indigo-400/30">
+          <div className="relative overflow-hidden rounded-3xl bg-[#5E81CC] p-8 sm:p-10 text-white shadow-lg border border-indigo-400/30">
             <div className="relative z-10 w-full md:w-3/4">
               <h1 className="mb-3 text-3xl sm:text-4xl font-extrabold tracking-tight">
                 Selamat Pagi, {currentUser?.name?.split(" ")[0]}!
@@ -309,8 +295,8 @@ export default function PatientDashboardPage() {
               <p className="mb-6 text-indigo-100 font-medium leading-relaxed">
                 Pantau kesehatanmu dan kelola jadwal konsultasi klinik hari ini dengan lebih mudah.
               </p>
-              <button className="rounded-xl bg-white text-indigo-600 px-6 py-3 font-bold shadow-sm hover:bg-indigo-50 hover:scale-[1.02] transition-all active:scale-95">
-                Mulai Booking Baru
+              <button className="rounded-xl bg-white text-[#5E81CC] px-6 py-3 font-bold shadow-sm hover:bg-indigo-50 hover:scale-[1.02] transition-all active:scale-95">
+                Buat Janji Baru
               </button>
             </div>
             <div className="absolute -bottom-16 -right-16 h-80 w-80 rounded-full bg-white/10 blur-3xl"></div>
@@ -328,7 +314,7 @@ export default function PatientDashboardPage() {
           <div>
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-bold text-gray-900 tracking-tight">Dokter Tersedia</h2>
-              <button className="text-sm font-bold text-indigo-600 hover:underline">Lihat Semua</button>
+              <button onClick={() => router.push('/patient/doctors')} className="text-sm font-bold text-[#5E81CC] hover:underline">Lihat Semua</button>
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {doctors.map((doc) => (
@@ -349,9 +335,9 @@ export default function PatientDashboardPage() {
                     </span>
                     <button
                       onClick={() => handleOpenBooking(doc)}
-                      className="w-full rounded-xl bg-indigo-600 py-2.5 text-sm font-bold text-white hover:bg-indigo-700 active:scale-95 transition-all shadow-md"
+                      className="w-full rounded-xl bg-[#5E81CC] py-2.5 text-sm font-bold text-white hover:bg-[#4D6FB5] active:scale-95 transition-all shadow-md"
                     >
-                      Booking
+                      Buat Janji
                     </button>
                   </div>
                 </div>
@@ -411,66 +397,19 @@ export default function PatientDashboardPage() {
 
           {/* Widget Kalender (Standar Admin/Dokter) */}
           <div className="overflow-hidden rounded-3xl shadow-sm bg-white border border-gray-100">
-            {/* Header Kalender */}
-            <div className="bg-[#5E81CC] px-5 pt-3 pb-1">
-              <div className="flex items-center justify-between mb-3">
-                <button onClick={handlePrevMonth} className="w-8 h-8 flex items-center justify-center rounded-xl text-white hover:bg-white/20 transition-all active:scale-90">
-                  <ChevronLeft size={18} />
-                </button>
-                <p className="text-[14px] font-extrabold text-white tracking-wide">
-                  {currentMonthYearStr}
-                </p>
-                <button onClick={handleNextMonth} className="w-8 h-8 flex items-center justify-center rounded-xl text-white hover:bg-white/20 transition-all active:scale-90">
-                  <ChevronRight size={18} />
-                </button>
-              </div>
-              
-              <div className="grid grid-cols-7 text-center">
-                {['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'].map((d) => (
-                  <span key={d} className="text-[11px] font-bold text-blue-100 tracking-wider py-1">
-                    {d}
-                  </span>
-                ))}
-              </div>
-            </div>
-            
-            {/* Body kalender */}
-            <div className="bg-white px-4 pb-4 pt-3">
-              <div className="grid grid-cols-7 gap-y-1">
-                {calendarDays.map((c, i) => {
-                  const dateStr = new Date(c.date.getTime() - c.date.getTimezoneOffset() * 60000).toISOString().split('T')[0];
-                  const isSelected = selectedCalendarDate === dateStr;
-                  const isToday = todayStr === dateStr;
-                  const hasAppt = appointments.some(a => a.status !== 'Dibatalkan' && a.appointment_date?.split('T')[0] === dateStr);
-                  
-                  return (
-                    <div key={i} className="flex flex-col items-center py-[2px]">
-                      <button
-                        type="button"
-                        onClick={() => c.isCurrentMonth && setSelectedCalendarDate(dateStr)}
-                        disabled={!c.isCurrentMonth}
-                        className={[
-                          "relative w-8 h-8 flex items-center justify-center rounded-xl text-[12px] font-bold transition-all duration-150 select-none",
-                          !c.isCurrentMonth ? "text-gray-300 cursor-default" : "cursor-pointer",
-                          isSelected ? "bg-[#5E81CC] text-white shadow-md shadow-[#5E81CC]/30 scale-105 font-extrabold" : 
-                          isToday ? "bg-[#EEF3FF] text-[#5E81CC] font-extrabold ring-2 ring-[#5E81CC] ring-offset-1" :
-                          c.isCurrentMonth ? "text-gray-700 hover:bg-indigo-50 hover:text-[#5E81CC]" : ""
-                        ].join(" ")}
-                      >
-                        {c.date.getDate()}
-                        {/* Titik appointment */}
-                        {hasAppt && !isSelected && (
-                          <span className="absolute top-[5px] right-[5px] w-[5px] h-[5px] rounded-full bg-[#5E81CC] shadow-sm" />
-                        )}
-                        {hasAppt && isSelected && (
-                          <span className="absolute top-[5px] right-[5px] w-[5px] h-[5px] rounded-full bg-white/80" />
-                        )}
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            <CalendarWidget 
+              currentMonth={currentCalendarMonth}
+              onChangeMonth={(delta) => {
+                setCurrentCalendarMonth(prev => {
+                  const newDate = new Date(prev);
+                  newDate.setMonth(newDate.getMonth() + delta);
+                  return newDate;
+                });
+              }}
+              selectedDate={selectedCalendarDate}
+              onSelectDate={setSelectedCalendarDate}
+              eventDates={appointments.filter(a => a.status !== 'Dibatalkan' && a.appointment_date).map(a => a.appointment_date.split('T')[0])}
+            />
 
             {/* Schedule strip di bawah */}
             <div className="bg-gray-50 border-t border-gray-100 px-5 py-4">
@@ -514,13 +453,13 @@ export default function PatientDashboardPage() {
                <div className="flex items-start justify-between mb-4 relative z-10">
                  <div className="flex items-center gap-2">
                     <Bell className="w-[18px] h-[18px] text-rose-500 animate-[bounce_3s_infinite]" />
-                    <h3 className="text-[13px] font-extrabold text-slate-900">Reminder</h3>
+                    <h3 className="text-[13px] font-extrabold text-slate-900">Pengingat</h3>
                  </div>
                  <span className="bg-rose-100 text-rose-600 text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-md shadow-sm">{reminderLabel}</span>
                </div>
                
                <p className="text-[13px] font-bold text-slate-600 leading-relaxed relative z-10 mb-4 pr-6">
-                 Jangan lupa appointment dengan <span className="text-slate-900 font-extrabold">{nearestAppointment.doctor_name}</span> {reminderLabel === 'Hari Ini' ? 'hari ini' : reminderLabel === 'H-1' ? 'besok' : 'nanti'} pukul <span className="text-slate-900 font-extrabold">{nearestAppointment.schedule_time} WIB</span>.
+                Jangan lupa janji temu dengan <span className="text-slate-900 font-extrabold">{nearestAppointment.doctor_name}</span> {reminderLabel === 'Hari Ini' ? 'hari ini' : reminderLabel === 'H-1' ? 'besok' : <>pada tanggal <span className="text-slate-900 font-extrabold">{new Date(nearestAppointment.appointment_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</span></>} pukul <span className="text-slate-900 font-extrabold">{nearestAppointment.schedule_time} WIB</span>.
                </p>
                
                <div className="w-full flex justify-end relative z-10 -mt-2">
@@ -571,20 +510,34 @@ export default function PatientDashboardPage() {
                 <div>
                   <h4 className="mb-3 text-sm font-bold text-slate-900">Pilih Tanggal</h4>
                   <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
-                    {next7Days.map((d) => (
-                      <button
-                        key={d.fullDate}
-                        onClick={() => { setSelectedDate(d.fullDate); setSelectedSchedule(null); }}
-                        className={`flex min-w-[70px] flex-col items-center justify-center rounded-2xl border p-3 transition-all ${selectedDate === d.fullDate
-                          ? "bg-indigo-600 border-indigo-600 text-white shadow-md"
-                          : "bg-white border-slate-200 text-slate-600 hover:border-indigo-300 hover:bg-indigo-50"
-                          }`}
-                      >
-                        <span className={`text-[10px] font-bold uppercase tracking-wider mb-1 ${selectedDate === d.fullDate ? "text-indigo-100" : "text-slate-400"}`}>{d.monthShort}</span>
-                        <span className="text-lg font-extrabold">{d.dateNum}</span>
-                        <span className={`text-xs font-medium ${selectedDate === d.fullDate ? "text-indigo-100" : "text-slate-500"}`}>{d.dayName}</span>
-                      </button>
-                    ))}
+                    {next7Days.map((d) => {
+                      let isDisabled = false;
+                      if (selectedDoctor.inactive_from) {
+                        const inactiveDate = new Date(selectedDoctor.inactive_from).toISOString().split('T')[0];
+                        if (d.fullDate >= inactiveDate) {
+                          isDisabled = true;
+                        }
+                      }
+                      
+                      return (
+                        <button
+                          key={d.fullDate}
+                          onClick={() => { if (!isDisabled) { setSelectedDate(d.fullDate); setSelectedSchedule(null); } }}
+                          disabled={isDisabled}
+                          className={`flex min-w-[70px] flex-col items-center justify-center rounded-2xl border p-3 transition-all ${
+                            isDisabled 
+                              ? "bg-slate-50 border-slate-100 opacity-50 cursor-not-allowed"
+                              : selectedDate === d.fullDate
+                                ? "bg-[#5E81CC] border-[#5E81CC] text-white shadow-md"
+                                : "bg-white border-slate-200 text-slate-600 hover:border-indigo-300 hover:bg-indigo-50"
+                            }`}
+                        >
+                          <span className={`text-[10px] font-bold uppercase tracking-wider mb-1 ${selectedDate === d.fullDate && !isDisabled ? "text-indigo-100" : "text-slate-400"}`}>{d.monthShort}</span>
+                          <span className="text-lg font-extrabold">{d.dateNum}</span>
+                          <span className={`text-xs font-medium ${selectedDate === d.fullDate && !isDisabled ? "text-indigo-100" : "text-slate-500"}`}>{d.dayName}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -624,7 +577,7 @@ export default function PatientDashboardPage() {
                                       isBooked 
                                         ? "bg-amber-50 border-amber-300 text-amber-700 cursor-not-allowed"
                                         : selectedSchedule?.start_time === slot.start_time && selectedSchedule?.id === sched.id
-                                          ? "bg-indigo-600 border-indigo-600 text-white shadow-md"
+                                          ? "bg-[#5E81CC] border-[#5E81CC] text-white shadow-md"
                                           : "bg-white border-slate-200 text-slate-700 hover:border-indigo-300 hover:bg-indigo-50"
                                     }`}
                                   >
@@ -654,7 +607,7 @@ export default function PatientDashboardPage() {
                 <button
                   onClick={() => setBookingStep(2)}
                   disabled={!selectedSchedule}
-                  className="w-full mt-4 rounded-xl bg-indigo-600 py-3.5 text-sm font-bold text-white shadow-md hover:bg-indigo-700 active:scale-95 transition-all disabled:opacity-50"
+                  className="w-full mt-4 rounded-xl bg-[#5E81CC] py-3.5 text-sm font-bold text-white shadow-[0_2px_10px_rgba(94,129,204,0.3)] hover:bg-[#4D6FB5] active:scale-95 transition-all disabled:opacity-50"
                 >
                   Selanjutnya
                 </button>
@@ -671,7 +624,7 @@ export default function PatientDashboardPage() {
                   </div>
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-slate-500 font-medium">Waktu</span>
-                    <span className="font-bold text-slate-900">{selectedSchedule.start_time} - {selectedSchedule.end_time} WIB</span>
+                    <span className="font-bold text-slate-900">{selectedSchedule.start_time.substring(0, 5)} - {selectedSchedule.end_time.substring(0, 5)} WIB</span>
                   </div>
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-slate-500 font-medium">Dokter</span>
@@ -697,9 +650,9 @@ export default function PatientDashboardPage() {
                   <button
                     onClick={submitBooking}
                     disabled={isSubmitting}
-                    className="w-2/3 rounded-xl bg-indigo-600 py-3.5 text-sm font-bold text-white shadow-md hover:bg-indigo-700 active:scale-95 transition-all disabled:opacity-50"
+                    className="w-2/3 rounded-xl bg-[#5E81CC] py-3.5 text-sm font-bold text-white shadow-[0_2px_10px_rgba(94,129,204,0.3)] hover:bg-[#4D6FB5] active:scale-95 transition-all disabled:opacity-50"
                   >
-                    {isSubmitting ? "Memproses..." : "Konfirmasi Booking"}
+                    {isSubmitting ? "Memproses..." : "Konfirmasi Janji Temu"}
                   </button>
                 </div>
               </div>
@@ -711,13 +664,16 @@ export default function PatientDashboardPage() {
                 <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-50 text-emerald-500 border-4 border-emerald-100">
                   <CheckCircle2 size={40} />
                 </div>
-                <h2 className="mb-2 text-2xl font-extrabold text-slate-900 tracking-tight">Booking Berhasil!</h2>
+                <h2 className="mb-2 text-2xl font-extrabold text-slate-900 tracking-tight">Janji Temu Berhasil!</h2>
                 <p className="mb-8 text-sm text-slate-500 font-medium leading-relaxed">
                   Janji temu Anda dengan <span className="text-slate-800 font-bold">{selectedDoctor.full_name}</span> telah berhasil dijadwalkan.
                 </p>
                 <button
-                  onClick={() => setBookingStep(0)}
-                  className="w-full rounded-xl bg-indigo-600 py-3.5 text-sm font-bold text-white shadow-md hover:bg-indigo-700 active:scale-95 transition-all"
+                  onClick={() => {
+                    setBookingStep(0);
+                    window.location.href = '/patient/appointments';
+                  }}
+                  className="w-full rounded-xl bg-[#5E81CC] py-3.5 text-sm font-bold text-white shadow-md hover:bg-[#4D6FB5] active:scale-95 transition-all"
                 >
                   Lihat Janji Temu
                 </button>

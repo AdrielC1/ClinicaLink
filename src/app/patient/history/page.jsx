@@ -514,9 +514,9 @@ export default function PatientHistoryPage() {
                     closeDetail();
                     openBookingModal(selectedAppointment);
                   }}
-                  className="flex-1 rounded-[18px] bg-[#5E81CC] px-4 py-3 text-sm font-extrabold text-white hover:bg-indigo-600 transition-colors"
+                  className="flex-1 rounded-[18px] bg-[#5E81CC] px-4 py-3 text-sm font-extrabold text-white hover:bg-[#4D6FB5] transition-colors"
                 >
-                  Booking lagi
+                  Buat Janji Lagi
                 </button>
                 <button
                   onClick={closeDetail}
@@ -535,7 +535,7 @@ export default function PatientHistoryPage() {
           <div className="w-full max-w-lg rounded-[24px] bg-white shadow-2xl overflow-hidden">
             <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
               <div>
-                <h2 className="text-lg font-extrabold text-slate-900">Booking Janji Temu</h2>
+                <h2 className="text-lg font-extrabold text-slate-900">Buat Janji Temu</h2>
                 <p className="text-sm font-bold text-slate-500">Pilih tanggal, jam, dan buat janji baru dengan dokter.</p>
               </div>
               <button onClick={closeBookingModal} className="text-slate-400 hover:text-slate-700">
@@ -681,9 +681,9 @@ export default function PatientHistoryPage() {
                 <button
                   onClick={handleBookingSubmit}
                   disabled={isSubmitting}
-                  className="w-full rounded-[18px] bg-[#5E81CC] px-4 py-3 text-sm font-extrabold text-white hover:bg-indigo-600 transition-colors disabled:opacity-70"
+                  className="w-full rounded-[18px] bg-[#5E81CC] px-4 py-3 text-sm font-extrabold text-white hover:bg-[#4D6FB5] transition-colors disabled:opacity-70"
                 >
-                  {isSubmitting ? "Memproses..." : "Konfirmasi Booking"}
+                  {isSubmitting ? "Memproses..." : "Konfirmasi Janji Temu"}
                 </button>
               </div>
             )}
@@ -693,7 +693,7 @@ export default function PatientHistoryPage() {
                 <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500 text-white">
                   <CheckCircle2 className="h-8 w-8" />
                 </div>
-                <h2 className="mb-2 text-2xl font-extrabold text-slate-900">Booking Berhasil!</h2>
+                <h2 className="mb-2 text-2xl font-extrabold text-slate-900">Janji Temu Berhasil!</h2>
                 <p className="mb-8 text-sm font-bold text-slate-500">Janji temu Anda berhasil dibuat. Silakan cek halaman appointment untuk detail.</p>
 
                 <div className="grid gap-4 text-left text-sm text-slate-700">
@@ -721,7 +721,7 @@ export default function PatientHistoryPage() {
                       closeBookingModal();
                       router.push("/patient/appointments");
                     }}
-                    className="w-full rounded-[18px] bg-[#5E81CC] px-4 py-3 text-sm font-extrabold text-white hover:bg-indigo-600 transition-colors"
+                    className="w-full rounded-[18px] bg-[#5E81CC] px-4 py-3 text-sm font-extrabold text-white hover:bg-[#4D6FB5] transition-colors"
                   >
                     Lihat Appointment
                   </button>

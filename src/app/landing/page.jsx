@@ -247,7 +247,7 @@ function DoctorSection() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const docRes = await fetch("/api/doctors?is_active=true", { cache: 'no-store' });
+        const docRes = await fetch("/api/doctors?status=active", { cache: 'no-store' });
         const docData = await docRes.json();
         const schedRes = await fetch("/api/doctorSchedules", { cache: 'no-store' });
         const schedData = await schedRes.json();
