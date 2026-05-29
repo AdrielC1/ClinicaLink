@@ -35,6 +35,13 @@ async function createNotification(userId, title, message) {
     return data;
 }
 
+function normalizeDateFilter(dateValue) {
+    if (!dateValue) return null;
+    const date = new Date(dateValue);
+    if (Number.isNaN(date.getTime())) return null;
+    return date.toISOString().slice(0, 10);
+}
+
 // ===================================================================
 // 1. GET: Ambil Semua Janji Temu / Filter by Patient / Filter by Schedule / ID
 // ===================================================================
@@ -46,6 +53,8 @@ export async function GET(request) {
         const scheduleId = searchParams.get('schedule_id');
         const doctorId = searchParams.get('doctor_id');
         const status = searchParams.get('status'); // Filter opsional: 'scheduled', 'completed', 'cancelled'
+        const dateParam = searchParams.get('date');
+        const todayParam = searchParams.get('today');
 
         // Base Query: Mengambil data janji temu beserta relasi mendalam ke profil Pasien dan Dokter
         let query = supabase
@@ -98,9 +107,17 @@ export async function GET(request) {
             query = query.order('appointment_date', { ascending: false });
         }
 
-        // Tambahan Filter Status jika dikirimkan (misal: ?status=scheduled)
+        // Tambahan Filter Status jika dikirimkan (misal: ?status=Menunggu)
         if (status) {
             query = query.eq('status', status);
+        }
+
+        const normalizedDate = todayParam === 'true'
+            ? new Date().toISOString().slice(0, 10)
+            : normalizeDateFilter(dateParam);
+
+        if (normalizedDate) {
+            query = query.eq('appointment_date', normalizedDate);
         }
 
         const { data, error } = await query;
@@ -301,9 +318,22 @@ export async function DELETE(request) {
             return NextResponse.json({ message: "Query parameter 'id' wajib disertakan! Contoh: ?id=1" }, { status: 400 });
         }
 
+        const { data: existingAppointment, error: existingError } = await supabase
+            .from('appointments')
+            .select('id, appointment_date, start_time, patient_id, status')
+            .eq('id', id)
+            .maybeSingle();
+
+        if (existingError) return NextResponse.json({ message: existingError.message }, { status: 500 });
+        if (!existingAppointment) return NextResponse.json({ message: "Janji temu tidak ditemukan." }, { status: 404 });
+
+        if (existingAppointment.status === 'Dibatalkan') {
+            return NextResponse.json({ message: "Janji temu sudah dibatalkan.", data: existingAppointment }, { status: 200 });
+        }
+
         const { data, error } = await supabase
             .from('appointments')
-            .delete()
+            .update({ status: 'Dibatalkan' })
             .eq('id', id)
             .select()
             .maybeSingle();
@@ -312,12 +342,12 @@ export async function DELETE(request) {
         if (!data) return NextResponse.json({ message: "Gagal membatalkan. Janji temu tidak ditemukan." }, { status: 404 });
 
         await createNotification(
-            data.patient_id,
+            existingAppointment.patient_id,
             "Janji Temu Dibatalkan",
-            `Janji temu Anda pada ${formatDateLabel(data.appointment_date)} pukul ${formatTimeLabel(data.start_time)} telah dibatalkan.`
+            `Janji temu Anda pada ${formatDateLabel(existingAppointment.appointment_date)} pukul ${formatTimeLabel(existingAppointment.start_time)} telah dibatalkan.`
         );
 
-        return NextResponse.json({ message: `Janji temu dengan ID ${id} berhasil dibatalkan/dihapus.`, deletedData: data }, { status: 200 });
+        return NextResponse.json({ message: `Janji temu dengan ID ${id} berhasil dibatalkan.`, data }, { status: 200 });
 
     } catch (error) {
         return NextResponse.json({ message: "Internal server error: " + error.message }, { status: 500 });

@@ -3,6 +3,7 @@ import { supabase } from "@/lib/supabase";
 
 // Route handlers for /api/notifications
 // - GET: list notifications (requires ?user_id=...)
+// - POST: create notification record (body: { user_id, title, message })
 // - PATCH: mark a single notification as read (body: { id })
 // - PUT: mark all notifications as read for user (body: { user_id })
 
@@ -37,6 +38,39 @@ export async function GET(request) {
     return NextResponse.json({ notifications: data }, { status: 200 });
   } catch (err) {
     console.error("GET /api/notifications error:", err);
+    return NextResponse.json({ message: "Internal server error" }, { status: 500 });
+  }
+}
+
+// =================================================================
+// POST - Tambah notifikasi baru untuk user
+// Body: { user_id, title, message }
+// =================================================================
+export async function POST(request) {
+  try {
+    const body = await request.json();
+    const userId = body?.user_id;
+    const title = body?.title;
+    const message = body?.message;
+
+    if (!userId || !title || !message) {
+      return NextResponse.json({ message: "user_id, title, dan message wajib dikirim." }, { status: 400 });
+    }
+
+    const { data, error } = await supabase
+      .from("notifications")
+      .insert([{ user_id: userId, title, message, is_read: false }])
+      .select()
+      .maybeSingle();
+
+    if (error) {
+      console.error("Error creating notification:", error);
+      return NextResponse.json({ message: "Gagal membuat notifikasi." }, { status: 500 });
+    }
+
+    return NextResponse.json({ notification: data }, { status: 201 });
+  } catch (err) {
+    console.error("POST /api/notifications error:", err);
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }
