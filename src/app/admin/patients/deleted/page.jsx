@@ -7,6 +7,7 @@ import {
   Search,
   RotateCcw,
   Loader2,
+  Trash2,
 } from "lucide-react";
 
 export default function DeletedPatientsPage() {

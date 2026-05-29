@@ -81,7 +81,7 @@ export async function POST(request) {
       const { data: user, error: userError } = await withTimeout(
         supabase
           .from("users")
-          .select("id,email,full_name,role")
+          .select("id,email,full_name,role,deleted_at")
           .eq("id", authData.user.id)
           .maybeSingle(),
         "Pengambilan profil Supabase terlalu lama."
@@ -91,6 +91,13 @@ export async function POST(request) {
       return NextResponse.json(
         { message: "Gagal mengambil data profil pengguna." },
         { status: 500 }
+      );
+    }
+
+    if (user.deleted_at) {
+      return NextResponse.json(
+        { message: "Akun ini telah dinonaktifkan/dihapus oleh Admin." },
+        { status: 403 }
       );
     }
 

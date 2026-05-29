@@ -102,12 +102,20 @@ export default function LoginPage() {
             // 2. Ambil Role User dari tabel public.users untuk menentukan rute dashboard
             const { data: userData, error: userError } = await supabase
                 .from("users")
-                .select("role")
+                .select("role, deleted_at")
                 .eq("id", authData.user.id)
                 .single();
 
             if (userError || !userData) {
                 setError("Gagal membaca otoritas akun Anda. Silakan hubungi admin.");
+                setLoading(false);
+                return;
+            }
+
+            // Blokir akun yang sudah di-soft delete oleh Admin
+            if (userData.deleted_at) {
+                await supabase.auth.signOut();
+                setError("Akun Anda telah dinonaktifkan oleh Admin. Silakan hubungi klinik.");
                 setLoading(false);
                 return;
             }
