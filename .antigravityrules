@@ -18,3 +18,11 @@ The `status` of an appointment is managed through a mix of manual triggers by th
 
 ## 4. Appointment Generation Rule
 When creating slots for the UI, dynamically iterate based on `doctor_schedules.start_time`, `end_time`, and `slot_duration_minutes`. Check for conflicts against the `appointments` table enforcing the unique combination of `(doctor_id, appointment_date, start_time)`.
+
+## 5. Scheduled Doctor Inactivation (CRITICAL)
+The `doctors` table uses an `inactive_from` (date, nullable) column instead of a boolean `is_active`.
+* **Active Doctor:** `inactive_from` IS NULL → Doctor is fully active with no restrictions.
+* **Scheduled Inactivation:** `inactive_from` contains a future date → Doctor is still active NOW, but patients can ONLY book slots where `appointment_date < inactive_from`. Slots on or after that date must not be rendered/must be disabled.
+* **Inactive Doctor:** `inactive_from <= today` → Doctor is considered fully inactive. Do not show in patient-facing listings.
+* **Bulk Cancellation on Save:** When Admin sets `inactive_from`, the backend MUST: (A) Update `doctors.inactive_from`, (B) Cancel all `appointments` with `status='Menunggu'` AND `appointment_date >= inactive_from` by setting `status='Dibatalkan'` and filling `cancellation_reason`, (C) Send a notification to each affected patient.
+* **Re-activation:** Setting `inactive_from` back to NULL re-activates the doctor. No appointments are restored.

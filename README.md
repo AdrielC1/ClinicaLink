@@ -8,7 +8,7 @@ Sistem ini melayani 3 aktor utama dengan fungsionalitas yang terisolasi berdasar
 
 * **👨‍⚕️ Pasien:** Reservasi mandiri secara *real-time*, memantau jadwal aktif, membatalkan (*reschedule*), dan meninjau riwayat medis.
 * **🩺 Dokter:** Memantau daftar pasien harian, memulai sesi konsultasi, dan menginput catatan medis (*medical notes*).
-* **⚙️ Admin:** Mengelola *master data* (Dokter, Jadwal, Pasien), serta memantau daftar reservasi dan statistik operasional klinik.
+* **⚙️ Admin:** Mengelola *master data* (Dokter, Jadwal, Pasien), menjadwalkan penonaktifan dokter dengan *Bulk Resolution* otomatis (membatalkan janji terdampak & notifikasi pasien), serta memantau statistik operasional klinik.
 
 ## 🧠 Hybrid Virtual State Logic
 Aplikasi ini menggunakan kombinasi pemicu manual dari dokter dan perhitungan waktu otomatis (Virtual State) untuk mengelola antrean secara cerdas:
