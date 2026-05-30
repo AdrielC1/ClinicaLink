@@ -61,6 +61,8 @@ export async function GET(request) {
             .from('appointments')
             .select(`
                 id,
+                created_at,
+                updated_at,
                 appointment_date,
                 start_time,
                 end_time,
@@ -129,6 +131,8 @@ export async function GET(request) {
         // Helper untuk merapikan (flatten) struktur data JSON balasan agar frontend mudah me-render UI
         const formatData = (item) => ({
             id: item.id,
+            created_at: item.created_at,
+            updated_at: item.updated_at,
             appointment_date: item.appointment_date,
             status: item.status,
             notes: item.medical_notes || "",

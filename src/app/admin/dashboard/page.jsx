@@ -337,17 +337,24 @@ export default function AdminDashboardPage() {
 
   // ── Recent activities ────────────────────────────────────────────────────────
   const recentActivities = useMemo(() => {
-    return appointments.slice(0, 5).map((item) => {
+    const sorted = [...appointments].sort((a, b) => {
+      const dateA = new Date(a.updated_at || a.created_at || a.appointment_date);
+      const dateB = new Date(b.updated_at || b.created_at || b.appointment_date);
+      return dateB - dateA;
+    });
+    return sorted.slice(0, 5).map((item) => {
       const name = item.patient_name || "Pasien";
-      if (item.status === "Dibatalkan") return { text: `Appointment ${name} telah dibatalkan`, type: "cancel" };
+      if (item.status === "Dibatalkan") return { text: `Appointment ${name} dibatalkan`, type: "cancel" };
       if (item.status === "Selesai") return { text: `Appointment ${name} telah selesai`, type: "success" };
+      if (item.status === "Menunggu") return { text: `Appointment baru oleh ${name} dijadwalkan`, type: "new" };
       return { text: `Appointment ${name} sedang berlangsung`, type: "edit" };
     });
   }, [appointments]);
 
   const activityIcon = (type) => {
     if (type === "cancel") return { icon: Trash2, color: "text-red-500" };
-    if (type === "success") return { icon: CalendarCheck, color: "text-green-500" };
+    if (type === "success") return { icon: CheckCheck, color: "text-green-500" };
+    if (type === "new") return { icon: CalendarCheck, color: "text-blue-500" };
     return { icon: CalendarCheck, color: "text-yellow-500" };
   };
 
