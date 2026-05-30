@@ -78,20 +78,8 @@ function sortNotificationsByDate(items) {
   return [...items].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 }
 
-function getNearestAppointment(appointments) {
-  const upcoming = appointments
-    .filter((item) => item.appointment_date && item.start_time)
-    .sort((a, b) => {
-      const dateA = new Date(`${a.appointment_date}T${a.start_time}`);
-      const dateB = new Date(`${b.appointment_date}T${b.start_time}`);
-      return dateA - dateB;
-    });
-  return upcoming[0] || null;
-}
-
 export default function PatientNotificationsPage() {
   const [notifications, setNotifications] = useState([]);
-  const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [userId, setUserId] = useState(null);
@@ -113,10 +101,7 @@ export default function PatientNotificationsPage() {
         const currentUserId = data.user.id;
         setUserId(currentUserId);
 
-        const [notificationsRes, appointmentsRes] = await Promise.all([
-          fetch(`/api/notifications?user_id=${currentUserId}`, { cache: "no-store" }),
-          fetch(`/api/appointments?patient_id=${currentUserId}&status=Menunggu`, { cache: "no-store" }),
-        ]);
+        const notificationsRes = await fetch(`/api/notifications?user_id=${currentUserId}`, { cache: "no-store" });
 
         if (!notificationsRes.ok) {
           const body = await notificationsRes.json().catch(() => ({}));
@@ -135,19 +120,7 @@ export default function PatientNotificationsPage() {
 
         if (mounted) setNotifications(normalizedNotifications);
 
-        if (!appointmentsRes.ok) {
-          const body = await appointmentsRes.json().catch(() => ({}));
-          throw new Error(body.message || "Gagal memuat appointment.");
-        }
 
-        const appointmentsBody = await appointmentsRes.json();
-        const rawAppointments = Array.isArray(appointmentsBody.data)
-          ? appointmentsBody.data
-          : appointmentsBody.data
-            ? [appointmentsBody.data]
-            : [];
-
-        if (mounted) setAppointments(rawAppointments);
       } catch (loadError) {
         console.error(loadError);
         if (mounted) setError(loadError.message || "Terjadi kesalahan saat memuat halaman.");
@@ -163,7 +136,6 @@ export default function PatientNotificationsPage() {
     };
   }, []);
 
-  const nearestAppointment = useMemo(() => getNearestAppointment(appointments), [appointments]);
 
   const unreadCount = useMemo(
     () => notifications.filter((item) => !item.is_read).length,
@@ -246,9 +218,9 @@ const handleMarkAllAsRead = async () => {
         </p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+      <div className="flex flex-col gap-6">
         {/* Main Content Area */}
-        <div className="space-y-5 min-w-0">
+        <div className="space-y-5 min-w-0 w-full">
 
           {/* Summary Cards Grid */}
           <div className="grid gap-4 sm:grid-cols-3">
@@ -354,87 +326,7 @@ const handleMarkAllAsRead = async () => {
           </div>
         </div>
 
-        {/* Right Sidebar Area */}
-        <aside className="space-y-5 h-fit">
 
-          {/* Nearest Reminder Card */}
-          <div className="rounded-2xl bg-[#EEF2FF] p-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] border border-blue-50/50 text-center">
-            <h2 className="text-sm font-bold text-gray-900">Pengingat Terdekat</h2>
-
-            {/* Avatar Doctor */}
-            <div className="mx-auto mt-5 flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-white shadow-sm">
-              {nearestAppointment && nearestAppointment.doctor_img ? (
-                <img src={nearestAppointment.doctor_img} alt={nearestAppointment.doctor_name} className="h-full w-full object-cover" />
-              ) : nearestAppointment ? (
-                <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(nearestAppointment.doctor_name || "Doctor")}&background=cbd5e1&color=fff&size=256`} alt="Doctor" className="h-full w-full object-cover" />
-              ) : (
-                <div className="grid h-full place-items-center text-2xl font-bold text-gray-300">-</div>
-              )}
-            </div>
-
-            <h3 className="mt-4 text-base font-bold text-gray-900">
-              {nearestAppointment ? nearestAppointment.doctor_name : "Belum ada reminder"}
-            </h3>
-
-            {/* Info Items */}
-            <div className="mt-5 space-y-4 text-left border-t border-gray-200/60 pt-4 max-w-[220px] mx-auto">
-              <div className="flex items-center gap-3">
-                <CalendarDays className="h-5 w-5 text-gray-900" strokeWidth={2} />
-                <p className="text-sm font-bold text-gray-900">
-                  {nearestAppointment ? formatDateLabel(nearestAppointment.appointment_date) : "12 Mei 2030"}
-                </p>
-              </div>
-              <div className="flex items-center gap-3">
-                <Clock3 className="h-5 w-5 text-gray-900" strokeWidth={2} />
-                <p className="text-sm font-bold text-gray-900">
-                  {nearestAppointment
-                    ? `${formatTimeLabel(nearestAppointment.start_time)} - ${formatTimeLabel(nearestAppointment.end_time)} WIB`
-                    : "10.00 - 10.30 WIB"
-                  }
-                </p>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="text-xs font-bold text-gray-500 w-10">status</span>
-                <span className="inline-flex items-center gap-1 rounded-full bg-[#E6FAD7] px-2.5 py-0.5 text-xs font-semibold text-[#14C914]">
-                  <Check className="h-3 w-3" strokeWidth={3} />
-                  {nearestAppointment?.status || "Dijadwalkan"}
-                </span>
-              </div>
-            </div>
-
-            {/* Button */}
-            <button
-              type="button"
-              onClick={() => window.location.assign("/patient/appointments")}
-              className="mt-6 w-full rounded-lg bg-[#5E81CC] py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-[#4D6FB5]"
-            >
-              Lihat Appointment
-            </button>
-          </div>
-
-          {/* Need Help Card */}
-          <div className="rounded-xl bg-[#FFF4E4] p-5 border border-amber-100/70">
-            <div className="flex items-center gap-4 text-left">
-              {/* Custom SVG/Emoji representation of the cute helper illustration */}
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-500">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-8 w-8">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-3.536 4.978 4.978 0 011.414-3.536m0 0l2.829 2.829m-2.829-2.829L3 3m7.071 7.071L12 12" />
-                  <circle cx="12" cy="12" r="3" />
-                </svg>
-              </div>
-              <div>
-                <h2 className="text-sm font-bold text-gray-900">Butuh Bantuan?</h2>
-                <p className="mt-0.5 text-xs font-medium text-gray-700 leading-snug">
-                  Hubungi kami jika ada pertanyaan atau kendala
-                </p>
-              </div>
-            </div>
-            <button className="mt-4 w-full rounded-lg border border-amber-200 bg-white py-2.5 text-xs font-bold text-[#FF8A00] shadow-sm transition hover:bg-amber-50/50">
-              Hubungi Support
-            </button>
-          </div>
-
-        </aside>
       </div>
     </>
   );
