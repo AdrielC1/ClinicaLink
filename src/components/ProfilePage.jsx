@@ -46,10 +46,9 @@ export default function ProfilePage({ role = "patient" }) {
   });
   const fileInputRef = useRef(null);
 
-  // State baru untuk Custom Alert UI
   const [alertConfig, setAlertConfig] = useState({
     isOpen: false,
-    type: "success", // "success" | "error"
+    type: "success",
     title: "",
     message: "",
   });
@@ -84,7 +83,6 @@ export default function ProfilePage({ role = "patient" }) {
     };
   }, []);
 
-  // Fungsi helper untuk memicu custom alert
   const triggerAlert = (type, title, message) => {
     setAlertConfig({
       isOpen: true,
@@ -153,11 +151,11 @@ export default function ProfilePage({ role = "patient" }) {
         body: JSON.stringify({
           id: userId,
           full_name: editForm.full_name,
-          email: editForm.email,
-          phone_number: editForm.phone_number,
-          address: editForm.address,
-          date_of_birth: editForm.date_of_birth,
-          img_url: editForm.img_url,
+          email: editForm.email,                         // Ikut kirim email yang terkunci di UI
+          phone_number: editForm.phone_number || null,   
+          address: editForm.address || null,             
+          date_of_birth: editForm.date_of_birth || null, 
+          img_url: editForm.img_url || null,             
         }),
       });
 
@@ -370,10 +368,9 @@ export default function ProfilePage({ role = "patient" }) {
                   <span className="text-gray-900 font-bold px-3">:</span>
                   <input
                     type="email"
-                    className="w-full p-2.5 text-xs font-medium text-gray-700 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5E81CC]/20 focus:border-[#5E81CC] outline-none transition"
+                    className="w-full p-2.5 text-xs font-medium text-gray-400 bg-gray-50 border border-gray-200 rounded-lg cursor-not-allowed outline-none"
                     value={editForm.email}
-                    onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                    required
+                    disabled
                   />
 
                   {showPhoneAndContact && (
@@ -564,7 +561,6 @@ export default function ProfilePage({ role = "patient" }) {
       {alertConfig.isOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4">
           <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl p-6 text-center animate-in fade-in zoom-in-95 duration-200">
-            {/* Dynamic White-themed Icon Box */}
             <div className="mx-auto flex items-center justify-center h-14 w-14 rounded-full bg-slate-50 border border-gray-100 mb-4 shadow-inner">
               {alertConfig.type === "success" ? (
                 <svg className="h-6 w-6 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">

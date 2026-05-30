@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 
-// Helper untuk menyatukan & menstandarkan format data dari tabel 'users' dan 'patients'
 // Helper untuk menyatukan & menstandarkan format data (Tanpa Username)
 function normalizeProfile(user, patient, doctor) {
   return {
@@ -16,7 +15,7 @@ function normalizeProfile(user, patient, doctor) {
   };
 }
 
-// Ambil data profil lengkap tanpa kolom username
+// Ambil data profil lengkap dari database
 async function getUserProfile(userId) {
   const { data: user, error: userError } = await supabase
     .from("users")
@@ -27,7 +26,6 @@ async function getUserProfile(userId) {
   if (userError) return { error: userError };
   if (!user) return { profile: null };
 
-  // Hapus 'username' dari string select di bawah ini
   const { data: patient, error: patientError } = await supabase
     .from("patients")
     .select("phone_number, address, date_of_birth")
@@ -82,7 +80,7 @@ export async function GET(request) {
 }
 
 // =================================================================
-// [PATCH] Update Informasi Profil (Teks & URL Foto)
+// [PATCH] Update Informasi Profil (Email Sinkron via Payload Aman)
 // =================================================================
 export async function PATCH(request) {
   try {
@@ -90,7 +88,7 @@ export async function PATCH(request) {
     const { 
       id, 
       full_name, 
-      email, 
+      email, // Kita tangkap lagi email dari frontend
       phone_number, 
       address, 
       date_of_birth, 
@@ -100,110 +98,98 @@ export async function PATCH(request) {
     const cleanName = String(full_name || "").trim();
     const cleanEmail = String(email || "").trim().toLowerCase();
 
-    // Validasi data wajib
-    if (!id || !cleanName || !cleanEmail) {
+    // Validasi data wajib dasar
+    if (!id || !cleanName) {
       return NextResponse.json(
-        { message: "Nama lengkap dan email wajib diisi." },
+        { message: "Nama lengkap wajib diisi." },
         { status: 400 }
       );
     }
 
-    // Validasi format email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(cleanEmail)) {
-      return NextResponse.json(
-        { message: "Format email tidak valid." },
-        { status: 400 }
-      );
-    }
-
-    // Ambil data user saat ini untuk pengecekan role & email lama
+    // 1. Ambil data kondisi user saat ini di database
     const { data: currentUser, error: currentUserError } = await supabase
       .from("users")
-      .select("id, email, role")
+      .select("id, role")
       .eq("id", id)
       .maybeSingle();
 
     if (currentUserError || !currentUser) {
       return NextResponse.json(
-        { message: "Profil tidak ditemukan atau gagal diperiksa." },
+        { message: "Profil tidak ditemukan di database." },
         { status: 404 }
       );
     }
 
-    // PROSES UPDATE EMAIL (Jika user menginputkan email yang berbeda)
-    if (currentUser.email !== cleanEmail) {
-      // 1. Cek apakah email baru sudah dipakai orang lain di tabel publik
-      const { data: duplicateEmail, error: duplicateError } = await supabase
-        .from("users")
-        .select("id")
-        .eq("email", cleanEmail)
-        .neq("id", id)
-        .maybeSingle();
+    // 2. Bangun Payload Dinamis untuk tabel public.users
+    const updateUserPayload = {
+      full_name: cleanName,
+      img_url: String(img_url || "").trim() === "" ? null : String(img_url).trim()
+    };
 
-      if (duplicateError) {
-        return NextResponse.json({ message: "Gagal memeriksa duplikasi email." }, { status: 500 });
-      }
-
-      if (duplicateEmail) {
-        return NextResponse.json({ message: "Email sudah digunakan akun lain." }, { status: 400 });
-      }
-
-      // 2. Sinkronisasikan perubahan email ke Supabase Auth internal
-      const { error: authError } = await supabase.auth.updateUser({ email: cleanEmail });
-      if (authError) {
-        return NextResponse.json(
-          { message: `Gagal memperbarui email autentikasi: ${authError.message}` },
-          { status: 400 }
-        );
-      }
+    // OTOMATIS: Update atau masukkan email ke tabel users jika dikirim dari frontend
+    if (cleanEmail) {
+      updateUserPayload.email = cleanEmail;
     }
 
-    // UPDATE DATA 1: Tabel public.users
+    // Eksekusi update tabel public.users
     const { error: updateUserError } = await supabase
       .from("users")
-      .update({
-        full_name: cleanName,
-        email: cleanEmail,
-        img_url: img_url || "",
-      })
+      .update(updateUserPayload)
       .eq("id", id);
 
     if (updateUserError) {
-      return NextResponse.json({ message: "Gagal menyimpan data akun mendasar." }, { status: 500 });
+      console.error("❌ Error saat update tabel 'users':", updateUserError);
+      throw updateUserError;
     }
 
-    // UPDATE DATA 2: Tabel public.patients (Khusus jika rolenya patient)
+    // Helper sanitasi string kosong -> null
+    const sanitizeValue = (val) => {
+      if (val === undefined || val === null) return null;
+      const clean = String(val).trim();
+      return clean === "" ? null : clean;
+    };
+
+    // 3. Bangun Payload Dinamis untuk tabel Role ('patients' / 'doctors')
     if (currentUser.role === "patient") {
+      const cleanPhone = sanitizeValue(phone_number);
+      const cleanAddress = sanitizeValue(address);
+      const cleanDob = sanitizeValue(date_of_birth);
+
       const { error: updatePatientError } = await supabase
         .from("patients")
         .upsert({
           id,
-          phone_number: String(phone_number || "").trim(),
-          address: String(address || "").trim(),
-          date_of_birth: date_of_birth || null,
+          phone_number: cleanPhone,
+          address: cleanAddress,
+          date_of_birth: cleanDob,
         }, { onConflict: "id" });
 
       if (updatePatientError) {
-        return NextResponse.json({ message: "Gagal menyimpan detail data pasien." }, { status: 500 });
+        console.error("❌ Error saat upsert tabel 'patients':", updatePatientError);
+        throw updatePatientError;
       }
     }
 
-    // UPDATE DATA 3: Tabel public.doctors (Khusus jika rolenya doctor)
     if (currentUser.role === "doctor") {
-      const { error: updateDoctorError } = await supabase
-        .from("doctors")
-        .upsert({
-          id,
-          phone_number: String(phone_number || "").trim(),
-        }, { onConflict: "id" });
+  const cleanPhone = sanitizeValue(phone_number);
 
-      if (updateDoctorError) {
-        return NextResponse.json({ message: "Gagal menyimpan detail data dokter." }, { status: 500 });
-      }
-    }
+  const { error: updateDoctorError } = await supabase
+    .from("doctors")
+    .update({
+      phone_number: cleanPhone,
+    })
+    .eq("id", id);
 
-    // Ambil data profil terbaru yang sudah digabung untuk dikembalikan ke frontend
+  if (updateDoctorError) {
+    console.error(
+      "❌ Error saat update tabel 'doctors':",
+      updateDoctorError
+    );
+    throw updateDoctorError;
+  }
+}
+
+    // 4. Ambil ulang data profil terbaru
     const { profile, error: reloadError } = await getUserProfile(id);
 
     if (reloadError || !profile) {
@@ -219,21 +205,19 @@ export async function PATCH(request) {
     });
 
   } catch (error) {
-  // BARIS INI AKAN MENAMPILKAN ERROR APAPUN KE TERMINAL DAN RESPOND BROWSER
-  console.error("🔥 TERJADI CRASH PADA PATCH PROFILE:", error);
-  
-  return NextResponse.json(
-    { 
-      message: "Terjadi kesalahan internal server.", 
-      error_detail: error.message || String(error) 
-    }, 
-    { status: 500 }
-  );
-}
+    console.error("🔥 TERJADI CRASH PADA PATCH PROFILE:", error);
+    return NextResponse.json(
+      { 
+        message: "Terjadi kesalahan internal server.", 
+        error_detail: error.message || String(error) 
+      }, 
+      { status: 500 }
+    );
+  }
 }
 
 // =================================================================
-// [PUT] Khusus Fitur Ubah Password (Modal Gambar 3)
+// [PUT] Khusus Fitur Ubah Password
 // =================================================================
 export async function PUT(request) {
   try {
@@ -246,7 +230,6 @@ export async function PUT(request) {
       );
     }
 
-    // Mengubah password pada data user yang sedang aktif di session lewat Supabase Auth
     const { error: authError } = await supabase.auth.updateUser({
       password: password_baru,
     });
