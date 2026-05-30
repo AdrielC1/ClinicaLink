@@ -269,6 +269,7 @@ export async function PUT(request) {
         if (body.start_time !== undefined) updateData.start_time = body.start_time;
         if (body.end_time !== undefined) updateData.end_time = body.end_time;
         if (body.cancellation_reason !== undefined) updateData.cancellation_reason = body.cancellation_reason;
+        if (body.cancellation_reason !== undefined) updateData.cancellation_reason = body.cancellation_reason;
 
         if (Object.keys(updateData).length === 0) {
             return NextResponse.json({ message: "Tidak ada data perubahan yang dikirim." }, { status: 400 });
@@ -295,8 +296,9 @@ export async function PUT(request) {
             let message = `Status janji temu Anda berubah menjadi ${newStatus}.`;
 
             if (newStatus === "Dibatalkan") {
-                title = "Janji Temu Dibatalkan";
-                message = `Janji temu Anda pada ${formatDateLabel(newAppointmentDate)} pukul ${formatTimeLabel(newStartTime)} telah dibatalkan.`;
+                const reason = updateData.cancellation_reason || existingAppointment.cancellation_reason;
+                 title = "Janji Temu Dibatalkan";
+                message = `Janji temu Anda pada ${formatDateLabel(newAppointmentDate)} pukul ${formatTimeLabel(newStartTime)} telah dibatalkan${reason ? ` dengan alasan: ${reason}` : ""}.`;
             } else if (newStatus === "Selesai") {
                 title = "Konsultasi Selesai";
                 message = `Konsultasi Anda pada ${formatDateLabel(newAppointmentDate)} pukul ${formatTimeLabel(newStartTime)} telah selesai.`;
