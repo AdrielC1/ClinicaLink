@@ -23,7 +23,12 @@ export default function AdminAppointmentsPage() {
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("Semua");
+  const [doctorFilter, setDoctorFilter] = useState("Semua");
+  const [sortOrder, setSortOrder] = useState("Terbaru");
+
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  const [showDoctorDropdown, setShowDoctorDropdown] = useState(false);
+  const [showSortDropdown, setShowSortDropdown] = useState(false);
 
   // Modals
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
@@ -74,14 +79,21 @@ export default function AdminAppointmentsPage() {
     setShowStatusDropdown(false);
   };
 
-  const filteredAppointments = appointments.filter((app) => {
-    const matchesSearch =
-      app.patient_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      app.doctor_name?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus =
-      statusFilter === "Semua" || app.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  const uniqueDoctors = Array.from(new Set(appointments.map(a => a.doctor_name))).filter(Boolean);
+
+  const filteredAppointments = appointments
+    .filter((app) => {
+      const matchesSearch = app.patient_name?.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesStatus = statusFilter === "Semua" || app.status === statusFilter;
+      const matchesDoctor = doctorFilter === "Semua" || app.doctor_name === doctorFilter;
+      return matchesSearch && matchesStatus && matchesDoctor;
+    })
+    .sort((a, b) => {
+      const dateA = new Date(a.appointment_date);
+      const dateB = new Date(b.appointment_date);
+      if (sortOrder === "Terbaru") return dateB - dateA;
+      return dateA - dateB;
+    });
 
   const getStatusBadge = (status) => {
     switch (status?.toLowerCase()) {
@@ -217,60 +229,149 @@ export default function AdminAppointmentsPage() {
       </div>
 
       {/* Action Bar */}
-      <div className="flex flex-wrap gap-3 items-center mb-6">
+      <div className="flex flex-col lg:flex-row gap-3 lg:items-center justify-between mb-6">
         {/* Search */}
-        <div className="relative">
+        <div className="relative w-full lg:w-auto">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <Search className="w-4 h-4 text-gray-400" />
           </div>
           <input
             type="text"
-            placeholder="Cari janji temu..."
+            placeholder="Cari nama pasien..."
             value={searchQuery}
             onChange={handleSearch}
-            className="pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm w-56 focus:outline-none focus:ring-2 focus:ring-[#5E81CC] focus:border-transparent transition-all shadow-sm"
+            className="pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm w-full lg:w-64 focus:outline-none focus:ring-2 focus:ring-[#5E81CC] focus:border-transparent transition-all shadow-sm"
           />
         </div>
 
-        {/* Filter Dropdown */}
-        <div className="relative">
-          <button
-            onClick={() => setShowStatusDropdown(!showStatusDropdown)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-[#5E81CC] font-semibold rounded-lg text-sm shadow-sm hover:bg-gray-50 transition-colors"
-          >
-            <Filter className="w-4 h-4" />
-            Filter{" "}
-            {statusFilter !== "Semua" && (
-              <span className="text-xs ml-1 bg-[#5E81CC] text-white px-1.5 py-0.5 rounded-full">
-                {statusFilter}
-              </span>
-            )}
-          </button>
+        {/* Filters Group */}
+        <div className="flex flex-wrap gap-3 items-center w-full lg:w-auto">
+          {/* Status Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => {
+                setShowStatusDropdown(!showStatusDropdown);
+                setShowDoctorDropdown(false);
+                setShowSortDropdown(false);
+              }}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-[#5E81CC] font-semibold rounded-lg text-sm shadow-sm hover:bg-gray-50 transition-colors"
+            >
+              <Filter className="w-4 h-4" />
+              Status
+              {statusFilter !== "Semua" && (
+                <span className="text-[10px] ml-1 bg-[#5E81CC] text-white px-1.5 py-0.5 rounded-full">
+                  {statusFilter}
+                </span>
+              )}
+            </button>
 
-          {showStatusDropdown && (
-            <div className="absolute top-12 left-0 bg-white border border-gray-100 rounded-xl shadow-lg z-20 w-48 p-1">
-              {[
-                "Semua",
-                "Dijadwalkan",
-                "Menunggu",
-                "Berlangsung",
-                "Selesai",
-                "Dibatalkan",
-              ].map((status) => (
+            {showStatusDropdown && (
+              <div className="absolute top-12 left-0 bg-white border border-gray-100 rounded-xl shadow-lg z-20 w-40 p-1">
+                {["Semua", "Menunggu", "Berlangsung", "Selesai", "Dibatalkan"].map((status) => (
+                  <button
+                    key={status}
+                    onClick={() => handleStatusFilter(status)}
+                    className={`block w-full px-3 py-2 text-left text-sm font-semibold transition-colors rounded-lg ${
+                      statusFilter === status
+                        ? "bg-[#E6EDFF] text-[#5E81CC]"
+                        : "text-gray-700 hover:bg-gray-50"
+                    }`}
+                  >
+                    {status}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Doctor Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => {
+                setShowDoctorDropdown(!showDoctorDropdown);
+                setShowStatusDropdown(false);
+                setShowSortDropdown(false);
+              }}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-[#5E81CC] font-semibold rounded-lg text-sm shadow-sm hover:bg-gray-50 transition-colors"
+            >
+              <Filter className="w-4 h-4" />
+              Dokter
+              {doctorFilter !== "Semua" && (
+                <span className="text-[10px] ml-1 bg-[#5E81CC] text-white px-1.5 py-0.5 rounded-full truncate max-w-[60px]">
+                  {doctorFilter.replace("Dr. ", "")}
+                </span>
+              )}
+            </button>
+
+            {showDoctorDropdown && (
+              <div className="absolute top-12 right-0 lg:left-0 bg-white border border-gray-100 rounded-xl shadow-lg z-20 w-48 p-1 max-h-60 overflow-y-auto">
                 <button
-                  key={status}
-                  onClick={() => handleStatusFilter(status)}
-                  className={`block w-full px-4 py-2.5 text-left text-sm font-semibold transition-colors rounded-lg ${
-                    statusFilter === status
+                  onClick={() => {
+                    setDoctorFilter("Semua");
+                    setShowDoctorDropdown(false);
+                  }}
+                  className={`block w-full px-3 py-2 text-left text-sm font-semibold transition-colors rounded-lg ${
+                    doctorFilter === "Semua"
                       ? "bg-[#E6EDFF] text-[#5E81CC]"
                       : "text-gray-700 hover:bg-gray-50"
                   }`}
                 >
-                  {status}
+                  Semua Dokter
                 </button>
-              ))}
-            </div>
-          )}
+                {uniqueDoctors.map((doc) => (
+                  <button
+                    key={doc}
+                    onClick={() => {
+                      setDoctorFilter(doc);
+                      setShowDoctorDropdown(false);
+                    }}
+                    className={`block w-full px-3 py-2 text-left text-sm font-semibold transition-colors rounded-lg ${
+                      doctorFilter === doc
+                        ? "bg-[#E6EDFF] text-[#5E81CC]"
+                        : "text-gray-700 hover:bg-gray-50"
+                    }`}
+                  >
+                    {doc}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Sort Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => {
+                setShowSortDropdown(!showSortDropdown);
+                setShowStatusDropdown(false);
+                setShowDoctorDropdown(false);
+              }}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 font-semibold rounded-lg text-sm shadow-sm hover:bg-gray-50 transition-colors"
+            >
+              Urutkan: <span className="text-[#5E81CC]">{sortOrder}</span>
+            </button>
+
+            {showSortDropdown && (
+              <div className="absolute top-12 right-0 bg-white border border-gray-100 rounded-xl shadow-lg z-20 w-36 p-1">
+                {["Terbaru", "Terlama"].map((order) => (
+                  <button
+                    key={order}
+                    onClick={() => {
+                      setSortOrder(order);
+                      setShowSortDropdown(false);
+                    }}
+                    className={`block w-full px-3 py-2 text-left text-sm font-semibold transition-colors rounded-lg ${
+                      sortOrder === order
+                        ? "bg-[#E6EDFF] text-[#5E81CC]"
+                        : "text-gray-700 hover:bg-gray-50"
+                    }`}
+                  >
+                    {order}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -316,6 +417,8 @@ export default function AdminAppointmentsPage() {
                 filteredAppointments.map((app, index) => {
                   const timeDisplay = resolveTimeDisplay(app);
                   const isCancelled = app.status === "Dibatalkan";
+                  const isFinished = app.status === "Selesai";
+                  const isCancelDisabled = isCancelled || isFinished;
 
                   return (
                     <tr
@@ -349,10 +452,10 @@ export default function AdminAppointmentsPage() {
                           {/* Cancel button */}
                           <button
                             onClick={() => openCancelModal(app)}
-                            disabled={isCancelled}
+                            disabled={isCancelDisabled}
                             className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                             title={
-                              isCancelled ? "Sudah dibatalkan" : "Batalkan"
+                              isCancelled ? "Sudah dibatalkan" : isFinished ? "Sudah selesai" : "Batalkan"
                             }
                           >
                             <AlertTriangle className="w-4 h-4" />
