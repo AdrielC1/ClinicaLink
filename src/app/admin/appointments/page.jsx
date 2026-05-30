@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Search, Filter, Plus, Edit3, Eye, X } from "lucide-react";
+import { Search, Filter, Edit3, Eye, X } from "lucide-react";
 
 function computeVirtualStatus(appt) {
   if (appt.status === "Sedang Berlangsung") {
@@ -13,8 +13,6 @@ function computeVirtualStatus(appt) {
 export default function AdminAppointmentsPage() {
   const [appointments, setAppointments] = useState([]);
   const [patients, setPatients] = useState([]);
-  const [doctors, setDoctors] = useState([]);
-  const [allSchedules, setAllSchedules] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Filters
@@ -23,20 +21,11 @@ export default function AdminAppointmentsPage() {
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
 
   // Modals
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedDetail, setSelectedDetail] = useState(null);
 
   // Forms
-  const [addForm, setAddForm] = useState({
-    patient_id: "",
-    doctor_id: "",
-    appointment_date: "",
-    schedule_id: "",
-    notes: "",
-  });
-
   const [editForm, setEditForm] = useState({
     id: "",
     patient_name: "",
@@ -50,17 +39,13 @@ export default function AdminAppointmentsPage() {
   const fetchInitialData = async () => {
     setLoading(true);
     try {
-      const [appRes, patRes, docRes, schRes] = await Promise.all([
+      const [appRes, patRes] = await Promise.all([
         fetch("/api/appointments"),
         fetch("/api/patient"),
-        fetch("/api/doctors"),
-        fetch("/api/doctorSchedules"),
       ]);
 
       const appData = await appRes.json();
       const patData = await patRes.json();
-      const docData = await docRes.json();
-      const schData = await schRes.json();
 
       if (appRes.ok) {
         const apps = Array.isArray(appData.data) ? appData.data : [appData.data];
@@ -71,8 +56,6 @@ export default function AdminAppointmentsPage() {
         setAppointments(enrichedApps);
       }
       if (patRes.ok) setPatients(patData.data || []);
-      if (docRes.ok) setDoctors(docData.data || []);
-      if (schRes.ok) setAllSchedules(schData.data || []);
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -131,50 +114,6 @@ export default function AdminAppointmentsPage() {
   const formatTime = (timeString) => {
     if (!timeString) return "";
     return timeString.substring(0, 5); // 08:00:00 -> 08:00
-  };
-
-  // derived schedules for add form based on doctor & date
-  const availableSchedules = allSchedules.filter((s) => {
-    if (!addForm.doctor_id || !addForm.appointment_date) return false;
-    if (s.doctor_id !== addForm.doctor_id) return false;
-
-    // Check day of week (JS: 0=Sun, 1=Mon... DB might be 1=Mon, 7=Sun or 0=Sun. Assuming 1=Mon..7=Sun ISO)
-    const date = new Date(addForm.appointment_date);
-    const day = date.getDay(); // 0-6
-    const isoDay = day === 0 ? 7 : day;
-
-    // For simplicity, just return all schedules for this doctor, or try to match isoDay.
-    // Let's filter by day if it matches, or just return all if you want to allow flexibility.
-    // I will try to match isoDay or standard day
-    return s.day_of_week === isoDay || s.day_of_week === day;
-  });
-
-
-  const handleAddSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const res = await fetch("/api/appointments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          patient_id: addForm.patient_id,
-          schedule_id: addForm.schedule_id,
-          appointment_date: addForm.appointment_date,
-          notes: addForm.notes,
-        }),
-      });
-      if (res.ok) {
-        setIsAddModalOpen(false);
-        setAddForm({ patient_id: "", doctor_id: "", appointment_date: "", schedule_id: "", notes: "" });
-        fetchInitialData();
-      } else {
-        const err = await res.json();
-        alert("Gagal menambahkan: " + err.message);
-      }
-    } catch (error) {
-      console.error(error);
-      alert("Terjadi kesalahan.");
-    }
   };
 
   const openEditModal = (app) => {
@@ -304,14 +243,6 @@ export default function AdminAppointmentsPage() {
             </div>
           )}
         </div>
-
-        <button
-          onClick={() => setIsAddModalOpen(true)}
-          className="flex items-center gap-2 px-5 py-2.5 bg-[#5E81CC] text-white font-semibold rounded-lg text-sm shadow-md hover:bg-[#4A6BB0] transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Janji Temu Baru
-        </button>
       </div>
 
       {/* Table Section */}
@@ -396,123 +327,6 @@ export default function AdminAppointmentsPage() {
           </table>
         </div>
       </div>
-
-      {/* Add Appointment Modal */}
-      {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden">
-            <div className="p-6 border-b border-slate-100 flex justify-between items-center">
-              <h2 className="text-xl font-bold text-slate-900">Tambah Appointment</h2>
-              <button onClick={() => setIsAddModalOpen(false)} className="text-slate-400 hover:text-slate-600">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <form onSubmit={handleAddSubmit} className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Nama Pasien</label>
-                    <select
-                      required
-                      value={addForm.patient_id}
-                      onChange={(e) => setAddForm({ ...addForm, patient_id: e.target.value })}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                    >
-                      <option value="">Pilih Pasien</option>
-                      {patients.map((p) => (
-                        <option key={p.id} value={p.id}>{p.full_name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Nama Dokter</label>
-                    <select
-                      required
-                      value={addForm.doctor_id}
-                      onChange={(e) => {
-                        setAddForm({ ...addForm, doctor_id: e.target.value, schedule_id: "" });
-                      }}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                    >
-                      <option value="">Pilih Dokter</option>
-                      {doctors.map((d) => (
-                        <option key={d.id} value={d.id}>{d.full_name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Tanggal</label>
-                    <input
-                      type="date"
-                      required
-                      value={addForm.appointment_date}
-                      onChange={(e) => setAddForm({ ...addForm, appointment_date: e.target.value, schedule_id: "" })}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Keluhan</label>
-                    <input
-                      type="text"
-                      value={addForm.notes}
-                      onChange={(e) => setAddForm({ ...addForm, notes: e.target.value })}
-                      placeholder="Keluhan pasien"
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Waktu</label>
-                    <select
-                      required
-                      value={addForm.schedule_id}
-                      onChange={(e) => setAddForm({ ...addForm, schedule_id: e.target.value })}
-                      disabled={!addForm.doctor_id || !addForm.appointment_date}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white disabled:bg-slate-50 disabled:text-slate-400"
-                    >
-                      <option value="">Pilih Waktu</option>
-                      {availableSchedules.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {formatTime(s.start_time)} - {formatTime(s.end_time)} WIB
-                        </option>
-                      ))}
-                    </select>
-                    {addForm.doctor_id && addForm.appointment_date && availableSchedules.length === 0 && (
-                      <p className="text-xs text-red-500 mt-1">Tidak ada jadwal untuk dokter/tanggal ini.</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
-                    <select
-                      disabled
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 text-slate-500 cursor-not-allowed"
-                    >
-                      <option>Menunggu (Default)</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-              <div className="mt-8 flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setIsAddModalOpen(false)}
-                  className="px-6 py-2 border border-blue-500 text-blue-500 rounded-lg text-sm font-medium hover:bg-blue-50 transition-colors"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  className="px-6 py-2 bg-[#5e81d4] text-white rounded-lg text-sm font-medium hover:bg-[#4b69b3] transition-colors"
-                >
-                  Simpan
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Edit Appointment Modal */}
       {isEditModalOpen && (
