@@ -10,12 +10,12 @@ Sistem ini melayani 3 aktor utama dengan fungsionalitas yang terisolasi berdasar
 * **🩺 Dokter:** Memantau daftar pasien harian, memulai sesi konsultasi, dan menginput catatan medis (*medical notes*).
 * **⚙️ Admin:** Mengelola *master data* (Dokter, Jadwal, Pasien), menjadwalkan penonaktifan dokter dengan *Bulk Resolution* otomatis (membatalkan janji terdampak & notifikasi pasien), serta memantau statistik operasional klinik.
 
-## 🧠 Hybrid Virtual State Logic
-Aplikasi ini menggunakan kombinasi pemicu manual dari dokter dan perhitungan waktu otomatis (Virtual State) untuk mengelola antrean secara cerdas:
-* **Batal Otomatis (No-Show):** Jika jam janji temu telah terlewati namun dokter tidak pernah memulai sesi, sistem secara otomatis menganggap sesi tersebut hangus dan mengubah statusnya menjadi "Dibatalkan".
-* **Sesi Interaktif:** Dokter memegang kendali penuh untuk memulai sesi dengan menekan tombol "Mulai", yang langsung mengubah status pasien menjadi "Sedang Berlangsung".
-* **Menunggu Catatan Dokter:** Jika sesi telah melewati batas waktu selesai (`end_time`) namun dokter belum menginput catatan medis, sistem akan memberikan peringatan visual di *dashboard* dokter.
-* **Selesai Paksa (4-Hour Rule):** Untuk menjaga integritas data harian, jika telah melewati 4 jam dari waktu selesai dan dokter tetap tidak merespons/menyimpan catatan, sistem akan secara otomatis memaksa status menjadi "Selesai".
+## 🧠 Automated Background Job (Database-Driven)
+Aplikasi ini menggunakan kombinasi pemicu manual dari dokter dan penjadwalan database (via `pg_cron` setiap 15 menit) untuk mengelola antrean secara efisien:
+* **Batal Otomatis (No-Show):** Scheduler database mendeteksi jam janji temu yang terlewati dan status masih "Menunggu", kemudian secara otomatis mengubah statusnya menjadi "Dibatalkan".
+* **Sesi Interaktif:** Dokter memegang kendali penuh untuk memulai sesi dengan menekan tombol "Mulai", yang mengubah status langsung menjadi "Sedang Berlangsung" di database.
+* **Menunggu Catatan Dokter (Virtual State):** Hanya untuk indikator visual di UI, jika sesi telah melewati `end_time` namun dokter belum mengisi catatan medis, sistem frontend menampilkan peringatan agar dokter segera melengkapi data.
+* **Selesai Paksa (4-Hour Rule):** Cron job database mengeksekusi perpindahan status otomatis dari "Sedang Berlangsung" menjadi "Selesai" jika waktu telah melebihi 4 jam dari waktu selesai, menjaga kebersihan data dan performa aplikasi.
 
 ## 🗓️ Smart Schedule "Weekly Refresh" Mechanism
 Perubahan dan penghapusan jadwal dokter menggunakan mekanisme berbasis waktu (*time-versioning*) alih-alih penghapusan langsung:

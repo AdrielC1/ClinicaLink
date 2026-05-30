@@ -21,7 +21,7 @@ import {
   Loader2
 } from "lucide-react";
 
-// ── Virtual State Logic (from .antigravityrules) ─────────
+// ── Virtual State Logic ─────────
 function computeVirtualStatus(appt) {
   const now = new Date();
   const apptDate = (appt.appointment_date || "").split("T")[0];
@@ -30,28 +30,15 @@ function computeVirtualStatus(appt) {
   if (!apptDate || !endTime) return appt.status;
 
   const endDateTime = new Date(`${apptDate}T${endTime}`);
-  const endPlus4h = new Date(endDateTime.getTime() + 4 * 60 * 60 * 1000);
 
   // Rule 0: Cancelled by Admin (has cancellation_reason)
   if (appt.status === "Dibatalkan" && appt.cancellation_reason) {
     return "Dibatalkan Admin";
   }
 
-  // Rule 4: Forced Selesai after 4 hours past end_time
-  if (appt.status === "Sedang Berlangsung" && now > endPlus4h) {
-    return "Selesai";
-  }
   // Rule 3: Awaiting notes
   if (appt.status === "Sedang Berlangsung" && now > endDateTime && !appt.notes) {
     return "Menunggu Catatan Dokter";
-  }
-  // Rule 2: Normal Sedang Berlangsung
-  if (appt.status === "Sedang Berlangsung") {
-    return "Sedang Berlangsung";
-  }
-  // Rule 1: Auto-cancelled — Menunggu but time has fully passed
-  if (appt.status === "Menunggu" && now > endDateTime) {
-    return "Dibatalkan (Otomatis)";
   }
 
   return appt.status;
@@ -498,7 +485,7 @@ export default function PatientAppointmentsPage() {
                 setSelectedDate(prev => prev && isSameDate(prev, newDate) ? null : newDate);
               }}
               eventDates={appointments
-                .filter(a => a.virtualStatus !== 'Dibatalkan' && a.virtualStatus !== 'Dibatalkan (Otomatis)' && a.virtualStatus !== 'Dibatalkan Admin')
+                .filter(a => a.virtualStatus !== 'Dibatalkan' && a.virtualStatus !== 'Dibatalkan Admin')
                 .map(a => a.appointment_date?.split('T')[0])
               }
             />
@@ -514,7 +501,7 @@ export default function PatientAppointmentsPage() {
               <div className="space-y-2">
                 {selectedDateAppointments.length > 0 ? (
                   selectedDateAppointments.map(appt => {
-                    const isCancelled = appt.virtualStatus === 'Dibatalkan' || appt.virtualStatus === 'Dibatalkan (Otomatis)' || appt.virtualStatus === 'Dibatalkan Admin';
+                    const isCancelled = appt.virtualStatus === 'Dibatalkan' || appt.virtualStatus === 'Dibatalkan Admin';
                     const isDone = appt.virtualStatus === 'Selesai' || appt.virtualStatus === 'Completed';
                     const lineColor = isCancelled ? 'bg-red-300' : isDone ? 'bg-green-400' : 'bg-[#5E81CC]';
                     return (
@@ -701,7 +688,7 @@ export default function PatientAppointmentsPage() {
                           a => {
                             const dateMatch = a.appointment_date?.split('T')[0] === newDate;
                             const timeMatch = a.start_time?.substring(0, 5) === slot.start_time.substring(0, 5);
-                            const statusMatch = !['Dibatalkan', 'Dibatalkan (Otomatis)', 'Selesai', 'Cancelled', 'Completed'].includes(a.status);
+                            const statusMatch = !['Dibatalkan', 'Selesai', 'Cancelled', 'Completed'].includes(a.status);
                             return dateMatch && timeMatch && statusMatch;
                           }
                         );
@@ -900,8 +887,8 @@ function StatusBadge({ status }) {
   if (status === 'Menunggu' || status === 'Scheduled' || status === 'Akan Datang') {
     return <span className="inline-flex rounded-full bg-green-50 border border-green-200 px-2.5 py-0.5 text-xs font-bold text-green-600">Dijadwalkan</span>;
   }
-  if (status === 'Dibatalkan' || status === 'Cancelled' || status === 'Dibatalkan (Otomatis)' || status === 'Dibatalkan Admin') {
-    return <span className="inline-flex rounded-full bg-red-50 border border-red-200 px-2.5 py-0.5 text-xs font-bold text-red-500">{status === 'Dibatalkan (Otomatis)' ? 'Dibatalkan' : status === 'Dibatalkan Admin' ? 'Dibatalkan Admin' : 'Dibatalkan'}</span>;
+  if (status === 'Dibatalkan' || status === 'Cancelled' || status === 'Dibatalkan Admin') {
+    return <span className="inline-flex rounded-full bg-red-50 border border-red-200 px-2.5 py-0.5 text-xs font-bold text-red-500">{status === 'Dibatalkan Admin' ? 'Dibatalkan Admin' : 'Dibatalkan'}</span>;
   }
   if (status === 'Sedang Berlangsung') {
     return <span className="inline-flex rounded-full bg-blue-50 border border-blue-200 px-2.5 py-0.5 text-xs font-bold text-blue-600">Sedang Berlangsung</span>;

@@ -28,7 +28,7 @@ function formatTime(t) {
   return t.substring(0, 5).replace(":", ".");
 }
 
-// ── Virtual State Logic (from .antigravityrules) ─────────
+// ── Virtual State Logic ─────────
 function computeVirtualStatus(appt) {
   const now = new Date();
   const apptDate = (appt.appointment_date || "").split("T")[0];
@@ -37,26 +37,12 @@ function computeVirtualStatus(appt) {
   if (!apptDate || !endTime) return appt.status;
 
   const endDateTime = new Date(`${apptDate}T${endTime}`);
-  const endPlus4h = new Date(endDateTime.getTime() + 4 * 60 * 60 * 1000);
 
-  // Rule 4: Forced Selesai after 4 hours past end_time
-  if (appt.status === "Sedang Berlangsung" && now > endPlus4h) {
-    return "Selesai";
-  }
-  // Rule 3: Awaiting notes — still "Sedang Berlangsung" in DB but past end_time without notes
+  // Awaiting notes (Virtual State for UI)
   if (appt.status === "Sedang Berlangsung" && now > endDateTime && !appt.notes) {
     return "Menunggu Catatan Dokter";
   }
-  // Rule 2: Normal Sedang Berlangsung
-  if (appt.status === "Sedang Berlangsung") {
-    return "Sedang Berlangsung";
-  }
-  // Rule 1: Auto-cancelled — Menunggu but time has fully passed
-  if (appt.status === "Menunggu" && now > endDateTime) {
-    return "Dibatalkan (Otomatis)";
-  }
 
-  // Default: return DB status as-is
   return appt.status;
 }
 
@@ -67,7 +53,6 @@ const STATUS_STYLES = {
   "Menunggu Catatan Dokter": { bg: "bg-orange-50",  text: "text-orange-600", dot: "bg-orange-400" },
   "Selesai":                 { bg: "bg-emerald-50", text: "text-emerald-600",dot: "bg-emerald-400" },
   "Dibatalkan":              { bg: "bg-red-50",     text: "text-red-500",    dot: "bg-red-400" },
-  "Dibatalkan (Otomatis)":   { bg: "bg-red-50",     text: "text-red-500",    dot: "bg-red-400" },
 };
 
 function StatusBadge({ status }) {
@@ -88,7 +73,7 @@ const STATUS_FILTERS = [
   "Sedang Berlangsung",
   "Menunggu Catatan Dokter",
   "Selesai",
-  "Dibatalkan (Otomatis)",
+  "Dibatalkan",
 ];
 
 // =========================================================

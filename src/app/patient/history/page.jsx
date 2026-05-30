@@ -103,21 +103,7 @@ export default function PatientHistoryPage() {
           const body = await res.json();
           const list = Array.isArray(body.data) ? body.data : [];
           
-          // Virtual Status: Dibatalkan jika Menunggu > 4 jam
-          const now = new Date().getTime();
-          const updatedList = list.map(appt => {
-            if (appt.status === "Menunggu" && appt.appointment_date && appt.start_time) {
-               const dateStr = appt.appointment_date.split('T')[0];
-               const timeStr = appt.start_time;
-               const apptTime = new Date(`${dateStr}T${timeStr}`).getTime();
-               if (now - apptTime > 4 * 60 * 60 * 1000) {
-                 return { ...appt, status: "Dibatalkan" };
-               }
-            }
-            return appt;
-          });
-          
-          setAppointments(updatedList);
+          setAppointments(list);
         }
       } catch (err) {
         console.error("Gagal memuat history:", err);

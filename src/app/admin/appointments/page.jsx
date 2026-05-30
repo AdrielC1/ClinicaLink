@@ -4,28 +4,9 @@ import React, { useState, useEffect } from "react";
 import { Search, Filter, Plus, Edit3, Eye, X } from "lucide-react";
 
 function computeVirtualStatus(appt) {
-  const now = new Date();
-  const apptDate = (appt.appointment_date || "").split("T")[0];
-  const endTime = appt.end_time;
-  
-  if (!apptDate || !endTime) return appt.status;
-
-  const endDateTime = new Date(`${apptDate}T${endTime}`);
-  const endPlus4h = new Date(endDateTime.getTime() + 4 * 60 * 60 * 1000);
-
-  if (appt.status === "Sedang Berlangsung" && now > endPlus4h) {
-    return "Selesai";
-  }
-  if (appt.status === "Sedang Berlangsung" && now > endDateTime && !appt.notes) {
-    return "Berlangsung"; // Admin page expects Berlangsung instead of Menunggu Catatan Dokter
-  }
   if (appt.status === "Sedang Berlangsung") {
     return "Berlangsung";
   }
-  if (appt.status === "Menunggu" && now > endDateTime) {
-    return "Dibatalkan";
-  }
-
   return appt.status;
 }
 
