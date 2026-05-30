@@ -248,6 +248,9 @@ function EditModal({ appointment, onClose, onSaved }) {
       </div>
     </div>
   );
+  // function DeleteModal({ appointment, onClose, onDeleted }) {
+  //   const [deleting, setDeleting] = useState(false);
+  //   const [err, setErr] = useState("");
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
