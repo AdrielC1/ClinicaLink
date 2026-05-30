@@ -89,7 +89,9 @@ export async function POST(request) {
         }
 
         // Gunakan endpoint /api/register yang sudah menangani trigger dengan benar
-        const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+        const protocol = request.headers.get('x-forwarded-proto') || 'http';
+        const host = request.headers.get('host');
+        const baseUrl = request.nextUrl?.origin || process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`;
         const registerRes = await fetch(`${baseUrl}/api/register`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
