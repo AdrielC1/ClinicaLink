@@ -46,6 +46,14 @@ export default function ProfilePage({ role = "patient" }) {
   });
   const fileInputRef = useRef(null);
 
+  // State baru untuk Custom Alert UI
+  const [alertConfig, setAlertConfig] = useState({
+    isOpen: false,
+    type: "success", // "success" | "error"
+    title: "",
+    message: "",
+  });
+
   const effectiveRole = profile.role || role;
   const isPatient = effectiveRole === "patient";
   const isDoctor = effectiveRole === "doctor";
@@ -75,6 +83,16 @@ export default function ProfilePage({ role = "patient" }) {
       active = false;
     };
   }, []);
+
+  // Fungsi helper untuk memicu custom alert
+  const triggerAlert = (type, title, message) => {
+    setAlertConfig({
+      isOpen: true,
+      type,
+      title,
+      message,
+    });
+  };
 
   const fetchProfileData = async (uid, lastSignInRaw) => {
     try {
@@ -116,9 +134,9 @@ export default function ProfilePage({ role = "patient" }) {
         .getPublicUrl(filePath);
 
       setEditForm((prev) => ({ ...prev, img_url: publicUrl }));
-      alert("Foto profil berhasil diunggah!");
+      triggerAlert("success", "Berhasil", "Foto profil berhasil diunggah!");
     } catch (error) {
-      alert(`Gagal mengunggah gambar: ${error.message}`);
+      triggerAlert("error", "Gagal", `Gagal mengunggah gambar: ${error.message}`);
     } finally {
       setSubmitLoading(false);
     }
@@ -149,7 +167,7 @@ export default function ProfilePage({ role = "patient" }) {
       setProfile(result.profile);
       setEditForm(result.profile);
       setIsEditModalOpen(false);
-      alert(result.message);
+      triggerAlert("success", "Profil Diperbarui", result.message || "Perubahan profil berhasil disimpan.");
 
       const storedUser = localStorage.getItem("clinicalink:user");
       if (storedUser) {
@@ -160,7 +178,7 @@ export default function ProfilePage({ role = "patient" }) {
         window.dispatchEvent(new Event("storage"));
       }
     } catch (error) {
-      alert(error.message);
+      triggerAlert("error", "Simpan Gagal", error.message);
     } finally {
       setSubmitLoading(false);
     }
@@ -170,12 +188,12 @@ export default function ProfilePage({ role = "patient" }) {
     e.preventDefault();
 
     if (passwordForm.password_baru !== passwordForm.konfirmasi_password) {
-      alert("Konfirmasi password baru tidak cocok.");
+      triggerAlert("error", "Validasi Gagal", "Konfirmasi password baru tidak cocok.");
       return;
     }
 
     if (passwordForm.password_baru.length < 6) {
-      alert("Password baru wajib minimal 6 karakter.");
+      triggerAlert("error", "Validasi Gagal", "Password baru wajib minimal 6 karakter.");
       return;
     }
 
@@ -189,9 +207,9 @@ export default function ProfilePage({ role = "patient" }) {
 
       setIsPasswordModalOpen(false);
       setPasswordForm({ password_lama: "", password_baru: "", konfirmasi_password: "" });
-      alert("Password berhasil diperbarui!");
+      triggerAlert("success", "Berhasil", "Password berhasil diperbarui!");
     } catch (error) {
-      alert(`Gagal memperbarui password: ${error.message}`);
+      triggerAlert("error", "Gagal", `Gagal memperbarui password: ${error.message}`);
     } finally {
       setSubmitLoading(false);
     }
@@ -207,7 +225,7 @@ export default function ProfilePage({ role = "patient" }) {
   };
 
   if (loading) {
-    return <div className="flex h-screen items-center justify-center">Memuat halaman profil...</div>;
+    return <div className="flex h-screen items-center justify-center text-sm font-medium text-gray-500">Memuat halaman profil...</div>;
   }
 
   return (
@@ -299,6 +317,7 @@ export default function ProfilePage({ role = "patient" }) {
         </div>
       </div>
 
+      {/* --- MODAL EDIT PROFILE --- */}
       {isEditModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4">
           <div className="bg-white rounded-3xl w-full max-w-3xl shadow-xl overflow-hidden p-8 animate-in fade-in zoom-in-95 duration-200">
@@ -415,6 +434,7 @@ export default function ProfilePage({ role = "patient" }) {
         </div>
       )}
 
+      {/* --- MODAL UBAH PASSWORD --- */}
       {isPasswordModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4">
           <div className="bg-white rounded-3xl w-full max-w-lg shadow-xl overflow-hidden p-8 animate-in fade-in zoom-in-95 duration-200">
@@ -536,6 +556,38 @@ export default function ProfilePage({ role = "patient" }) {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* --- REUSABLE CUSTOM ALERT MODAL COMPONENT --- */}
+      {alertConfig.isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl p-6 text-center animate-in fade-in zoom-in-95 duration-200">
+            {/* Dynamic White-themed Icon Box */}
+            <div className="mx-auto flex items-center justify-center h-14 w-14 rounded-full bg-slate-50 border border-gray-100 mb-4 shadow-inner">
+              {alertConfig.type === "success" ? (
+                <svg className="h-6 w-6 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              ) : (
+                <svg className="h-6 w-6 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              )}
+            </div>
+
+            <h3 className="text-base font-bold text-gray-900 mb-1">{alertConfig.title}</h3>
+            <p className="text-xs text-gray-500 font-medium px-2 mb-6 leading-relaxed">
+              {alertConfig.message}
+            </p>
+
+            <button
+              onClick={() => setAlertConfig((prev) => ({ ...prev, isOpen: false }))}
+              className="w-full py-2.5 bg-[#5E81CC] hover:bg-[#4D6FB5] text-white font-bold text-xs rounded-xl transition shadow-sm"
+            >
+              Mengerti
+            </button>
           </div>
         </div>
       )}
