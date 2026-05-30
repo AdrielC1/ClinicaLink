@@ -1,187 +1,244 @@
 "use client";
 
-import { useState } from "react";
-import {
-  ChevronDown,
-  Download,
-  Eye,
-  X,
-} from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { ChevronDown, Download, Eye, X, ChevronLeft, ChevronRight } from "lucide-react";
 
-const reportCards = [
-  {
-    key: "total",
-    title: "Total Janji Temu",
-    value: "4",
-  },
-  {
-    key: "cancelled",
-    title: "Janji Temu Dibatalkan",
-    value: "1",
-  },
-  {
-    key: "completed",
-    title: "Konsultasi Selesai",
-    value: "1",
-  },
-  {
-    key: "newPatients",
-    title: "Pendaftaran Pasien Baru",
-    value: "1",
-  },
-];
-
-const totalAppointments = [
-  { no: 1, patient: "Mila", doctor: "Dr. Emily", date: "12 Mei 2030", time: "09.00 - 09.30 WIB", status: "Selesai" },
-  { no: 2, patient: "Kimmy", doctor: "Dr. Emily", date: "12 Mei 2030", time: "10.00 - 10.30 WIB", status: "Berlangsung" },
-  { no: 3, patient: "Sila", doctor: "Dr. Emily", date: "12 Mei 2030", time: "12.00 - 12.30 WIB", status: "Menunggu" },
-  { no: 4, patient: "Nina", doctor: "Dr. Jatmiko", date: "14 Mei 2030", time: "10.00 - 10.30 WIB", status: "Menunggu" },
-];
-
-const completedAppointments = [
-  { no: 1, patient: "Mila", doctor: "Dr. Emily", date: "12 Mei 2030", time: "09.00 - 09.30 WIB", status: "Selesai" },
-];
-
-const cancelledAppointments = [
-  { no: 1, patient: "Sila", doctor: "Dr. Emily", date: "12 Mei 2030", time: "09.00 - 09.30 WIB", status: "Berhalangan hadir" },
-];
-
-const newPatients = [
-  { no: 1, patient: "Nina", date: "14 Mei 2030", phone: "08xxxxxxxxxx", status: "Aktif" },
-];
-
-const reportRows = [
-  { key: "total", title: "Total janji temu", value: "4" },
-  { key: "cancelled", title: "Janji temu dibatalkan", value: "1" },
-  { key: "completed", title: "Konsultasi selesai", value: "1" },
-  { key: "newPatients", title: "Pendaftaran pasien baru", value: "1" },
-  { key: "completed", title: "Konsultasi selesai minggu ini", value: "1" },
-  { key: "total", title: "Janji temu aktif", value: "3" },
-  { key: "total", title: "Janji temu minggu ini", value: "4" },
-  { key: "cancelled", title: "Pembatalan pasien", value: "1" },
-  { key: "completed", title: "Konsultasi dokter Emily", value: "1" },
-  { key: "newPatients", title: "Pasien baru bulan ini", value: "1" },
-  { key: "total", title: "Janji temu Dr. Jatmiko", value: "1" },
-  { key: "completed", title: "Konsultasi selesai bulan ini", value: "1" },
-  { key: "cancelled", title: "Janji temu gagal hadir", value: "1" },
-  { key: "newPatients", title: "Pendaftaran aktif", value: "1" },
-  { key: "total", title: "Total jadwal terisi", value: "4" },
-];
-
-const modalConfig = {
-  total: {
-    title: "Detail Total Janji Temu",
-    type: "appointment",
-    rows: totalAppointments,
-  },
-  cancelled: {
-    title: "Janji Temu Dibatalkan",
-    type: "appointment",
-    rows: cancelledAppointments,
-  },
-  completed: {
-    title: "Detail Konsultasi Selesai",
-    type: "appointment",
-    rows: completedAppointments,
-  },
-  newPatients: {
-    title: "Detail Pendaftaran Pasien Baru",
-    type: "patient",
-    rows: newPatients,
-  },
+// --- Helper untuk mengubah objek Date menjadi string teks murni YYYY-MM-DD ---
+const toDateString = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 };
 
-const appointmentStatusClass = {
-  Selesai: "bg-green-100 text-green-600 border-green-200",
-  Berlangsung: "bg-blue-100 text-blue-600 border-blue-200",
-  Menunggu: "bg-yellow-100 text-yellow-600 border-yellow-200",
+// --- Utility untuk membuat rentang tanggal ---
+const generateMonthRanges = (monthsCount = 6) => {
+  const ranges = [];
+  const now = new Date();
+  for (let i = 0; i < monthsCount; i++) {
+    // Kita tetapkan tanggal 1 dan tanggal terakhir di bulan tersebut
+    const start = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
+
+    const formatOptions = { day: "2-digit", month: "long", year: "numeric" };
+    const startStr = start.toLocaleDateString("id-ID", formatOptions);
+    const endStr = end.toLocaleDateString("id-ID", formatOptions);
+
+    ranges.push({
+      label: `${startStr} - ${endStr}`,
+      // PERBAIKAN: Kita simpan versi string absolut (contoh: "2026-05-01")
+      startStrAbsolute: toDateString(start),
+      endStrAbsolute: toDateString(end),
+    });
+  }
+  return ranges;
 };
 
-const dateRanges = [
-  "01 Mei 2030 - 31 Mei 2030",
-  "01 April 2030 - 30 April 2030",
-  "01 Maret 2030 - 31 Maret 2030",
-];
+// --- Komponen Pagination Dinamis ---
+const Pagination = ({ totalItems, itemsPerPage, currentPage, onPageChange }) => {
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+  if (totalPages <= 1) return null;
+
+  const pages = Array.from({ length: totalPages }, (_, i) => i + 1);
+
+  return (
+    <div className="flex items-center justify-center gap-2 mt-4 pb-4">
+      <button
+        onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+        disabled={currentPage === 1}
+        className="p-1 text-gray-500 hover:text-[#5E81CC] disabled:text-gray-300 transition-colors"
+      >
+        <ChevronLeft className="w-5 h-5" />
+      </button>
+
+      {pages.map((page) => (
+        <button
+          key={page}
+          onClick={() => onPageChange(page)}
+          className={`w-8 h-8 flex items-center justify-center rounded-full text-sm font-semibold transition-colors ${
+            currentPage === page
+              ? "bg-[#5E81CC] text-white"
+              : "text-gray-600 hover:bg-gray-100"
+          }`}
+        >
+          {page}
+        </button>
+      ))}
+
+      <button
+        onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
+        disabled={currentPage === totalPages}
+        className="p-1 text-gray-500 hover:text-[#5E81CC] disabled:text-gray-300 transition-colors"
+      >
+        <ChevronRight className="w-5 h-5" />
+      </button>
+    </div>
+  );
+};
 
 export default function AdminReportsPage() {
-  const [selectedReport, setSelectedReport] = useState(null);
-  const [selectedDateRange, setSelectedDateRange] = useState(dateRanges[0]);
+  const [appointments, setAppointments] = useState([]);
+  const [patient, setPatient] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // State Tanggal
+  const dateRanges = useMemo(() => generateMonthRanges(), []);
+  const [selectedRange, setSelectedRange] = useState(dateRanges[0]);
   const [dateDropdownOpen, setDateDropdownOpen] = useState(false);
 
-  const downloadReport = () => {
-    const rows = [
-      ["Jenis", "Pasien", "Dokter", "Tanggal", "Waktu", "Status", "No Telepon"],
-      ...totalAppointments.map((item) => [
-        "Total Janji Temu",
-        item.patient,
-        item.doctor,
-        item.date,
-        item.time,
-        item.status,
-        "",
-      ]),
-      ...cancelledAppointments.map((item) => [
-        "Janji Temu Dibatalkan",
-        item.patient,
-        item.doctor,
-        item.date,
-        item.time,
-        item.status,
-        "",
-      ]),
-      ...completedAppointments.map((item) => [
-        "Konsultasi Selesai",
-        item.patient,
-        item.doctor,
-        item.date,
-        item.time,
-        item.status,
-        "",
-      ]),
-      ...newPatients.map((item) => [
-        "Pendaftaran Pasien Baru",
-        item.patient,
-        "",
-        item.date,
-        "",
-        item.status,
-        item.phone,
-      ]),
-    ];
+  // State Laporan & Modal
+  const [selectedReport, setSelectedReport] = useState(null);
 
-    const escapeHtml = (value) =>
-      String(value)
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;");
-    const tableRows = rows
-      .map((row, rowIndex) => {
-        const tag = rowIndex === 0 ? "th" : "td";
-        return `<tr>${row.map((cell) => `<${tag}>${escapeHtml(cell)}</${tag}>`).join("")}</tr>`;
-      })
-      .join("");
-    const worksheet = `<!doctype html>
-      <html>
-        <head>
-          <meta charset="utf-8" />
-          <style>
-            table { border-collapse: collapse; font-family: 'Nunito', sans-serif; font-size: 12px; }
-            th { background: #eef3fb; font-weight: bold; text-align: left; }
-            th, td { border: 1px solid #d9e2f1; padding: 8px 12px; white-space: nowrap; }
-            td:nth-child(6) { font-weight: bold; }
-          </style>
-        </head>
-        <body>
-          <table>${tableRows}</table>
-        </body>
-      </html>`;
-    const blob = new Blob([worksheet], { type: "application/vnd.ms-excel;charset=utf-8;" });
+  // State Pagination Tabel Utama
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+
+  // 1. Fetch Data dari API
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        const [resAppointments, resPatients] = await Promise.all([
+          fetch("/api/appointments", { cache: "no-store" }),
+          fetch("/api/patient", { cache: "no-store" }), 
+        ]);
+
+        const appointmentJson = resAppointments.ok ? await resAppointments.json() : {};
+        const patientJson = resPatients.ok ? await resPatients.json() : {};
+
+        const arrAppointments = Array.isArray(appointmentJson.data) ? appointmentJson.data : [];
+        const arrPatient = Array.isArray(patientJson.data) ? patientJson.data : [];
+
+        setAppointments(arrAppointments);
+        setPatient(arrPatient);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+        setAppointments([]);
+        setPatient([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  // 2. Filter Data berdasarkan Periode Tanggal yang Dipilih
+  const filteredData = useMemo(() => {
+    // PERBAIKAN: Fungsi filter anti-timezone bug
+    const isWithinRange = (rawDateString) => {
+      if (!rawDateString) return false;
+      
+      // Mengambil hanya teks "YYYY-MM-DD" dari data Supabase (menghiraukan T00:00:00)
+      const targetDateStr = rawDateString.includes("T") 
+        ? rawDateString.split("T")[0] 
+        : rawDateString.substring(0, 10);
+      
+      // Membandingkan teks secara langsung (contoh: "2026-05-15" >= "2026-05-01")
+      return targetDateStr >= selectedRange.startStrAbsolute && targetDateStr <= selectedRange.endStrAbsolute;
+    };
+
+    const periodAppointments = appointments.filter((app) => isWithinRange(app.appointment_date));
+    const periodPatient = patient.filter((pt) => isWithinRange(pt.created_at));
+
+    const completed = periodAppointments.filter((app) => app.status === "Selesai");
+    const cancelled = periodAppointments.filter(
+      (app) => app.status === "Dibatalkan" || app.status === "Berhalangan hadir"
+    );
+
+    return {
+      totalAppointments: periodAppointments,
+      completedAppointments: completed,
+      cancelledAppointments: cancelled,
+      newPatient: periodPatient,
+    };
+  }, [appointments, patient, selectedRange]);
+
+  // 3. Menyiapkan Data Card & Baris Tabel
+  const reportSummary = [
+    { key: "total", title: "Total Appointment", value: filteredData.totalAppointments.length, desc: "Appointment bulan ini" },
+    { key: "completed", title: "Konsultasi Selesai", value: filteredData.completedAppointments.length, desc: "Konsultasi berhasil" },
+    { key: "cancelled", title: "Appointment Dibatalkan", value: filteredData.cancelledAppointments.length, desc: "Dibatalkan pasien/sistem" },
+    { key: "newPatient", title: "Pendaftaran Pasien Baru", value: filteredData.newPatient.length, desc: "Pasien terdaftar" },
+  ];
+
+  const reportCards = [
+    reportSummary[0], // Total Appointment
+    reportSummary[1], // Konsultasi Selesai
+    reportSummary[2], // Dibatalkan
+    reportSummary[3], // Pasien Baru
+  ];
+
+  const paginatedReports = reportSummary.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  // 4. Konfigurasi Modal Detail
+  const modalConfig = {
+    total: {
+      title: "Detail Total Appointment",
+      type: "appointment",
+      rows: filteredData.totalAppointments,
+    },
+    cancelled: {
+      title: "Detail Appointment Dibatalkan",
+      type: "appointment",
+      rows: filteredData.cancelledAppointments,
+    },
+    completed: {
+      title: "Detail Konsultasi Selesai",
+      type: "appointment",
+      rows: filteredData.completedAppointments,
+    },
+    newPatient: {
+      title: "Detail Pendaftaran Pasien Baru",
+      type: "patient",
+      rows: filteredData.newPatient,
+    },
+  };
+
+  // 5. Fungsi Export CSV
+  const downloadReportCSV = () => {
+    const headers = ["Jenis Laporan", "Nama Pasien", "Dokter", "Tanggal", "Waktu", "Status", "No Telepon"];
+    const rows = [headers];
+
+    const pushToCSV = (type, dataList) => {
+      dataList.forEach((item) => {
+        const patientName = item.patient_name || item.full_name || "-";
+        const doctorName = item.doctor_name || "-";
+        const aptTime = item.start_time ? item.start_time.substring(0, 5) : "-";
+        const dateStr = item.appointment_date || (item.created_at ? item.created_at.split('T')[0] : "-");
+
+        rows.push([
+          type,
+          patientName,
+          doctorName,
+          dateStr,
+          aptTime,
+          item.status || "Aktif",
+          item.phone_number || "-",
+        ]);
+      });
+    };
+
+    pushToCSV("Total Appointment", filteredData.totalAppointments);
+    pushToCSV("Konsultasi Selesai", filteredData.completedAppointments);
+    pushToCSV("Appointment Dibatalkan", filteredData.cancelledAppointments);
+    pushToCSV("Pendaftaran Pasien Baru", filteredData.newPatient);
+
+    const csvContent = rows
+      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+
+    const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
 
     link.href = url;
-    link.download = `laporan-clinicalink-${selectedDateRange.toLowerCase().replaceAll(" ", "-")}.xls`;
+    const safeDateName = selectedRange.label.toLowerCase().replace(/ /g, "-");
+    link.download = `laporan-clinicalink-${safeDateName}.csv`;
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -189,7 +246,7 @@ export default function AdminReportsPage() {
   };
 
   return (
-    <div className="font-sans text-slate-800 pb-6">
+    <div className="font-sans text-slate-800 pb-6 min-h-screen bg-[#F8FAFC]">
       {/* Header Area */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
         <div>
@@ -201,26 +258,29 @@ export default function AdminReportsPage() {
           <div className="relative w-full sm:w-auto">
             <button
               onClick={() => setDateDropdownOpen((open) => !open)}
-              className="flex items-center justify-between w-full sm:w-56 gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 font-semibold rounded-lg text-sm shadow-sm hover:bg-gray-50 transition-colors"
+              className="flex items-center justify-between w-full sm:w-64 gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 font-semibold rounded-lg text-sm shadow-sm hover:bg-gray-50 transition-colors"
             >
-              <span className="truncate">{selectedDateRange}</span>
+              <span className="truncate">{selectedRange.label}</span>
               <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
             </button>
 
             {dateDropdownOpen && (
-              <div className="absolute right-0 top-12 z-20 w-full sm:w-56 bg-white border border-gray-100 rounded-xl shadow-lg p-1">
-                {dateRanges.map((range) => (
+              <div className="absolute right-0 top-12 z-20 w-full sm:w-64 bg-white border border-gray-100 rounded-xl shadow-lg p-1">
+                {dateRanges.map((range, idx) => (
                   <button
-                    key={range}
+                    key={idx}
                     onClick={() => {
-                      setSelectedDateRange(range);
+                      setSelectedRange(range);
                       setDateDropdownOpen(false);
+                      setCurrentPage(1); 
                     }}
                     className={`block w-full px-4 py-2.5 text-left text-sm font-semibold transition-colors rounded-lg ${
-                      selectedDateRange === range ? "bg-[#E6EDFF] text-[#5E81CC]" : "text-gray-700 hover:bg-gray-50"
+                      selectedRange.label === range.label
+                        ? "bg-[#E6EDFF] text-[#5E81CC]"
+                        : "text-gray-700 hover:bg-gray-50"
                     }`}
                   >
-                    {range}
+                    {range.label}
                   </button>
                 ))}
               </div>
@@ -228,7 +288,7 @@ export default function AdminReportsPage() {
           </div>
 
           <button
-            onClick={downloadReport}
+            onClick={downloadReportCSV}
             className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#5E81CC] text-white font-semibold rounded-lg text-sm shadow-md hover:bg-[#4A6BB0] transition-colors w-full sm:w-auto"
           >
             <Download className="h-4 w-4" />
@@ -237,59 +297,79 @@ export default function AdminReportsPage() {
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="flex gap-4 mb-6 flex-wrap">
-        {reportCards.map((card) => (
-          <button
-            key={card.key}
-            onClick={() => setSelectedReport(card.key)}
-            className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow p-5 flex-grow sm:flex-grow-0 flex flex-col items-center justify-center min-w-[180px]"
-          >
-            <span className="text-sm font-bold text-gray-600 mb-2 text-center">{card.title}</span>
-            <span className="text-2xl font-bold text-gray-900">{card.value}</span>
-          </button>
-        ))}
-      </div>
-
-      {/* Table Section */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden pb-4 mb-6">
-        <div className="p-6 pb-4">
-          <h2 className="text-lg font-bold text-gray-900">Rincian Laporan</h2>
+      {isLoading ? (
+        <div className="flex items-center justify-center py-20">
+          <p className="text-gray-500 font-medium">Memuat data laporan...</p>
         </div>
+      ) : (
+        <>
+          {/* Summary Cards */}
+          <div className="flex gap-4 mb-6 flex-wrap">
+            {reportCards.map((card) => (
+              <button
+                key={card.key}
+                onClick={() => setSelectedReport(card.key)}
+                className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow p-6 flex-grow sm:flex-grow flex flex-col items-center justify-center min-w-[200px]"
+              >
+                <span className="text-sm font-bold text-gray-600 mb-3 text-center">{card.title}</span>
+                <span className="text-4xl font-bold text-gray-900">{card.value}</span>
+              </button>
+            ))}
+          </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="bg-[#F3F6FB] text-gray-700 font-semibold text-xs border-y border-gray-100">
-              <tr>
-                <th className="px-6 py-4 text-center w-12">No</th>
-                <th className="px-6 py-4">Jenis Laporan</th>
-                <th className="px-6 py-4 text-center">Jumlah</th>
-                <th className="px-6 py-4 text-center">Aksi</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {reportRows.map((row, index) => (
-                <tr key={`${row.key}-${row.title}`} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4 text-center font-medium text-gray-500">{index + 1}</td>
-                  <td className="px-6 py-4 font-bold text-gray-900">{row.title}</td>
-                  <td className="px-6 py-4 text-center text-gray-700">{row.value}</td>
-                  <td className="px-6 py-4 text-center">
-                    <div className="flex items-center justify-center">
-                      <button
-                        onClick={() => setSelectedReport(row.key)}
-                        className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                        title={`Lihat ${row.title}`}
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+          {/* Table Section */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-6">
+            <div className="p-6 pb-4 border-b border-gray-100">
+              <h2 className="text-lg font-bold text-gray-900">Laporan Detail</h2>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="bg-[#F3F6FB] text-gray-700 font-semibold text-xs border-y border-gray-100">
+                  <tr>
+                    <th className="px-6 py-4">Laporan</th>
+                    <th className="px-6 py-4 text-center">Jumlah</th>
+                    <th className="px-6 py-4 text-center">Keterangan</th>
+                    <th className="px-6 py-4 text-center">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {paginatedReports.map((row) => (
+                    <tr key={row.key} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4 font-bold text-gray-900">{row.title}</td>
+                      <td className="px-6 py-4 text-center font-semibold text-gray-700">{row.value}</td>
+                      <td className="px-6 py-4 text-center text-gray-600">{row.desc}</td>
+                      <td className="px-6 py-4 text-center">
+                        <div className="flex items-center justify-center">
+                          <button
+                            onClick={() => setSelectedReport(row.key)}
+                            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200 shadow-sm"
+                            title={`Lihat ${row.title}`}
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {paginatedReports.length === 0 && (
+                    <tr>
+                      <td colSpan="4" className="text-center py-6 text-gray-500">Tidak ada data untuk periode ini.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            
+            <Pagination 
+              totalItems={reportSummary.length} 
+              itemsPerPage={itemsPerPage} 
+              currentPage={currentPage} 
+              onPageChange={setCurrentPage} 
+            />
+          </div>
+        </>
+      )}
 
       {selectedReport && (
         <ReportDetailModal
@@ -301,7 +381,16 @@ export default function AdminReportsPage() {
   );
 }
 
+// --- Komponen Modal ---
 function ReportDetailModal({ config, onClose }) {
+  const [modalPage, setModalPage] = useState(1);
+  const itemsPerPage = 5;
+
+  const paginatedRows = config.rows.slice(
+    (modalPage - 1) * itemsPerPage,
+    modalPage * itemsPerPage
+  );
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh]">
@@ -315,17 +404,30 @@ function ReportDetailModal({ config, onClose }) {
         <div className="overflow-auto p-6 bg-slate-50 flex-1">
           <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
             {config.type === "patient" ? (
-              <PatientDetailTable rows={config.rows} />
+              <PatientDetailTable rows={paginatedRows} pageOffset={(modalPage - 1) * itemsPerPage} />
             ) : (
-              <AppointmentDetailTable rows={config.rows} />
+              <AppointmentDetailTable rows={paginatedRows} pageOffset={(modalPage - 1) * itemsPerPage} />
             )}
+            
+            {config.rows.length === 0 && (
+               <div className="text-center py-8 text-gray-500">Data tidak ditemukan.</div>
+            )}
+          </div>
+          
+          <div className="mt-4 bg-transparent">
+            <Pagination 
+              totalItems={config.rows.length} 
+              itemsPerPage={itemsPerPage} 
+              currentPage={modalPage} 
+              onPageChange={setModalPage} 
+            />
           </div>
         </div>
 
-        <div className="p-6 border-t border-slate-100 bg-white flex justify-end">
+        <div className="p-4 border-t border-slate-100 bg-white flex justify-end">
           <button
             onClick={onClose}
-            className="px-6 py-2.5 bg-gray-100 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-200 transition-colors"
+            className="px-6 py-2.5 bg-white border border-gray-200 text-[#5E81CC] rounded-lg text-sm font-semibold hover:bg-gray-50 transition-colors"
           >
             Tutup
           </button>
@@ -335,7 +437,17 @@ function ReportDetailModal({ config, onClose }) {
   );
 }
 
-function AppointmentDetailTable({ rows }) {
+// --- Komponen Tabel Detail Appointment ---
+function AppointmentDetailTable({ rows, pageOffset }) {
+  const getStatusClass = (status) => {
+    switch(status) {
+      case "Selesai": return "bg-green-100 text-green-600 border-green-200";
+      case "Berlangsung": return "bg-blue-100 text-blue-600 border-blue-200";
+      case "Menunggu": return "bg-yellow-100 text-yellow-600 border-yellow-200";
+      default: return "bg-gray-100 text-gray-600 border-gray-200";
+    }
+  };
+
   return (
     <table className="w-full text-sm text-left">
       <thead className="bg-[#F3F6FB] text-gray-700 font-semibold text-xs border-b border-gray-100">
@@ -349,32 +461,35 @@ function AppointmentDetailTable({ rows }) {
         </tr>
       </thead>
       <tbody className="divide-y divide-slate-100">
-        {rows.map((row, index) => (
-          <tr key={`${row.patient}-${row.time}-${index}`} className="hover:bg-gray-50 transition-colors">
-            <td className="px-6 py-4 text-center font-medium text-gray-500">{row.no}</td>
-            <td className="px-6 py-4 font-bold text-gray-900">{row.patient}</td>
-            <td className="px-6 py-4 font-semibold text-gray-700">{row.doctor}</td>
-            <td className="px-6 py-4 text-center text-gray-600">{row.date}</td>
-            <td className="px-6 py-4 text-center text-[#5E81CC] font-bold">{row.time}</td>
-            <td className="px-6 py-4 text-center">
-              {appointmentStatusClass[row.status] ? (
-                <span className={`inline-flex items-center justify-center px-4 py-1 rounded-full text-xs font-bold border ${appointmentStatusClass[row.status]}`}>
+        {rows.map((row, index) => {
+          const patientName = row.patient_name || "-";
+          const doctorName = row.doctor_name || "-";
+          const aptTime = row.start_time ? row.start_time.substring(0, 5).replace(":", ".") : "-";
+
+          return (
+            <tr key={row.id || index} className="hover:bg-gray-50 transition-colors">
+              <td className="px-6 py-4 text-center font-medium text-gray-500">{pageOffset + index + 1}</td>
+              <td className="px-6 py-4 font-bold text-gray-900">{patientName}</td>
+              <td className="px-6 py-4 font-semibold text-gray-700">{doctorName}</td>
+              <td className="px-6 py-4 text-center text-gray-600">
+                {row.appointment_date ? new Date(row.appointment_date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : "-"}
+              </td>
+              <td className="px-6 py-4 text-center text-gray-900 font-semibold">{aptTime} WIB</td>
+              <td className="px-6 py-4 text-center">
+                <span className={`inline-flex items-center justify-center px-4 py-1 rounded-full text-xs font-bold border ${getStatusClass(row.status)}`}>
                   {row.status}
                 </span>
-              ) : (
-                <span className="inline-flex items-center justify-center px-4 py-1 rounded-full text-xs font-bold border bg-gray-100 text-gray-600 border-gray-200">
-                  {row.status}
-                </span>
-              )}
-            </td>
-          </tr>
-        ))}
+              </td>
+            </tr>
+          );
+        })}
       </tbody>
     </table>
   );
 }
 
-function PatientDetailTable({ rows }) {
+// --- Komponen Tabel Detail Pasien ---
+function PatientDetailTable({ rows, pageOffset }) {
   return (
     <table className="w-full text-sm text-left">
       <thead className="bg-[#F3F6FB] text-gray-700 font-semibold text-xs border-b border-gray-100">
@@ -387,19 +502,26 @@ function PatientDetailTable({ rows }) {
         </tr>
       </thead>
       <tbody className="divide-y divide-slate-100">
-        {rows.map((row, index) => (
-          <tr key={`${row.patient}-${index}`} className="hover:bg-gray-50 transition-colors">
-            <td className="px-6 py-4 text-center font-medium text-gray-500">{row.no}</td>
-            <td className="px-6 py-4 font-bold text-gray-900">{row.patient}</td>
-            <td className="px-6 py-4 text-center text-gray-600">{row.date}</td>
-            <td className="px-6 py-4 text-center text-gray-600">{row.phone}</td>
-            <td className="px-6 py-4 text-center">
-              <span className="inline-flex items-center justify-center px-4 py-1 rounded-full text-xs font-bold border bg-green-100 text-green-600 border-green-200">
-                {row.status}
-              </span>
-            </td>
-          </tr>
-        ))}
+        {rows.map((row, index) => {
+          const patientName = row.full_name || "-";
+          const regDate = row.created_at;
+
+          return (
+            <tr key={row.id || index} className="hover:bg-gray-50 transition-colors">
+              <td className="px-6 py-4 text-center font-medium text-gray-500">{pageOffset + index + 1}</td>
+              <td className="px-6 py-4 font-bold text-gray-900">{patientName}</td>
+              <td className="px-6 py-4 text-center text-gray-600">
+                {regDate ? new Date(regDate).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : "-"}
+              </td>
+              <td className="px-6 py-4 text-center text-gray-600">{row.phone_number || "-"}</td>
+              <td className="px-6 py-4 text-center">
+                <span className="inline-flex items-center justify-center px-4 py-1 rounded-full text-xs font-bold border bg-green-100 text-green-600 border-green-200">
+                  Aktif
+                </span>
+              </td>
+            </tr>
+          );
+        })}
       </tbody>
     </table>
   );
