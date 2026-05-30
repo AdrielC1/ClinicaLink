@@ -79,8 +79,10 @@ export default function PatientAppointmentsPage() {
       if (res.ok) {
         const data = await res.json();
         const list = Array.isArray(data.data) ? data.data : [];
+        // Filter active only
+        const activeList = list.filter(a => a.status !== "Selesai" && a.status !== "Dibatalkan" && a.status !== "Dibatalkan Admin");
         // Enrich with virtual status
-        const enriched = list.map(appt => ({
+        const enriched = activeList.map(appt => ({
           ...appt,
           virtualStatus: computeVirtualStatus(appt),
         }));

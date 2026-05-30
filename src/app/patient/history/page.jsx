@@ -116,11 +116,13 @@ export default function PatientHistoryPage() {
   }, [router]);
 
   const sortedAppointments = useMemo(() => {
-    return [...appointments].sort((a, b) => {
-      const dateA = new Date(a.appointment_date || "");
-      const dateB = new Date(b.appointment_date || "");
-      return dateB - dateA;
-    });
+    return [...appointments]
+      .filter((a) => a.status === "Selesai" || a.status === "Dibatalkan")
+      .sort((a, b) => {
+        const dateA = new Date(a.appointment_date || "");
+        const dateB = new Date(b.appointment_date || "");
+        return dateB - dateA;
+      });
   }, [appointments]);
 
   const filteredAppointments = useMemo(() => {
@@ -417,19 +419,7 @@ export default function PatientHistoryPage() {
             )}
           </div>
 
-          {/* Butuh Bantuan */}
-          <div className="rounded-2xl bg-[#FEF3C7] border border-[#FDE68A] p-5 shadow-sm">
-            <div className="flex items-start justify-between gap-3 mb-3">
-              <div className="w-10 h-10 rounded-xl bg-[#FDE68A] flex items-center justify-center text-[#B45309] text-lg shrink-0">?</div>
-              <div className="text-right">
-                <p className="text-[13px] font-extrabold text-slate-900">Butuh Bantuan?</p>
-                <p className="text-[11px] font-semibold text-slate-600">Hubungi kami jika ada pertanyaan atau kendala</p>
-              </div>
-            </div>
-            <button className="w-full rounded-xl bg-white px-4 py-2.5 text-[12px] font-extrabold text-[#B45309] hover:bg-amber-50 transition-colors border border-[#FDE68A]">
-              Hubungi Support
-            </button>
-          </div>
+
         </div>
       </div>
 
@@ -489,29 +479,13 @@ export default function PatientHistoryPage() {
                   </div>
                 )}
                 <div className="grid grid-cols-[110px_1fr] gap-4">
-                  <span className="font-bold text-slate-500">Diagnosis</span>
-                  <span>{selectedAppointment.notes || "Karies gigi ringan"}</span>
-                </div>
-                <div className="grid grid-cols-[110px_1fr] gap-4">
-                  <span className="font-bold text-slate-500">Saran</span>
-                  <span>Hindari makanan manis dan lakukan penambalan gigi.</span>
-                </div>
-                <div className="grid grid-cols-[110px_1fr] gap-4">
-                  <span className="font-bold text-slate-500">Resep</span>
-                  <span>Paracetamol, Mouthwash</span>
+                  <span className="font-bold text-slate-500">Catatan Medis</span>
+                  <span>{selectedAppointment.medical_notes || "-"}</span>
                 </div>
               </div>
 
               <div className="flex gap-3">
-                <button
-                  onClick={() => {
-                    closeDetail();
-                    openBookingModal(selectedAppointment);
-                  }}
-                  className="flex-1 rounded-[18px] bg-[#5E81CC] px-4 py-3 text-sm font-extrabold text-white hover:bg-[#4D6FB5] transition-colors"
-                >
-                  Buat Janji Lagi
-                </button>
+
                 <button
                   onClick={closeDetail}
                   className="flex-1 rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm font-extrabold text-slate-700 hover:bg-slate-50 transition-colors"
