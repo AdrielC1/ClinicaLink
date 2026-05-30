@@ -179,34 +179,38 @@ export default function PatientNotificationsPage() {
     [notifications]
   );
 
-  const handleNotificationClick = async (item) => {
-    if (item.is_read) return;
-    try {
-      const { error } = await supabase.from('notifications').update({ is_read: true }).eq('id', item.id);
-      if (!error) {
-        setNotifications((prev) => {
-          const next = prev.map((n) => (n.id === item.id ? { ...n, is_read: true } : n));
-          window.dispatchEvent(new CustomEvent('notifications_updated', { detail: { unreadCount: next.filter(n => !n.is_read).length } }));
-          return next;
-        });
-      }
-    } catch (err) {
-      console.error(err);
+const handleNotificationClick = async (item) => {
+  if (item.is_read) return;
+  try {
+    const { error } = await supabase.from('notifications').update({ is_read: true }).eq('id', item.id);
+    if (!error) {
+      // ✅ setNotifications murni — tidak ada side effect di dalam updater
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === item.id ? { ...n, is_read: true } : n))
+      );
+      // ✅ dispatchEvent di luar updater, dihitung dari state saat ini
+      const newUnread = notifications.filter((n) => !n.is_read && n.id !== item.id).length;
+      window.dispatchEvent(new CustomEvent('notifications_updated', { detail: { unreadCount: newUnread } }));
     }
-  };
+  } catch (err) {
+    console.error(err);
+  }
+};
 
-  const handleMarkAllAsRead = async () => {
-    if (unreadCount === 0) return;
-    try {
-      const { error } = await supabase.from('notifications').update({ is_read: true }).eq('user_id', userId).eq('is_read', false);
-      if (!error) {
-        setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
-        window.dispatchEvent(new CustomEvent('notifications_updated', { detail: { unreadCount: 0 } }));
-      }
-    } catch (err) {
-      console.error(err);
+const handleMarkAllAsRead = async () => {
+  if (unreadCount === 0) return;
+  try {
+    const { error } = await supabase.from('notifications').update({ is_read: true }).eq('user_id', userId).eq('is_read', false);
+    if (!error) {
+      // ✅ setNotifications murni
+      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+      // ✅ dispatchEvent di luar updater
+      window.dispatchEvent(new CustomEvent('notifications_updated', { detail: { unreadCount: 0 } }));
     }
-  };
+  } catch (err) {
+    console.error(err);
+  }
+};
 
   const summaryCards = [
     {
