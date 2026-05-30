@@ -19,9 +19,13 @@ export async function GET(request) {
                 date_of_birth,
                 user:users (
                     full_name,
-                    email
+                    email,
+                    created_at,
+                    deleted_at,
+                    role
                 )
-            `);
+            `)
+            
 
         // Fitur A: Ambil detail 1 pasien spesifik (?id=UUID) untuk halaman rekam medis/profil
         if (id) {
