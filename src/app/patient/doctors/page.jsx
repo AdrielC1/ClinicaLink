@@ -175,16 +175,17 @@ function PatientDoctorsContent() {
         return fromOk && untilOk;
       });
       
-      // Calculate min/max days for display
-      const days = activeSchedules.map(s => s.day_of_week).sort();
+      // Ambil semua day_of_week, hilangkan duplikasi, lalu urutkan
+      const days = activeSchedules.map(s => s.day_of_week);
+      const uniqueDays = [...new Set(days)].sort((a, b) => a - b);
+      
       let scheduleText = "Belum ada jadwal";
       let timeText = "";
       
-      if (days.length > 0) {
+      if (uniqueDays.length > 0) {
         const dayNames = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
-        const firstDay = dayNames[days[0]];
-        const lastDay = dayNames[days[days.length - 1]];
-        scheduleText = days.length > 1 ? `${firstDay} - ${lastDay}` : firstDay;
+        // Map angka hari ke teks singkatan nama hari, lalu gabungkan dengan koma
+        scheduleText = uniqueDays.map(d => dayNames[d]).join(", ");
         
         // Assume mostly uniform hours, pick the first one
         if (docSchedules[0]?.start_time && docSchedules[0]?.end_time) {
@@ -428,13 +429,13 @@ function PatientDoctorsContent() {
                   
                   {/* Jadwal */}
                   <div className="flex items-center justify-center gap-3 text-[13px] font-extrabold text-slate-700 mb-6 w-full border border-slate-100 rounded-xl py-2.5 bg-slate-50">
-                    <div className="flex items-center gap-1.5">
-                      <CalendarDays className="h-4 w-4 text-slate-500" />
-                      <span>{doc.scheduleText}</span>
+                    <div className="flex items-center gap-1.5 flex-1 justify-center px-2">
+                      <CalendarDays className="h-4 w-4 text-slate-500 flex-shrink-0" />
+                      <span className="line-clamp-2">{doc.scheduleText}</span>
                     </div>
-                    <div className="w-[2px] h-[14px] bg-slate-200"></div>
-                    <div className="flex items-center gap-1.5">
-                      <Clock className="h-4 w-4 text-slate-500" />
+                    <div className="w-[2px] h-[14px] bg-slate-200 flex-shrink-0"></div>
+                    <div className="flex items-center gap-1.5 flex-1 justify-center px-2">
+                      <Clock className="h-4 w-4 text-slate-500 flex-shrink-0" />
                       <span>{doc.timeText || "-"}</span>
                     </div>
                   </div>
@@ -499,8 +500,6 @@ function PatientDoctorsContent() {
             </div>
           )}
 
-          {/* Bottom Banner Dihapus */}
-
           {/* Pagination End */}
         </div>
 
@@ -564,7 +563,7 @@ function PatientDoctorsContent() {
                                 : selectedDate === d.fullDate
                                   ? "bg-[#5E81CC] border-[#5E81CC] text-white shadow-md"
                                   : "bg-white border-slate-200 text-slate-600 hover:border-indigo-300 hover:bg-indigo-50"
-                              }`}
+                            }`}
                           >
                             <span className={`text-[10px] font-bold uppercase tracking-wider mb-1 ${selectedDate === d.fullDate && !isDisabled ? "text-indigo-100" : "text-slate-400"}`}>{d.monthShort}</span>
                             <span className="text-lg font-extrabold">{d.dateNum}</span>
