@@ -707,15 +707,13 @@ function PatientDoctorsContent() {
 
               {/* STEP 3 */}
               {bookingStep === 3 && (
-                <div className="flex flex-col items-center justify-center py-6 text-center">
-                  <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-green-100 text-green-500 shadow-inner">
-                    <svg className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                    </svg>
+                <div className="flex flex-col items-center text-center p-4">
+                  <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-50 text-emerald-500 border-4 border-emerald-100">
+                    <CheckCircle2 size={40} />
                   </div>
-                  <h3 className="mb-2 text-2xl font-bold text-slate-900">Janji Temu Berhasil!</h3>
-                  <p className="mb-8 text-sm text-slate-500 max-w-[280px]">
-                    Janji temu Anda telah berhasil dijadwalkan. Silakan cek menu Janji Temu untuk detail lebih lanjut.
+                  <h2 className="mb-2 text-2xl font-extrabold text-slate-900 tracking-tight">Janji Temu Berhasil!</h2>
+                  <p className="mb-8 text-sm text-slate-500 font-medium leading-relaxed">
+                    Janji temu Anda dengan <span className="text-slate-800 font-bold">{selectedDoctor.full_name}</span> telah berhasil dijadwalkan.
                   </p>
                   <button
                     onClick={() => {
@@ -723,9 +721,9 @@ function PatientDoctorsContent() {
                       setBookingStep(1);
                       router.push('/patient/appointments');
                     }}
-                    className="w-full rounded-xl bg-slate-900 py-3.5 text-sm font-bold text-white shadow-md hover:bg-slate-800 active:scale-95 transition-all"
+                    className="w-full rounded-xl bg-[#5E81CC] py-3.5 text-sm font-bold text-white shadow-md hover:bg-[#4D6FB5] active:scale-95 transition-all"
                   >
-                    Tutup & Lihat Appointment
+                    Lihat Janji Temu
                   </button>
                 </div>
               )}
