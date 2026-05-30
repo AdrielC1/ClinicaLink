@@ -67,6 +67,7 @@ export async function GET(request) {
                 status,
                 medical_notes,
                 patient_complaints,
+                cancellation_reason,
                 patient_id,
                 patient:patients (
                     phone_number,
@@ -267,6 +268,7 @@ export async function PUT(request) {
         if (body.appointment_date !== undefined) updateData.appointment_date = body.appointment_date;
         if (body.start_time !== undefined) updateData.start_time = body.start_time;
         if (body.end_time !== undefined) updateData.end_time = body.end_time;
+        if (body.cancellation_reason !== undefined) updateData.cancellation_reason = body.cancellation_reason;
 
         if (Object.keys(updateData).length === 0) {
             return NextResponse.json({ message: "Tidak ada data perubahan yang dikirim." }, { status: 400 });

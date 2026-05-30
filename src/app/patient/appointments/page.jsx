@@ -31,11 +31,6 @@ function computeVirtualStatus(appt) {
 
   const endDateTime = new Date(`${apptDate}T${endTime}`);
 
-  // Rule 0: Cancelled by Admin (has cancellation_reason)
-  if (appt.status === "Dibatalkan" && appt.cancellation_reason) {
-    return "Dibatalkan Admin";
-  }
-
   // Rule 3: Awaiting notes
   if (appt.status === "Sedang Berlangsung" && now > endDateTime && !appt.notes) {
     return "Menunggu Catatan Dokter";
@@ -264,7 +259,7 @@ export default function PatientAppointmentsPage() {
       const res = await fetch(`/api/appointments?id=${apptId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "Dibatalkan" })
+        body: JSON.stringify({ status: "Dibatalkan", cancellation_reason: "Dibatalkan oleh Pasien" })
       });
 
       if (res.ok) {
@@ -594,10 +589,12 @@ export default function PatientAppointmentsPage() {
               <span className="text-slate-400 font-medium">Catatan Keluhan</span>
               <span className="col-span-2 font-semibold text-slate-800">{selectedAppt.notes || "-"}</span>
             </div>
-            {(selectedAppt.virtualStatus === 'Dibatalkan' || selectedAppt.virtualStatus === 'Dibatalkan Admin') && selectedAppt.cancellation_reason && (
-              <div className="grid grid-cols-3 gap-2">
+            {selectedAppt.virtualStatus === 'Dibatalkan' && (
+              <div className="grid grid-cols-3 gap-2 border-b border-slate-50 pb-2">
                 <span className="text-red-400 font-medium">Alasan Batal</span>
-                <span className="col-span-2 font-semibold text-red-600">{selectedAppt.cancellation_reason}</span>
+                <span className="col-span-2 font-semibold text-red-600">
+                  {selectedAppt.cancellation_reason || "-"}
+                </span>
               </div>
             )}
           </div>

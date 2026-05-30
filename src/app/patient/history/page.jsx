@@ -480,6 +480,14 @@ export default function PatientHistoryPage() {
                   <span className="font-bold text-slate-500">Keluhan</span>
                   <span>{selectedAppointment.complaints || "-"}</span>
                 </div>
+                {selectedAppointment.status === 'Dibatalkan' && (
+                  <div className="grid grid-cols-[110px_1fr] gap-4">
+                    <span className="font-bold text-red-400">Alasan Batal</span>
+                    <span className="font-semibold text-red-600">
+                      {selectedAppointment.cancellation_reason || "-"}
+                    </span>
+                  </div>
+                )}
                 <div className="grid grid-cols-[110px_1fr] gap-4">
                   <span className="font-bold text-slate-500">Diagnosis</span>
                   <span>{selectedAppointment.notes || "Karies gigi ringan"}</span>
