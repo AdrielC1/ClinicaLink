@@ -8,27 +8,30 @@ import {
   Eye,
   Pencil,
   Trash2,
-  UserRound,
   Bell,
   X,
   CheckCheck,
   RefreshCw,
 } from "lucide-react";
+// Pastikan path impor supabase ini sesuai dengan struktur folder kamu
+import { supabase } from "@/lib/supabase"; 
 
 const ROWS_PER_PAGE = 10;
 
 const STATUS_OPTIONS = [
   "Menunggu",
-  "Berlangsung",
+  "Check-in",
+  "Sedang Berlangsung",
   "Selesai",
   "Dibatalkan",
 ];
 
 const STATUS_STYLES = {
   Selesai: "bg-green-100 text-green-600 border border-green-200",
-  Berlangsung: "bg-blue-100 text-blue-600 border border-blue-200",
+  "Sedang Berlangsung": "bg-blue-100 text-blue-600 border border-blue-200",
   Menunggu: "bg-yellow-100 text-yellow-600 border border-yellow-200",
   Dibatalkan: "bg-red-100 text-red-600 border border-red-200",
+  "Check-in": "bg-purple-100 text-purple-600 border border-purple-200",
 };
 
 const INDONESIAN_MONTHS = [
@@ -248,13 +251,12 @@ function EditModal({ appointment, onClose, onSaved }) {
       </div>
     </div>
   );
-  // function DeleteModal({ appointment, onClose, onDeleted }) {
-  //   const [deleting, setDeleting] = useState(false);
-  //   const [err, setErr] = useState("");
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function AdminDashboardPage() {
+  const [adminId, setAdminId] = useState(null); // State baru untuk menyimpan UUID
+
   const [doctors, setDoctors] = useState([]);
   const [patients, setPatients] = useState([]);
   const [appointments, setAppointments] = useState([]);
@@ -273,16 +275,27 @@ export default function AdminDashboardPage() {
   // Notification panel
   const [showNotif, setShowNotif] = useState(false);
 
+  // ── Ambil ID User yang sedang aktif ──────────────────────────────────────────
+  useEffect(() => {
+    const fetchSession = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setAdminId(user.id);
+      }
+    };
+    fetchSession();
+  }, []);
+
   // ── Fetch helpers ────────────────────────────────────────────────────────────
   const loadNotifications = useCallback(async () => {
+    if (!adminId) return; // Proteksi: jangan memanggil API jika ID belum dapat
     try {
-      // Admin user_id: adjust as needed (e.g. from session/context)
-      const res = await fetch("/api/notifications?user_id=admin");
+      const res = await fetch(`/api/notifications?user_id=${adminId}`);
       if (!res.ok) return;
       const json = await res.json();
       setNotifications(Array.isArray(json.notifications) ? json.notifications : []);
     } catch (_) {}
-  }, []);
+  }, [adminId]); // Masukkan adminId sebagai dependency
 
   const loadDashboardData = useCallback(async () => {
     setLoading(true);
@@ -319,8 +332,13 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     loadDashboardData();
-    loadNotifications();
-  }, [loadDashboardData, loadNotifications]);
+  }, [loadDashboardData]);
+
+  useEffect(() => {
+    if (adminId) {
+      loadNotifications();
+    }
+  }, [adminId, loadNotifications]);
 
   // ── Pagination logic ─────────────────────────────────────────────────────────
   const totalPages = Math.max(1, Math.ceil(todayAppointments.length / ROWS_PER_PAGE));
@@ -342,12 +360,16 @@ export default function AdminDashboardPage() {
       const dateB = new Date(b.updated_at || b.created_at || b.appointment_date);
       return dateB - dateA;
     });
+    
     return sorted.slice(0, 5).map((item) => {
       const name = item.patient_name || "Pasien";
+      
       if (item.status === "Dibatalkan") return { text: `Appointment ${name} dibatalkan`, type: "cancel" };
       if (item.status === "Selesai") return { text: `Appointment ${name} telah selesai`, type: "success" };
       if (item.status === "Menunggu") return { text: `Appointment baru oleh ${name} dijadwalkan`, type: "new" };
-      return { text: `Appointment ${name} sedang berlangsung`, type: "edit" };
+      if (item.status === "Check-in") return { text: `Pasien ${name} telah check-in di klinik`, type: "edit" };
+      
+      return { text: `Appointment ${name} sedang berlangsung`, type: "edit" }; 
     });
   }, [appointments]);
 
@@ -371,10 +393,12 @@ export default function AdminDashboardPage() {
   };
 
   const handleMarkAll = async () => {
+    if (!adminId) return; // Proteksi agar tidak error jika ID kosong
+    
     await fetch("/api/notifications", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ user_id: "admin" }),
+      body: JSON.stringify({ user_id: adminId }), // Gunakan ID Dinamis
     });
     setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
   };

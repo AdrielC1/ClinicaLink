@@ -27,7 +27,7 @@ function formatTime(t) {
   return t.substring(0, 5).replace(":", ".");
 }
 
-// ── Status badge config tersinkronisasi dengan Enum Supabase
+// ── Status badge config
 const STATUS_CONFIG = {
   Menunggu:     { bg: "bg-[#fef9c3]", text: "text-[#ca8a04]" },
   "Sedang Berlangsung":  { bg: "bg-[#dbeafe]", text: "text-[#1d4ed8]" },
@@ -157,6 +157,7 @@ export default function DoctorDashboardPage() {
 
     initDoctor();
   }, []);
+
 
   // ── Ambil appointment berdasarkan tanggal yang dipilih
   const fetchDayAppointments = useCallback(async (date) => {
@@ -325,6 +326,7 @@ export default function DoctorDashboardPage() {
           )}
         </section>
       </main>
+
 
       {/* ── SIDEBAR KANAN ── */}
       <aside className="space-y-6">
