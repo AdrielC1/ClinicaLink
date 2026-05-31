@@ -40,7 +40,8 @@ export async function GET(request) {
                 email: data.user?.email || "",
                 phone_number: data.phone_number || "",
                 address: data.address || "",
-                date_of_birth: data.date_of_birth || null
+                date_of_birth: data.date_of_birth || null,
+                created_at: data.user?.created_at || null
             };
 
             return NextResponse.json({ message: "Berhasil mengambil detail pasien.", data: formattedPatient }, { status: 200 });
@@ -57,7 +58,8 @@ export async function GET(request) {
             email: patient.user?.email || "",
             phone_number: patient.phone_number || "",
             address: patient.address || "",
-            date_of_birth: patient.date_of_birth || null
+            date_of_birth: patient.date_of_birth || null,
+            created_at: patient.user?.created_at || null
         }));
 
         return NextResponse.json({ message: "Berhasil mengambil semua data pasien.", data: formattedPatients }, { status: 200 });
