@@ -27,12 +27,13 @@ function formatTime(t) {
   return t.substring(0, 5).replace(":", ".");
 }
 
-// ── Status badge config
+// ── Status badge config tersinkronisasi dengan Enum Supabase
 const STATUS_CONFIG = {
-  Menunggu:     { bg: "bg-[#fef9c3]", text: "text-[#ca8a04]" },
-  Berlangsung:  { bg: "bg-[#dbeafe]", text: "text-[#1d4ed8]" },
-  Selesai:      { bg: "bg-[#dcfce7]", text: "text-[#16a34a]" },
-  Dibatalkan:   { bg: "bg-[#fee2e2]", text: "text-[#dc2626]" },
+  "Menunggu":           { bg: "bg-[#fef9c3]", text: "text-[#ca8a04]" },
+  "Check-in":           { bg: "bg-[#f3e8ff]", text: "text-[#9333ea]" },
+  "Sedang Berlangsung": { bg: "bg-[#dbeafe]", text: "text-[#1d4ed8]" },
+  "Selesai":            { bg: "bg-[#dcfce7]", text: "text-[#16a34a]" },
+  "Dibatalkan":         { bg: "bg-[#fee2e2]", text: "text-[#dc2626]" },
 };
 
 function StatusBadge({ status }) {
@@ -57,11 +58,11 @@ function ActionButton({ appointment, onAction, loading }) {
     );
   }
 
-  if (status === "Menunggu") {
+  if (status === "Menunggu" || status === "Check-in") {
     return (
       <button
         disabled={isLoading}
-        onClick={() => onAction(id, "Berlangsung")}
+        onClick={() => onAction(id, "Sedang Berlangsung")}
         className="h-[28px] min-w-[70px] rounded-full px-4 text-[11px] font-extrabold border border-[#5E81CC] text-[#5E81CC] hover:bg-[#5E81CC] hover:text-white transition-colors disabled:opacity-50 inline-flex items-center justify-center gap-1"
       >
         {isLoading ? <Loader2 size={11} className="animate-spin" /> : null}
@@ -70,7 +71,7 @@ function ActionButton({ appointment, onAction, loading }) {
     );
   }
 
-  if (status === "Berlangsung") {
+  if (status === "Sedang Berlangsung") {
     return (
       <button
         disabled={isLoading}
@@ -149,7 +150,6 @@ export default function DoctorDashboardPage() {
 
     initDoctor();
   }, []);
-
 
   // ── Ambil appointment berdasarkan tanggal yang dipilih
   const fetchDayAppointments = useCallback(async (date) => {
@@ -308,7 +308,6 @@ export default function DoctorDashboardPage() {
         </section>
       </main>
 
-
       {/* ── SIDEBAR KANAN ── */}
       <aside className="space-y-6">
         {/* ── KALENDER CLEAN & SCHEDULE STRIP ── */}
@@ -344,7 +343,7 @@ export default function DoctorDashboardPage() {
                     {/* Warna aksen status */}
                     <div className={`w-[3px] self-stretch rounded-full shrink-0 ${
                       appt.status === 'Selesai' ? 'bg-green-400' :
-                      appt.status === 'Berlangsung' ? 'bg-blue-400' : 'bg-[#5E81CC]'
+                      appt.status === 'Sedang Berlangsung' ? 'bg-blue-400' : 'bg-[#5E81CC]'
                     }`} />
                     <div className="flex-1 min-w-0">
                       <p className="text-[11px] font-extrabold text-gray-800 truncate">{appt.patient_name}</p>
