@@ -2,9 +2,7 @@
 import { supabase, waitForSupabaseUser } from "@/lib/supabase";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import Image from "next/image";
-import logoSvg from "../icons/ClinicaLink.svg";
+
 
 function CrossOrnament({ className, color = "#8AAAE5" }) {
     return (
