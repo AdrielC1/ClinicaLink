@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import CalendarWidget from "@/components/CalendarWidget";
 
@@ -29,11 +29,10 @@ function formatTime(t) {
 
 // ── Status badge config tersinkronisasi dengan Enum Supabase
 const STATUS_CONFIG = {
-  "Menunggu":           { bg: "bg-[#fef9c3]", text: "text-[#ca8a04]" },
-  "Check-in":           { bg: "bg-[#f3e8ff]", text: "text-[#9333ea]" },
-  "Sedang Berlangsung": { bg: "bg-[#dbeafe]", text: "text-[#1d4ed8]" },
-  "Selesai":            { bg: "bg-[#dcfce7]", text: "text-[#16a34a]" },
-  "Dibatalkan":         { bg: "bg-[#fee2e2]", text: "text-[#dc2626]" },
+  Menunggu:     { bg: "bg-[#fef9c3]", text: "text-[#ca8a04]" },
+  "Sedang Berlangsung":  { bg: "bg-[#dbeafe]", text: "text-[#1d4ed8]" },
+  Selesai:      { bg: "bg-[#dcfce7]", text: "text-[#16a34a]" },
+  Dibatalkan:   { bg: "bg-[#fee2e2]", text: "text-[#dc2626]" },
 };
 
 function StatusBadge({ status }) {
@@ -46,8 +45,8 @@ function StatusBadge({ status }) {
 }
 
 // ── Tombol aksi berdasarkan status appointment
-function ActionButton({ appointment, onAction, loading }) {
-  const { id, status } = appointment;
+function ActionButton({ appointment, onAction, onFinish, loading }) {
+  const { id, status, appointment_date, start_time } = appointment;
   const isLoading = loading === id;
 
   if (status === "Selesai" || status === "Dibatalkan") {
@@ -58,12 +57,18 @@ function ActionButton({ appointment, onAction, loading }) {
     );
   }
 
-  if (status === "Menunggu" || status === "Check-in") {
+  if (status === "Menunggu") {
+    const now = new Date();
+    const apptDateStr = (appointment_date || "").split("T")[0];
+    const apptDateTime = new Date(`${apptDateStr}T${start_time}`);
+    const isLocked = now < apptDateTime;
+
     return (
       <button
-        disabled={isLoading}
+        disabled={isLoading || isLocked}
+        title={isLocked ? "Belum memasuki waktu janji temu" : "Mulai Sesi"}
         onClick={() => onAction(id, "Sedang Berlangsung")}
-        className="h-[28px] min-w-[70px] rounded-full px-4 text-[11px] font-extrabold border border-[#5E81CC] text-[#5E81CC] hover:bg-[#5E81CC] hover:text-white transition-colors disabled:opacity-50 inline-flex items-center justify-center gap-1"
+        className="h-[28px] min-w-[70px] rounded-full px-4 text-[11px] font-extrabold border border-[#5E81CC] text-[#5E81CC] hover:bg-[#5E81CC] hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed inline-flex items-center justify-center gap-1"
       >
         {isLoading ? <Loader2 size={11} className="animate-spin" /> : null}
         Mulai
@@ -75,7 +80,7 @@ function ActionButton({ appointment, onAction, loading }) {
     return (
       <button
         disabled={isLoading}
-        onClick={() => onAction(id, "Selesai")}
+        onClick={() => onFinish(id)}
         className="h-[28px] min-w-[70px] rounded-full px-4 text-[11px] font-extrabold bg-[#16a34a] text-white hover:bg-[#15803d] transition-colors disabled:opacity-50 inline-flex items-center justify-center gap-1"
       >
         {isLoading ? <Loader2 size={11} className="animate-spin" /> : null}
@@ -110,6 +115,8 @@ export default function DoctorDashboardPage() {
   const [dayAppointments, setDayAppointments] = useState([]); // hanya tanggal terpilih (untuk tabel)
   const [loadingTable, setLoadingTable] = useState(false);
   const [actionLoading, setActionLoading] = useState(null); // id appointment yang sedang diproses
+  const [finishTarget, setFinishTarget] = useState(null); // id appointment untuk modal selesai
+  const [medicalNotes, setMedicalNotes] = useState("");
 
   // ── Ambil identitas dokter yang login
   useEffect(() => {
@@ -161,10 +168,11 @@ export default function DoctorDashboardPage() {
       if (res.ok) {
         const json = await res.json();
         const all  = Array.isArray(json.data) ? json.data : [];
+        const activeAppointments = all.filter(a => a.status !== 'Dibatalkan');
         // Simpan semua untuk titik kalender
-        setAllAppointments(all);
+        setAllAppointments(activeAppointments);
         // Filter hanya untuk tanggal terpilih
-        const filtered = all.filter(a => {
+        const filtered = activeAppointments.filter(a => {
           const aDate = (a.appointment_date || "").split("T")[0];
           return aDate === date;
         });
@@ -192,21 +200,26 @@ export default function DoctorDashboardPage() {
   );
 
   // ── Ganti status appointment (Mulai / Selesai)
-  const handleAction = async (appointmentId, newStatus) => {
+  const handleAction = async (appointmentId, newStatus, notes = "") => {
     setActionLoading(appointmentId);
     try {
+      const payload = { status: newStatus };
+      if (notes) payload.medical_notes = notes;
+
       const res = await fetch(`/api/appointments?id=${appointmentId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify(payload),
       });
 
       if (res.ok) {
         // Update state lokal tanpa refetch (lebih responsif)
         const update = (list) =>
-          list.map(a => a.id === appointmentId ? { ...a, status: newStatus } : a);
+          list.map(a => a.id === appointmentId ? { ...a, status: newStatus, medical_notes: notes || a.medical_notes } : a);
         setDayAppointments(update);
         setAllAppointments(update);
+        setFinishTarget(null);
+        setMedicalNotes("");
       } else {
         const err = await res.json();
         alert(err.message || "Gagal memperbarui status.");
@@ -237,9 +250,10 @@ export default function DoctorDashboardPage() {
   const sidebarAppointments = dayAppointments.slice(0, 3);
 
   return (
-    <div className="grid gap-7 xl:grid-cols-[minmax(0,1fr)_300px]">
+    <>
+      <div className="grid gap-7 xl:grid-cols-[minmax(0,1fr)_300px]">
 
-      {/* ── MAIN CONTENT ── */}
+        {/* ── MAIN CONTENT ── */}
       <main className="min-w-0">
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900 mb-1">
@@ -296,6 +310,10 @@ export default function DoctorDashboardPage() {
                         <ActionButton
                           appointment={appt}
                           onAction={handleAction}
+                          onFinish={(id) => {
+                            setFinishTarget(id);
+                            setMedicalNotes("");
+                          }}
                           loading={actionLoading}
                         />
                       </td>
@@ -368,5 +386,55 @@ export default function DoctorDashboardPage() {
         </div>
       </aside>
     </div>
+
+      {/* ── MODAL SELESAI (CATATAN MEDIS) ── */}
+      {finishTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <h2 className="text-lg font-bold text-slate-900">Selesaikan Sesi</h2>
+              <button
+                onClick={() => setFinishTarget(null)}
+                className="text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6">
+              <p className="text-sm text-gray-600 mb-4">
+                Sesi konsultasi telah selesai. Silakan tambahkan catatan medis (diagnosis, resep, atau saran) untuk pasien ini sebelum mengakhiri sesi.
+              </p>
+              <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                Catatan Medis <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                rows={5}
+                value={medicalNotes}
+                onChange={(e) => setMedicalNotes(e.target.value)}
+                placeholder="Tulis diagnosis atau resep di sini..."
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#5E81CC]/30 transition-colors resize-none"
+              ></textarea>
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => setFinishTarget(null)}
+                  className="px-5 py-2 border border-slate-300 text-gray-700 rounded-lg text-sm font-semibold hover:bg-slate-50 transition-colors"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  disabled={actionLoading === finishTarget || !medicalNotes.trim()}
+                  onClick={() => handleAction(finishTarget, "Selesai", medicalNotes)}
+                  className="px-5 py-2 bg-[#16a34a] text-white rounded-lg text-sm font-semibold hover:bg-[#15803d] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {actionLoading === finishTarget ? "Menyimpan..." : "Simpan & Selesai"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
