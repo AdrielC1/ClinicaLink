@@ -12,11 +12,15 @@ const toDateString = (date) => {
 };
 
 // --- Utility untuk membuat rentang tanggal ---
-const generateMonthRanges = (monthsCount = 6) => {
+// PERUBAHAN: Parameter diubah dari (monthsCount = 6) menjadi (monthsBefore = 5, monthsAhead = 2)
+// agar filter mencakup 5 bulan ke belakang, bulan ini, dan 2 bulan ke depan.
+const generateMonthRanges = (monthsBefore = 5, monthsAhead = 2) => {
   const ranges = [];
   const now = new Date();
-  for (let i = 0; i < monthsCount; i++) {
-    // Kita tetapkan tanggal 1 dan tanggal terakhir di bulan tersebut
+
+  // Iterasi dari bulan paling depan (+monthsAhead) mundur ke bulan paling lampau (-monthsBefore)
+  // sehingga urutan di dropdown: terbaru di atas, terlama di bawah.
+  for (let i = -monthsAhead; i <= monthsBefore; i++) {
     const start = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
 
@@ -26,7 +30,6 @@ const generateMonthRanges = (monthsCount = 6) => {
 
     ranges.push({
       label: `${startStr} - ${endStr}`,
-      // PERBAIKAN: Kita simpan versi string absolut (contoh: "2026-05-01")
       startStrAbsolute: toDateString(start),
       endStrAbsolute: toDateString(end),
     });
@@ -83,8 +86,10 @@ export default function AdminReportsPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   // State Tanggal
-  const dateRanges = useMemo(() => generateMonthRanges(), []);
-  const [selectedRange, setSelectedRange] = useState(dateRanges[0]);
+  // PERUBAHAN: generateMonthRanges() kini menghasilkan 5 bulan lalu + bulan ini + 2 bulan depan.
+  // Index [2] dipilih sebagai default agar dropdown terbuka di "bulan ini".
+  const dateRanges = useMemo(() => generateMonthRanges(5, 2), []);
+  const [selectedRange, setSelectedRange] = useState(dateRanges[2]); // index 2 = bulan ini
   const [dateDropdownOpen, setDateDropdownOpen] = useState(false);
 
   // State Laporan & Modal
@@ -101,7 +106,7 @@ export default function AdminReportsPage() {
       try {
         const [resAppointments, resPatients] = await Promise.all([
           fetch("/api/appointments", { cache: "no-store" }),
-          fetch("/api/patient", { cache: "no-store" }), 
+          fetch("/api/patient", { cache: "no-store" }),
         ]);
 
         const appointmentJson = resAppointments.ok ? await resAppointments.json() : {};
@@ -126,19 +131,18 @@ export default function AdminReportsPage() {
 
   // 2. Filter Data berdasarkan Periode Tanggal yang Dipilih
   const filteredData = useMemo(() => {
-    // PERBAIKAN: Fungsi filter anti-timezone bug
     const isWithinRange = (rawDateString) => {
       if (!rawDateString) return false;
-      
-      // Mengambil hanya teks "YYYY-MM-DD" dari data Supabase (menghiraukan T00:00:00)
-      const targetDateStr = rawDateString.includes("T") 
-        ? rawDateString.split("T")[0] 
+
+      const targetDateStr = rawDateString.includes("T")
+        ? rawDateString.split("T")[0]
         : rawDateString.substring(0, 10);
-      
-      // Membandingkan teks secara langsung (contoh: "2026-05-15" >= "2026-05-01")
+
       return targetDateStr >= selectedRange.startStrAbsolute && targetDateStr <= selectedRange.endStrAbsolute;
     };
 
+    // PERUBAHAN: appointment difilter berdasarkan appointment_date (kapan dilaksanakan),
+    // sehingga appointment bulan depan pun akan muncul jika filter bulan depan dipilih.
     const periodAppointments = appointments.filter((app) => isWithinRange(app.appointment_date));
     const periodPatient = patient.filter((pt) => isWithinRange(pt.created_at));
 
@@ -164,10 +168,10 @@ export default function AdminReportsPage() {
   ];
 
   const reportCards = [
-    reportSummary[0], // Total Appointment
-    reportSummary[1], // Konsultasi Selesai
-    reportSummary[2], // Dibatalkan
-    reportSummary[3], // Pasien Baru
+    reportSummary[0],
+    reportSummary[1],
+    reportSummary[2],
+    reportSummary[3],
   ];
 
   const paginatedReports = reportSummary.slice(
@@ -209,7 +213,7 @@ export default function AdminReportsPage() {
         const patientName = item.patient_name || item.full_name || "-";
         const doctorName = item.doctor_name || "-";
         const aptTime = item.start_time ? item.start_time.substring(0, 5) : "-";
-        const dateStr = item.appointment_date || (item.created_at ? item.created_at.split('T')[0] : "-");
+        const dateStr = item.appointment_date || (item.created_at ? item.created_at.split("T")[0] : "-");
 
         rows.push([
           type,
@@ -265,14 +269,14 @@ export default function AdminReportsPage() {
             </button>
 
             {dateDropdownOpen && (
-              <div className="absolute right-0 top-12 z-20 w-full sm:w-64 bg-white border border-gray-100 rounded-xl shadow-lg p-1">
+              <div className="absolute right-0 top-12 z-20 w-full sm:w-64 bg-white border border-gray-100 rounded-xl shadow-lg p-1 max-h-72 overflow-y-auto">
                 {dateRanges.map((range, idx) => (
                   <button
                     key={idx}
                     onClick={() => {
                       setSelectedRange(range);
                       setDateDropdownOpen(false);
-                      setCurrentPage(1); 
+                      setCurrentPage(1);
                     }}
                     className={`block w-full px-4 py-2.5 text-left text-sm font-semibold transition-colors rounded-lg ${
                       selectedRange.label === range.label
@@ -280,7 +284,10 @@ export default function AdminReportsPage() {
                         : "text-gray-700 hover:bg-gray-50"
                     }`}
                   >
-                    {range.label}
+                    {/* PERUBAHAN: Tambahkan label "(Mendatang)" untuk bulan di masa depan */}
+                    {range.startStrAbsolute > toDateString(new Date()).substring(0, 7) + "-01"
+                      ? `${range.label} (Mendatang)`
+                      : range.label}
                   </button>
                 ))}
               </div>
@@ -354,18 +361,20 @@ export default function AdminReportsPage() {
                   ))}
                   {paginatedReports.length === 0 && (
                     <tr>
-                      <td colSpan="4" className="text-center py-6 text-gray-500">Tidak ada data untuk periode ini.</td>
+                      <td colSpan="4" className="text-center py-6 text-gray-500">
+                        Tidak ada data untuk periode ini.
+                      </td>
                     </tr>
                   )}
                 </tbody>
               </table>
             </div>
-            
-            <Pagination 
-              totalItems={reportSummary.length} 
-              itemsPerPage={itemsPerPage} 
-              currentPage={currentPage} 
-              onPageChange={setCurrentPage} 
+
+            <Pagination
+              totalItems={reportSummary.length}
+              itemsPerPage={itemsPerPage}
+              currentPage={currentPage}
+              onPageChange={setCurrentPage}
             />
           </div>
         </>
@@ -408,18 +417,18 @@ function ReportDetailModal({ config, onClose }) {
             ) : (
               <AppointmentDetailTable rows={paginatedRows} pageOffset={(modalPage - 1) * itemsPerPage} />
             )}
-            
+
             {config.rows.length === 0 && (
-               <div className="text-center py-8 text-gray-500">Data tidak ditemukan.</div>
+              <div className="text-center py-8 text-gray-500">Data tidak ditemukan.</div>
             )}
           </div>
-          
+
           <div className="mt-4 bg-transparent">
-            <Pagination 
-              totalItems={config.rows.length} 
-              itemsPerPage={itemsPerPage} 
-              currentPage={modalPage} 
-              onPageChange={setModalPage} 
+            <Pagination
+              totalItems={config.rows.length}
+              itemsPerPage={itemsPerPage}
+              currentPage={modalPage}
+              onPageChange={setModalPage}
             />
           </div>
         </div>
@@ -440,7 +449,7 @@ function ReportDetailModal({ config, onClose }) {
 // --- Komponen Tabel Detail Appointment ---
 function AppointmentDetailTable({ rows, pageOffset }) {
   const getStatusClass = (status) => {
-    switch(status) {
+    switch (status) {
       case "Selesai": return "bg-green-100 text-green-600 border-green-200";
       case "Berlangsung": return "bg-blue-100 text-blue-600 border-blue-200";
       case "Menunggu": return "bg-yellow-100 text-yellow-600 border-yellow-200";
@@ -472,11 +481,19 @@ function AppointmentDetailTable({ rows, pageOffset }) {
               <td className="px-6 py-4 font-bold text-gray-900">{patientName}</td>
               <td className="px-6 py-4 font-semibold text-gray-700">{doctorName}</td>
               <td className="px-6 py-4 text-center text-gray-600">
-                {row.appointment_date ? new Date(row.appointment_date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : "-"}
+                {row.appointment_date
+                  ? new Date(row.appointment_date).toLocaleDateString("id-ID", {
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                    })
+                  : "-"}
               </td>
               <td className="px-6 py-4 text-center text-gray-900 font-semibold">{aptTime} WIB</td>
               <td className="px-6 py-4 text-center">
-                <span className={`inline-flex items-center justify-center px-4 py-1 rounded-full text-xs font-bold border ${getStatusClass(row.status)}`}>
+                <span
+                  className={`inline-flex items-center justify-center px-4 py-1 rounded-full text-xs font-bold border ${getStatusClass(row.status)}`}
+                >
                   {row.status}
                 </span>
               </td>
@@ -511,7 +528,13 @@ function PatientDetailTable({ rows, pageOffset }) {
               <td className="px-6 py-4 text-center font-medium text-gray-500">{pageOffset + index + 1}</td>
               <td className="px-6 py-4 font-bold text-gray-900">{patientName}</td>
               <td className="px-6 py-4 text-center text-gray-600">
-                {regDate ? new Date(regDate).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : "-"}
+                {regDate
+                  ? new Date(regDate).toLocaleDateString("id-ID", {
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                    })
+                  : "-"}
               </td>
               <td className="px-6 py-4 text-center text-gray-600">{row.phone_number || "-"}</td>
               <td className="px-6 py-4 text-center">
