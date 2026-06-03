@@ -141,7 +141,7 @@ function PatientDoctorsContent() {
   const next7Days = useMemo(() => {
     return Array.from({ length: 7 }).map((_, i) => {
       const d = new Date();
-      d.setDate(d.getDate() + i + 1);
+      d.setDate(d.getDate() + i);
       const localDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       return {
         dateNum: d.getDate(),
@@ -604,15 +604,31 @@ function PatientDoctorsContent() {
                                       return dateMatch && timeMatch && statusMatch;
                                     }
                                   );
+
+                                  let isPastSlot = false;
+                                  const now = new Date();
+                                  const todayStr = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+                                  if (selectedDate === todayStr) {
+                                      const [slotH, slotM] = slot.start_time.split(':').map(Number);
+                                      const currentH = now.getHours();
+                                      const currentM = now.getMinutes();
+                                      if (currentH > slotH || (currentH === slotH && currentM >= slotM)) {
+                                          isPastSlot = true;
+                                      }
+                                  }
+                                  
+                                  const isDisabled = isBooked || isPastSlot;
                                   
                                   return (
                                     <button
                                       key={slot.start_time}
-                                      onClick={() => !isBooked && setSelectedSchedule({ ...sched, start_time: slot.start_time, end_time: slot.end_time })}
-                                      disabled={isBooked}
+                                      onClick={() => !isDisabled && setSelectedSchedule({ ...sched, start_time: slot.start_time, end_time: slot.end_time })}
+                                      disabled={isDisabled}
                                       className={`flex flex-col items-center justify-center rounded-xl border py-2 text-sm font-bold transition-all ${
                                         isBooked 
                                           ? "bg-amber-50 border-amber-300 text-amber-700 cursor-not-allowed"
+                                          : isPastSlot
+                                            ? "bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed"
                                           : selectedSchedule?.start_time === slot.start_time && selectedSchedule?.id === sched.id
                                             ? "bg-[#5E81CC] border-[#5E81CC] text-white shadow-md"
                                             : "bg-white border-slate-200 text-slate-700 hover:border-indigo-300 hover:bg-indigo-50"
@@ -621,6 +637,8 @@ function PatientDoctorsContent() {
                                       <span>{slot.label}</span>
                                       {isBooked ? (
                                         <span className="block text-[10px] text-amber-600 mt-0.5 font-semibold">Sudah ada janji</span>
+                                      ) : isPastSlot ? (
+                                        <span className="block text-[10px] text-slate-400 mt-0.5 font-semibold">Waktu terlewat</span>
                                       ) : (
                                         <span className="block text-[10px] text-transparent mt-0.5 font-semibold select-none">Tersedia</span>
                                       )}

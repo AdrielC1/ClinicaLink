@@ -146,9 +146,9 @@ export default function PatientAppointmentsPage() {
       
       switch (sortOption) {
         case "date-newest":
-          return dateB - dateA;
-        case "date-oldest":
           return dateA - dateB;
+        case "date-oldest":
+          return dateB - dateA;
         case "name-asc":
           return a.doctor_name.localeCompare(b.doctor_name);
         case "name-desc":
@@ -199,7 +199,7 @@ export default function PatientAppointmentsPage() {
   const next7Days = useMemo(() => {
     return Array.from({ length: 7 }).map((_, i) => {
       const d = new Date();
-      d.setDate(d.getDate() + i + 1);
+      d.setDate(d.getDate() + i);
       const localDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       return {
         dateObj: d,
@@ -403,7 +403,7 @@ export default function PatientAppointmentsPage() {
                 
                 {isSortDropdownOpen && (
                   <div className="absolute right-0 mt-2 w-48 rounded-xl border border-slate-100 bg-white shadow-lg py-1 z-20">
-                    <button onClick={() => { setSortOption('date-newest'); setIsSortDropdownOpen(false); setCurrentPage(1); }} className={`block w-full text-left px-4 py-2 text-sm hover:bg-slate-50 ${sortOption === 'date-newest' ? 'font-bold text-indigo-600' : 'text-slate-700'}`}>Terbaru (Mendatang)</button>
+                    <button onClick={() => { setSortOption('date-newest'); setIsSortDropdownOpen(false); setCurrentPage(1); }} className={`block w-full text-left px-4 py-2 text-sm hover:bg-slate-50 ${sortOption === 'date-newest' ? 'font-bold text-indigo-600' : 'text-slate-700'}`}>Terdekat</button>
                     <button onClick={() => { setSortOption('date-oldest'); setIsSortDropdownOpen(false); setCurrentPage(1); }} className={`block w-full text-left px-4 py-2 text-sm hover:bg-slate-50 ${sortOption === 'date-oldest' ? 'font-bold text-indigo-600' : 'text-slate-700'}`}>Terlama</button>
                     <button onClick={() => { setSortOption('name-asc'); setIsSortDropdownOpen(false); setCurrentPage(1); }} className={`block w-full text-left px-4 py-2 text-sm hover:bg-slate-50 ${sortOption === 'name-asc' ? 'font-bold text-indigo-600' : 'text-slate-700'}`}>Dokter (A-Z)</button>
                     <button onClick={() => { setSortOption('name-desc'); setIsSortDropdownOpen(false); setCurrentPage(1); }} className={`block w-full text-left px-4 py-2 text-sm hover:bg-slate-50 ${sortOption === 'name-desc' ? 'font-bold text-indigo-600' : 'text-slate-700'}`}>Dokter (Z-A)</button>
@@ -692,19 +692,35 @@ export default function PatientAppointmentsPage() {
                           }
                         );
                         
+                        let isPastSlot = false;
+                        const now = new Date();
+                        const todayStr = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+                        if (newDate === todayStr) {
+                            const [slotH, slotM] = slot.start_time.split(':').map(Number);
+                            const currentH = now.getHours();
+                            const currentM = now.getMinutes();
+                            if (currentH > slotH || (currentH === slotH && currentM >= slotM)) {
+                                isPastSlot = true;
+                            }
+                        }
+                        
                         // Is this slot booked by someone else?
                         const isBookedByOther = bookedAppt && bookedAppt.id !== selectedAppt.id;
                         // Is this slot the user's own current appointment?
                         const isOwnSlot = bookedAppt && bookedAppt.id === selectedAppt.id;
                         
+                        const isDisabled = isBookedByOther || isPastSlot;
+                        
                         return (
                           <button
                             key={slot.start_time}
-                            onClick={() => !isBookedByOther && setNewTime(slot.start_time)}
-                            disabled={isBookedByOther}
+                            onClick={() => !isDisabled && setNewTime(slot.start_time)}
+                            disabled={isDisabled}
                             className={`flex flex-col items-center justify-center rounded-xl border py-2 text-sm font-bold transition-all ${
-                              isBookedByOther 
+                              isBookedByOther
                                 ? "bg-amber-50 border-amber-300 text-amber-700 cursor-not-allowed"
+                              : isPastSlot
+                                ? "bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed"
                                 : newTime === slot.start_time
                                   ? "bg-[#5E81CC] border-[#5E81CC] text-white shadow-md"
                                   : isOwnSlot
@@ -715,6 +731,8 @@ export default function PatientAppointmentsPage() {
                             <span>{slot.label}</span>
                             {isBookedByOther ? (
                               <span className="block text-[10px] text-amber-600 mt-0.5 font-semibold">Sudah ada janji</span>
+                            ) : isPastSlot ? (
+                              <span className="block text-[10px] text-slate-400 mt-0.5 font-semibold">Waktu terlewat</span>
                             ) : isOwnSlot && newTime !== slot.start_time ? (
                               <span className="block text-[10px] text-[#5E81CC] mt-0.5 font-semibold">Jadwal Anda saat ini</span>
                             ) : (
