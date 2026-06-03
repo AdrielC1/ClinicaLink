@@ -37,7 +37,9 @@ function findLocalPatientAccount(email, password) {
 export default function LoginPage() {
     const router = useRouter();
     const [email, setEmail] = useState("");
+    const [emailError, setEmailError] = useState("");
     const [password, setPassword] = useState("");
+    const [passwordError, setPasswordError] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [remember, setRemember] = useState(true);
     const [loading, setLoading] = useState(false);
@@ -85,6 +87,25 @@ export default function LoginPage() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        
+        let hasError = false;
+        if (!email.trim()) {
+            setEmailError("Mohon isi email.");
+            hasError = true;
+        } else {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                setEmailError("Format email tidak valid.");
+                hasError = true;
+            }
+        }
+
+        if (!password) {
+            setPasswordError("Mohon isi password.");
+            hasError = true;
+        }
+        if (hasError) return;
+
         setLoading(true);
         setError("");
 
@@ -210,13 +231,13 @@ export default function LoginPage() {
                     </div>
                 )}
 
-                <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+                <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-6">
                     {/* Email */}
                     <div>
                         <label className="block text-sm font-semibold text-gray-900 mb-2">Email</label>
                         <div className="relative">
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#A0AEC0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={emailError ? "#F87171" : "#A0AEC0"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                     <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
                                     <polyline points="22,6 12,13 2,6" />
                                 </svg>
@@ -225,11 +246,18 @@ export default function LoginPage() {
                                 type="email"
                                 placeholder="Masukkan email"
                                 value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                required
-                                className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-300 text-gray-900 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-transparent outline-none transition-all placeholder-gray-400 text-sm"
+                                onChange={(e) => {
+                                    setEmail(e.target.value);
+                                    if (emailError) setEmailError("");
+                                }}
+                                className={`w-full pl-10 pr-4 py-2.5 rounded-lg text-sm transition-all outline-none focus:border-transparent focus:ring-2 ${
+                                    emailError 
+                                    ? 'bg-red-50 border border-red-400 text-red-900 placeholder-red-300 focus:ring-red-500' 
+                                    : 'bg-white border border-gray-300 text-gray-900 placeholder-gray-400 focus:ring-blue-400'
+                                }`}
                             />
                         </div>
+                        {emailError && <p className="text-xs text-red-500 font-medium mt-1.5">{emailError}</p>}
                     </div>
 
                     {/* Password */}
@@ -237,7 +265,7 @@ export default function LoginPage() {
                         <label className="block text-sm font-semibold text-gray-900 mb-2">Password</label>
                         <div className="relative">
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#A0AEC0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={passwordError ? "#F87171" : "#A0AEC0"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                     <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                                     <path d="M7 11V7a5 5 0 0110 0v4" />
                                 </svg>
@@ -246,9 +274,15 @@ export default function LoginPage() {
                                 type={showPassword ? "text" : "password"}
                                 placeholder="Masukkan password"
                                 value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                required
-                                className="w-full pl-10 pr-10 py-2.5 bg-white border border-gray-300 text-gray-900 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-transparent outline-none transition-all placeholder-gray-400 text-sm"
+                                onChange={(e) => {
+                                    setPassword(e.target.value);
+                                    if (passwordError) setPasswordError("");
+                                }}
+                                className={`w-full pl-10 pr-10 py-2.5 rounded-lg text-sm transition-all outline-none focus:border-transparent focus:ring-2 ${
+                                    passwordError 
+                                    ? 'bg-red-50 border border-red-400 text-red-900 placeholder-red-300 focus:ring-red-500' 
+                                    : 'bg-white border border-gray-300 text-gray-900 placeholder-gray-400 focus:ring-blue-400'
+                                }`}
                             />
                             <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 pr-3 flex items-center">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#A0AEC0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="hover:stroke-gray-600 transition-colors">
@@ -267,6 +301,7 @@ export default function LoginPage() {
                                 </svg>
                             </button>
                         </div>
+                        {passwordError && <p className="text-xs text-red-500 font-medium mt-1.5">{passwordError}</p>}
                     </div>
 
                     {/* Remember & Forgot */}
@@ -280,9 +315,9 @@ export default function LoginPage() {
                             />
                             <span className="text-sm text-gray-600">Ingat saya</span>
                         </label>
-                        <a href="#" className="text-sm hover:underline" style={{ color: "#5E81CC" }}>
+                        <button type="button" onClick={() => handleNavigate("/forgot-password")} className="text-sm hover:underline" style={{ color: "#5E81CC" }}>
                             Lupa password?
-                        </a>
+                        </button>
                     </div>
 
                     {/* Submit */}
