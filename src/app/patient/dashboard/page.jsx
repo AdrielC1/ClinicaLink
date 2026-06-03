@@ -56,7 +56,7 @@ export default function PatientDashboardPage() {
   const [doctors, setDoctors] = useState([]);
   const [doctorSchedules, setDoctorSchedules] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [hasUnread, setHasUnread] = useState(true);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
   const [bookingStep, setBookingStep] = useState(0);
   const [selectedDoctor, setSelectedDoctor] = useState(null);
@@ -97,6 +97,21 @@ export default function PatientDashboardPage() {
   });
 
   // ================= DATA FETCHING =================
+  const fetchUnreadNotificationCount = async (userId) => {
+    try {
+      const notifRes = await fetch(`/api/notifications?user_id=${userId}&unread=true&count=true`, { cache: 'no-store' });
+      if (!notifRes.ok) {
+        setUnreadNotificationCount(0);
+        return;
+      }
+
+      const notifData = await notifRes.json();
+      setUnreadNotificationCount(Number.isFinite(notifData.count) ? notifData.count : 0);
+    } catch (error) {
+      console.error("Gagal memuat jumlah notifikasi:", error);
+      setUnreadNotificationCount(0);
+    }
+  };
   const fetchDashboardData = async (userId) => {
     try {
       const apptRes = await fetch(`/api/appointments?patient_id=${userId}`, { cache: 'no-store' });
@@ -143,15 +158,7 @@ export default function PatientDashboardPage() {
       setCurrentUser({ id: user.id, name: fullName });
 
       await fetchDashboardData(user.id);
-      
-      const read = localStorage.getItem("notifications_read");
-      setHasUnread(read !== "true");
-      
-      const handleStorage = () => {
-        const r = localStorage.getItem("notifications_read");
-        setHasUnread(r !== "true");
-      };
-      window.addEventListener("storage", handleStorage);
+      await fetchUnreadNotificationCount(user.id);
       
       setLoading(false);
     };
@@ -307,7 +314,7 @@ export default function PatientDashboardPage() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <StatCard icon={<CalendarCheck className="text-amber-500" size={24} />} title="Janji Temu Mendatang" value={upcomingAppointments.length} />
             <StatCard icon={<CheckCircle2 className="text-emerald-500" size={24} />} title="Konsultasi Selesai" value={completedAppointments.length} />
-            <StatCard icon={<Bell className="text-rose-500" size={24} />} title="Notifikasi Baru" value={hasUnread ? 1 : 0} />
+            <StatCard icon={<Bell className="text-rose-500" size={24} />} title="Notifikasi Baru" value={unreadNotificationCount} />
           </div>
 
           {/* Dokter Tersedia */}

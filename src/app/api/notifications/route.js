@@ -15,24 +15,31 @@ export async function GET(request) {
     const url = new URL(request.url);
     const userId = url.searchParams.get("user_id");
     const unreadOnly = url.searchParams.get("unread") === "true";
+    const countOnly = url.searchParams.get("count") === "true";
 
     if (!userId) {
       return NextResponse.json({ message: "Parameter user_id wajib disertakan" }, { status: 400 });
     }
 
-    let query = supabase
-      .from("notifications")
-      .select("id, user_id, title, message, is_read, created_at")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false });
+    let query = countOnly
+      ? supabase.from("notifications").select("id", { count: "exact", head: true })
+      : supabase
+          .from("notifications")
+          .select("id, user_id, title, message, is_read, created_at")
+          .order("created_at", { ascending: false });
 
+    query = query.eq("user_id", userId);
     if (unreadOnly) query = query.eq("is_read", false);
 
-    const { data, error } = await query;
+    const { data, error, count } = await query;
 
     if (error) {
       console.error("Error fetching notifications:", error);
       return NextResponse.json({ message: "Gagal mengambil notifikasi" }, { status: 500 });
+    }
+
+    if (countOnly) {
+      return NextResponse.json({ count: count ?? 0 }, { status: 200 });
     }
 
     return NextResponse.json({ notifications: data }, { status: 200 });
