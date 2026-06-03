@@ -88,6 +88,7 @@ export default function DoctorPatientsPage() {
 
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [patientImages, setPatientImages] = useState({});
 
   // Modal
   const [selectedAppt, setSelectedAppt] = useState(null);
@@ -113,6 +114,27 @@ export default function DoctorPatientsPage() {
         const json = await res.json();
         const all = Array.isArray(json.data) ? json.data : [];
         setAppointments(all);
+
+        // Fetch patient profile images via API /api/user?id=patient_id
+        try {
+          const uniqueIds = Array.from(new Set(all.map(a => a.patient_id).filter(Boolean)));
+          const imagesMap = {};
+          await Promise.all(uniqueIds.map(async (pid) => {
+            try {
+              const r = await fetch(`/api/user?id=${pid}`, { cache: "no-store" });
+              if (!r.ok) return;
+              const j = await r.json();
+              const user = j?.data || (Array.isArray(j.data) ? j.data[0] : null);
+              const img = user?.img_url || null;
+              if (img) imagesMap[pid] = img;
+            } catch (e) {
+              // ignore per-user failures
+            }
+          }));
+          setPatientImages(imagesMap);
+        } catch (e) {
+          console.error("Gagal memuat gambar pasien:", e);
+        }
       }
     } catch (err) {
       console.error("Gagal memuat riwayat:", err);
@@ -175,7 +197,25 @@ export default function DoctorPatientsPage() {
   }, [filterStatus, searchQuery]);
 
   // ── Modal handlers ─────────────────────────────────────
-  const openDetail = (appt) => { setSelectedAppt(appt); setIsModalOpen(true); };
+  const openDetail = async (appt) => {
+    setSelectedAppt(appt);
+    // Ensure patient image is available for modal (fetch single if missing)
+    try {
+      const pid = appt.patient_id;
+      if (pid && !patientImages[pid]) {
+        const r = await fetch(`/api/user?id=${pid}`, { cache: "no-store" });
+        if (r.ok) {
+          const j = await r.json();
+          const user = j?.data || (Array.isArray(j.data) ? j.data[0] : null);
+          const img = user?.img_url || null;
+          if (img) setPatientImages(prev => ({ ...prev, [pid]: img }));
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+    setIsModalOpen(true);
+  };
   const closeModal = () => { setIsModalOpen(false); setSelectedAppt(null); };
 
   // ── Render ─────────────────────────────────────────────
@@ -372,7 +412,7 @@ export default function DoctorPatientsPage() {
             <div className="p-6 border-b border-gray-100 flex flex-col items-center justify-center">
               <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-100 mb-3 border-2 border-white shadow-sm flex items-center justify-center">
                 <img
-                  src={`https://api.dicebear.com/7.x/notionists/svg?seed=${selectedAppt.patient_name}`}
+                  src={patientImages[selectedAppt.patient_id] || `https://api.dicebear.com/7.x/notionists/svg?seed=${selectedAppt.patient_name}`}
                   alt={selectedAppt.patient_name}
                   className="w-full h-full object-cover"
                 />
@@ -417,6 +457,9 @@ export default function DoctorPatientsPage() {
               <div className="space-y-3">
                 <DetailRow label="Keluhan" value={selectedAppt.complaints} multiline />
                 <DetailRow label="Catatan Medis" value={selectedAppt.notes} multiline />
+                {(selectedAppt.status === "Dibatalkan" || (selectedAppt.virtualStatus || "").toLowerCase() === "dibatalkan") && (
+                  <DetailRow label="Alasan Pembatalan" value={selectedAppt.cancellation_reason || "—"} multiline />
+                )}
               </div>
             </div>
 
