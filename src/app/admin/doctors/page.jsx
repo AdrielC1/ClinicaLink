@@ -634,7 +634,7 @@ export default function AdminDoctorsPage() {
 
                             <div className="flex gap-3 pt-2">
                                 <button type="button" onClick={() => setShowModal(false)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">Batal</button>
-                                <button type="submit" disabled={formLoading || (inactiveFromDate && new Date(inactiveFromDate) < new Date(new Date().setHours(0,0,0,0)))} className="flex-1 px-4 py-2.5 bg-[#5E81CC] text-white rounded-xl text-sm font-semibold hover:bg-[#4A6BB0] transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
+                                <button type="submit" disabled={formLoading || (inactiveFromDate && new Date(inactiveFromDate) < new Date(new Date().setHours(0,0,0,0))) || (affectedAppointments.length > 0 && !cancellationReason.trim())} className="flex-1 px-4 py-2.5 bg-[#5E81CC] text-white rounded-xl text-sm font-semibold hover:bg-[#4A6BB0] transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
                                     {formLoading ? "Menyimpan..." : editDoctor ? "Simpan Perubahan" : "Tambah Dokter"}
                                 </button>
                             </div>

@@ -341,8 +341,14 @@ export default function AdminDashboardPage() {
   }, [adminId, loadNotifications]);
 
   // ── Pagination logic ─────────────────────────────────────────────────────────
-  const totalPages = Math.max(1, Math.ceil(todayAppointments.length / ROWS_PER_PAGE));
-  const paginatedRows = todayAppointments.slice(
+  const filteredTodayAppointments = useMemo(() => {
+    return todayAppointments.filter((app) =>
+      ["Menunggu", "Sedang Berlangsung", "Selesai"].includes(app.status)
+    );
+  }, [todayAppointments]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredTodayAppointments.length / ROWS_PER_PAGE));
+  const paginatedRows = filteredTodayAppointments.slice(
     (currentPage - 1) * ROWS_PER_PAGE,
     currentPage * ROWS_PER_PAGE
   );
@@ -539,20 +545,7 @@ export default function AdminDashboardPage() {
                           >
                             <Eye className="h-4 w-4" />
                           </button>
-                          <button
-                            onClick={() => setEditAppointment(item)}
-                            className="p-1.5 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="Edit"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(item.id)}
-                            className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Batalkan"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+
                         </div>
                       </td>
                     </tr>
