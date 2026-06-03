@@ -161,9 +161,9 @@ export default function AdminReportsPage() {
 
   // 3. Menyiapkan Data Card & Baris Tabel
   const reportSummary = [
-    { key: "total", title: "Total Appointment", value: filteredData.totalAppointments.length, desc: "Appointment bulan ini" },
+    { key: "total", title: "Total Janji Temu", value: filteredData.totalAppointments.length, desc: "Appointment bulan ini" },
     { key: "completed", title: "Konsultasi Selesai", value: filteredData.completedAppointments.length, desc: "Konsultasi berhasil" },
-    { key: "cancelled", title: "Appointment Dibatalkan", value: filteredData.cancelledAppointments.length, desc: "Dibatalkan pasien/sistem" },
+    { key: "cancelled", title: "Janji Temu Dibatalkan", value: filteredData.cancelledAppointments.length, desc: "Dibatalkan pasien/sistem" },
     { key: "newPatient", title: "Pendaftaran Pasien Baru", value: filteredData.newPatient.length, desc: "Pasien terdaftar" },
   ];
 
@@ -182,12 +182,12 @@ export default function AdminReportsPage() {
   // 4. Konfigurasi Modal Detail
   const modalConfig = {
     total: {
-      title: "Detail Total Appointment",
+      title: "Detail Total Janji Temu",
       type: "appointment",
       rows: filteredData.totalAppointments,
     },
     cancelled: {
-      title: "Detail Appointment Dibatalkan",
+      title: "Detail Janji Temu Dibatalkan",
       type: "appointment",
       rows: filteredData.cancelledAppointments,
     },
@@ -227,9 +227,9 @@ export default function AdminReportsPage() {
       });
     };
 
-    pushToCSV("Total Appointment", filteredData.totalAppointments);
+    pushToCSV("Total Janji Temu", filteredData.totalAppointments);
     pushToCSV("Konsultasi Selesai", filteredData.completedAppointments);
-    pushToCSV("Appointment Dibatalkan", filteredData.cancelledAppointments);
+    pushToCSV("Janji Temu Dibatalkan", filteredData.cancelledAppointments);
     pushToCSV("Pendaftaran Pasien Baru", filteredData.newPatient);
 
     const csvContent = rows
@@ -250,7 +250,7 @@ export default function AdminReportsPage() {
   };
 
   return (
-    <div className="font-sans text-slate-800 pb-6 min-h-screen bg-[#F8FAFC]">
+    <div className="font-sans text-slate-800 pb-6 min-h-screen bg-[#FFFFFF]">
       {/* Header Area */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
         <div>
@@ -332,7 +332,7 @@ export default function AdminReportsPage() {
 
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-left">
-                <thead className="bg-[#F3F6FB] text-gray-700 font-semibold text-xs border-y border-gray-100">
+                <thead className="bg-[#FFFFFF] text-gray-700 font-semibold text-xs border-y border-gray-100">
                   <tr>
                     <th className="px-6 py-4">Laporan</th>
                     <th className="px-6 py-4 text-center">Jumlah</th>
